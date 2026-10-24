@@ -6,6 +6,7 @@ LocalStock is a multi-vendor, multi-warehouse commerce and fulfillment platform.
 
 ```
 apps/
+  web/        Vite + React UI: shop, checkout, orders, seller hub, admin, API explorer
   api/        Express modular monolith (auth, organizations, warehouses, catalog, offers,
               inventory, discovery, checkout, orders, payments, delivery)
   worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers
@@ -32,7 +33,7 @@ scripts/      demo walkthrough (PowerShell), k6 load test
 | 10 Reliability | Done: outbox and inbox, publisher confirms, retries with a dead-letter queue, expiry job, reconciliation |
 | 11 Delivery | Partial: provider model, quoting and assignment at checkout. Live tracking events are not built yet |
 | 12 Production readiness | Not started: Prometheus/Grafana, AWS, runbooks. The k6 script exists |
-| Frontends (customer web, seller and admin dashboards) | Not started |
+| Frontends (customer web, seller and admin dashboards) | Done (`apps/web`, Vite + React): shop, cart and checkout, orders and sandbox payment, seller hub, admin console, API explorer |
 
 ## Run locally (Windows PowerShell)
 
@@ -47,6 +48,7 @@ npm run db:seed                  # demo sellers, warehouses, catalog, providers
 
 npm run dev:api                  # http://localhost:5000
 npm run dev:worker               # in a second terminal
+npm run dev:web                  # http://localhost:5173 (proxies /api and /health to the API)
 
 .\scripts\demo.ps1               # search -> quote -> order (idempotent) -> pay
 ```
@@ -105,7 +107,7 @@ See [docs/adr/README.md](docs/adr/README.md) for the reasoning and trade-offs.
 
 ## Known gaps and next steps
 
-1. Customer web, seller dashboard and admin dashboard (Next.js).
+1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API. There is also no admin endpoint to list variants awaiting review yet.
 2. Shipment lifecycle after confirmation: pickup, tracking webhooks, `CONSUMED` reservations and `DISPATCH` movements.
 3. Refund execution (the `PaymentRefundRequested` event is emitted, but nothing processes it yet), and re-reserving stock for late payments.
 4. Prometheus metrics and Grafana dashboards, AWS deployment, and runbooks.
