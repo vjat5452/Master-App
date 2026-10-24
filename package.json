@@ -1,0 +1,22 @@
+{
+  "name": "localstock",
+  "private": true,
+  "description": "Multi-vendor, multi-warehouse product discovery, inventory, allocation and hybrid-fulfillment platform",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20.6"
+  },
+  "scripts": {
+    "infra:up": "docker compose up -d",
+    "infra:down": "docker compose down",
+    "db:migrate": "npm run migrate -w @localstock/database",
+    "db:seed": "npm run seed -w @localstock/api",
+    "dev:api": "npm run dev -w @localstock/api",
+    "dev:worker": "npm run dev -w @localstock/worker",
+    "test": "npm test --workspaces --if-present",
+    "test:db": "npm run test:db -w @localstock/database"
+  }
+}
