@@ -45,7 +45,7 @@ Copy-Item .env.example .env      # dev-only secrets
 npm install
 npm run infra:up                 # PostGIS, Redis, RabbitMQ (docker compose)
 npm run db:migrate
-npm run db:seed                  # demo sellers, warehouses, catalog, providers
+npm run db:seed                  # demo sellers, warehouses, providers + 69-product catalog with photos
 
 npm run dev:api                  # http://localhost:5000
 npm run dev:worker               # in a second terminal
@@ -61,6 +61,7 @@ The seeded users all have the password `localstock-dev-password`:
 | `admin@localstock.dev` | Platform admin |
 | `seller.a@localstock.dev` | Owner of FreshMart Noida |
 | `seller.b@localstock.dev` | Owner of Daily Needs Delhi |
+| `seller.c@` … `seller.g@localstock.dev` | Owners of Gurgaon Fresh Bazaar, Dwarka Kirana Co., Rohini SuperMart, East Delhi Grocers, Saket Gourmet Pantry |
 | `customer@localstock.dev` | Customer |
 
 The RabbitMQ management UI is at http://localhost:15672 (user `localstock`, password `localstock_dev_password`).
