@@ -21,7 +21,8 @@ test('scheduled runs never overlap and stop() waits for the current run', async 
     },
     silent,
   );
-  await new Promise((r) => setTimeout(r, 60));
+  // Wait for runs rather than a fixed time: Windows timers tick at ~15 ms, so a short sleep is flaky.
+  for (let waited = 0; runs < 3 && waited < 2000; waited += 10) await new Promise((r) => setTimeout(r, 10));
   await job.stop();
   assert.equal(maxActive, 1);
   assert.equal(active, 0);
@@ -39,7 +40,7 @@ test('a failing job keeps being scheduled', async () => {
     },
     silent,
   );
-  await new Promise((r) => setTimeout(r, 30));
+  for (let waited = 0; calls < 2 && waited < 2000; waited += 10) await new Promise((r) => setTimeout(r, 10));
   await job.stop();
   assert.ok(calls >= 2);
 });

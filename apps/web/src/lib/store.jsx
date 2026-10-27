@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { toast } from 'sonner';
 import { get, getTokens, onTokensChange, post, setTokens } from './api.js';
 
 function usePersisted(key, initial) {
@@ -131,31 +132,10 @@ export const useCart = () => useContext(CartContext);
 
 /* ---------- toasts ---------- */
 
-const ToastContext = createContext(null);
+const TOAST = { good: toast.success, bad: toast.error, warn: toast.warning, info: toast.info };
 
-export function ToastProvider({ children }) {
-  const [toasts, setToasts] = useState([]);
-  const nextId = useRef(1);
-  const push = useCallback((message, kind = 'good') => {
-    const id = nextId.current++;
-    setToasts((t) => [...t, { id, message, kind }]);
-    setTimeout(() => setToasts((t) => t.filter((x) => x.id !== id)), 4200);
-  }, []);
-  return (
-    <ToastContext.Provider value={push}>
-      {children}
-      <div className="toasts" role="status" aria-live="polite">
-        {toasts.map((t) => (
-          <div key={t.id} className={`toast toast-${t.kind}`}>
-            {t.message}
-          </div>
-        ))}
-      </div>
-    </ToastContext.Provider>
-  );
-}
-
-export const useToast = () => useContext(ToastContext);
+/** Returns push(message, kind) where kind is good | bad | warn | info. Rendered by <Toaster/> in main.jsx. */
+export const useToast = () => useCallback((message, kind = 'good') => (TOAST[kind] ?? toast)(message), []);
 
 /* ---------- data loading ---------- */
 

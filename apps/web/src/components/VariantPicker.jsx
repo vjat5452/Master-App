@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
-import { post } from '../lib/api.js';
-import { loadKnownGroups, reviewQueue, searchVariants, setReviewQueue } from '../lib/catalog.js';
-import { attrs } from '../lib/format.js';
-import { useAsync } from '../lib/store.jsx';
-import { Attrs } from './product.jsx';
-import { Badge, Button, ErrorBox, Field, Modal, useSubmit } from './ui.jsx';
+import { CheckCircle2, Loader2, Plus, Search, X } from 'lucide-react';
+import { post } from '@/lib/api';
+import { loadKnownGroups, reviewQueue, searchVariants, setReviewQueue } from '@/lib/catalog';
+import { attrs } from '@/lib/format';
+import { useAsync } from '@/lib/store';
+import { Alert, Badge, Button, ErrorBox, Field, Modal, useSubmit } from './kit.jsx';
+import { Attrs, ProductArt } from './product.jsx';
+import { Input, NativeSelect } from './ui/input.jsx';
 
 /** Search the shared catalog and pick a variant: { variantId, name, brand, attributes }. */
 export function VariantPicker({ value, onChange }) {
@@ -19,43 +21,57 @@ export function VariantPicker({ value, onChange }) {
 
   if (value) {
     return (
-      <div className="shipment row between">
-        <div>
-          <div className="small faint">{value.brand}</div>
-          <strong>{value.name}</strong> <span className="small muted">{attrs(value.attributes).join(' · ')}</span>
+      <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-accent/40 p-3">
+        <ProductArt names={[value.group, value.name]} size="sm" />
+        <div className="min-w-0 flex-1">
+          <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{value.brand}</div>
+          <div className="truncate font-bold">{value.name}</div>
+          <div className="truncate text-xs text-muted-foreground">{attrs(value.attributes).join(' · ')}</div>
         </div>
-        <button className="link" type="button" onClick={() => onChange(null)}>
-          Change
-        </button>
+        <Button type="button" variant="ghost" size="icon-sm" onClick={() => onChange(null)} aria-label="Change product">
+          <X />
+        </Button>
       </div>
     );
   }
   return (
-    <div className="stack-sm">
-      <input className="input" placeholder="Search the catalog…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+    <div className="grid gap-2">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <Input className="pl-9" placeholder="Search the catalog…" value={q} onChange={(e) => setQ(e.target.value)} autoFocus />
+        {loading && <Loader2 className="absolute right-3 top-1/2 size-4 -translate-y-1/2 animate-spin text-muted-foreground" />}
+      </div>
       <ErrorBox error={error} />
-      <div style={{ maxHeight: 220, overflow: 'auto', border: '1px solid var(--border)', borderRadius: 8 }}>
-        {loading && !data && <div className="small muted" style={{ padding: 10 }}>Searching…</div>}
-        {data?.length === 0 && <div className="small muted" style={{ padding: 10 }}>No match.</div>}
+      <div className="max-h-60 overflow-auto rounded-xl border scrollbar-thin">
+        {data?.length === 0 && <div className="p-4 text-center text-sm text-muted-foreground">No match.</div>}
         {data?.map((v) => (
-          <button key={v.variantId} type="button" className="endpoint" onClick={() => onChange(v)}>
-            <span className="grow">
-              <span className="small faint">{v.brand} </span>
-              <strong>{v.name}</strong> <span className="small muted">{attrs(v.attributes).join(' · ')}</span>
+          <button
+            key={v.variantId}
+            type="button"
+            onClick={() => onChange(v)}
+            className="flex w-full items-center gap-3 border-b px-3 py-2.5 text-left transition last:border-0 hover:bg-accent/50"
+          >
+            <ProductArt names={[v.group, v.name]} size="sm" className="size-9 rounded-lg [&_svg]:size-4" />
+            <span className="min-w-0 flex-1">
+              <span className="block truncate text-sm">
+                <span className="text-muted-foreground">{v.brand} </span>
+                <strong>{v.name}</strong>
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">{attrs(v.attributes).join(' · ')}</span>
             </span>
-            <span className="small faint">{v.group}</span>
+            <span className="text-[11px] text-muted-foreground">{v.group}</span>
           </button>
         ))}
       </div>
-      <button className="link small" type="button" onClick={() => setProposing(true)} style={{ alignSelf: 'flex-start' }}>
-        Can't find it? Propose a new product variant →
+      <button type="button" className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:underline" onClick={() => setProposing(true)}>
+        <Plus className="size-3.5" /> Can't find it? Propose a new product variant
       </button>
       {proposing && (
         <ProposeVariantModal
           onClose={() => setProposing(false)}
           onDone={(v) => {
             setProposing(false);
-            if (v.status === 'ACTIVE') onChange({ variantId: v.id, name: v.name, brand: v.brand, attributes: v.attributes });
+            if (v.status === 'ACTIVE') onChange({ variantId: v.id, name: v.name, brand: v.brand, attributes: v.attributes, group: v.groupName });
           }}
         />
       )}
@@ -89,27 +105,28 @@ export function ProposeVariantModal({ onClose, onDone }) {
         ? 'Created, but it looks similar to existing products, so a platform admin must review it before offers can be listed.'
         : 'Created and active. You can list an offer for it now.';
     return (
-      <Modal title="Variant proposal result" onClose={onClose} footer={<Button onClick={() => onDone(v)}>{v.status === 'ACTIVE' ? 'Use this variant' : 'Done'}</Button>}>
-        <div className={`alert ${v.status === 'ACTIVE' ? 'alert-good' : 'alert-warn'}`}>{message}</div>
-        <div className="shipment stack-sm">
-          <div className="row between">
-            <strong>
+      <Modal title="Proposal result" onClose={onClose} footer={<Button onClick={() => onDone(v)}>{v.status === 'ACTIVE' ? 'Use this variant' : 'Done'}</Button>}>
+        <Alert tone={v.status === 'ACTIVE' ? 'good' : 'warn'}>{message}</Alert>
+        <div className="flex items-center gap-3 rounded-xl border p-3">
+          <ProductArt names={[v.groupName, v.name]} size="sm" />
+          <div className="min-w-0 flex-1">
+            <div className="font-bold">
               {v.brand} {v.name}
-            </strong>
-            <Badge status={v.status} />
+            </div>
+            <Attrs attributes={v.attributes} className="mt-1" />
+            <div className="mt-1 font-mono text-[11px] text-muted-foreground">{v.id}</div>
           </div>
-          <Attrs attributes={v.attributes} />
-          <div className="small muted mono">{v.id}</div>
+          <Badge status={v.status} />
         </div>
         {result.possibleDuplicates?.length > 0 && (
-          <div className="stack-sm">
-            <strong className="small">Possible duplicates</strong>
+          <div className="grid gap-2">
+            <div className="text-sm font-bold">Possible duplicates</div>
             {result.possibleDuplicates.map((d) => (
-              <div key={d.id} className="row between small">
+              <div key={d.id} className="flex items-center justify-between rounded-lg bg-muted/50 px-3 py-2 text-sm">
                 <span>
                   {d.brand} {d.name}
                 </span>
-                <span className="faint">similarity {d.score}</span>
+                <Badge kind="warn">similarity {d.score}</Badge>
               </div>
             ))}
           </div>
@@ -121,6 +138,7 @@ export function ProposeVariantModal({ onClose, onDone }) {
   return (
     <Modal
       title="Propose a product variant"
+      description="Matching rules decide whether this is an existing product, a new one, or needs review."
       onClose={onClose}
       footer={
         <>
@@ -128,56 +146,64 @@ export function ProposeVariantModal({ onClose, onDone }) {
             Cancel
           </Button>
           <Button type="submit" form="propose-form" busy={submit.busy}>
-            Submit proposal
+            <CheckCircle2 /> Submit proposal
           </Button>
         </>
       }
     >
-      <form id="propose-form" className="stack" onSubmit={submit.run}>
+      <form id="propose-form" className="grid gap-4" onSubmit={submit.run}>
         <Field label="Product group" hint={groups.loading ? 'Loading groups…' : 'Groups seen in the catalog or created in this browser'}>
-          <select className="select" value={form.groupId} onChange={set('groupId')} required>
+          <NativeSelect value={form.groupId} onChange={set('groupId')} required>
             <option value="">Choose…</option>
             {groups.data?.map((g) => (
               <option key={g.id} value={g.id}>
                 {g.name}
               </option>
             ))}
-          </select>
+          </NativeSelect>
         </Field>
-        <div className="form-grid">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Brand">
-            <input className="input" value={form.brand} onChange={set('brand')} maxLength={100} />
+            <Input value={form.brand} onChange={set('brand')} maxLength={100} />
           </Field>
           <Field label="Name">
-            <input className="input" value={form.name} onChange={set('name')} required maxLength={200} />
+            <Input value={form.name} onChange={set('name')} required maxLength={200} />
           </Field>
         </div>
         <Field label="Barcode (GTIN)" hint="8–14 digits, optional. An exact barcode match reuses the existing variant.">
-          <input className="input" value={form.barcode} onChange={set('barcode')} pattern="\d{8,14}" inputMode="numeric" />
+          <Input value={form.barcode} onChange={set('barcode')} pattern="\d{8,14}" inputMode="numeric" />
         </Field>
-        <div className="stack-sm">
-          <span className="field-label">Attributes</span>
+        <div className="grid gap-2">
+          <span className="text-[13px] font-semibold">Attributes</span>
           {form.attrs.map((a, i) => (
-            <div key={i} className="row">
-              <input
-                className="input"
+            <div key={i} className="flex gap-2">
+              <Input
                 placeholder="key (e.g. weight)"
                 value={a.k}
                 onChange={(e) => setForm((f) => ({ ...f, attrs: f.attrs.map((x, j) => (j === i ? { ...x, k: e.target.value } : x)) }))}
               />
-              <input
-                className="input"
+              <Input
                 placeholder="value (e.g. 400 g)"
                 value={a.v}
                 onChange={(e) => setForm((f) => ({ ...f, attrs: f.attrs.map((x, j) => (j === i ? { ...x, v: e.target.value } : x)) }))}
               />
-              <button type="button" className="icon-btn" aria-label="Remove" onClick={() => setForm((f) => ({ ...f, attrs: f.attrs.filter((_, j) => j !== i) }))}>
-                ×
-              </button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon"
+                aria-label="Remove attribute"
+                onClick={() => setForm((f) => ({ ...f, attrs: f.attrs.filter((_, j) => j !== i) }))}
+              >
+                <X />
+              </Button>
             </div>
           ))}
-          <button type="button" className="link small" style={{ alignSelf: 'flex-start' }} onClick={() => setForm((f) => ({ ...f, attrs: [...f.attrs, { k: '', v: '' }] }))}>
-            + Add attribute
+          <button
+            type="button"
+            className="inline-flex w-fit items-center gap-1 text-xs font-semibold text-primary hover:underline"
+            onClick={() => setForm((f) => ({ ...f, attrs: [...f.attrs, { k: '', v: '' }] }))}
+          >
+            <Plus className="size-3.5" /> Add attribute
           </button>
         </div>
         <ErrorBox error={groups.error || submit.error} />

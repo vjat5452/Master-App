@@ -1,9 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Badge, Button, Card, CopyId, ErrorBox, Json, Spinner, useSubmit } from '../components/ui.jsx';
-import { get, post } from '../lib/api.js';
-import { dateTime, minutes, money, title } from '../lib/format.js';
-import { useAsync, useToast } from '../lib/store.jsx';
+import { ChevronRight, CircleDollarSign, CreditCard, Hourglass, Package, RefreshCw, Truck, Warehouse, Webhook, XCircle } from 'lucide-react';
+import { ProgressStepper } from '@/components/mui/lazy';
+import { Alert, Badge, Button, CopyId, ErrorBox, Json, KV, Panel, Reveal, Spinner, useSubmit } from '@/components/kit';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { get, post } from '@/lib/api';
+import { dateTime, minutes, money, title } from '@/lib/format';
+import { useAsync, useToast } from '@/lib/store';
 
 const OUTCOME = {
   CONFIRMED: ['Payment succeeded; order confirmed', 'good'],
@@ -27,24 +31,17 @@ function useCountdown(iso) {
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
 
-function Timeline({ order }) {
+function progress(order) {
   const s = order.status;
   const failed = ['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUND_PENDING'].includes(s);
   const steps = [
-    { label: 'Placed', done: true },
+    { label: 'Placed', caption: dateTime(order.createdAt), done: true },
     { label: 'Stock reserved', done: true },
-    { label: failed ? title(s) : 'Paid', done: s === 'CONFIRMED' || failed, fail: failed },
+    { label: failed ? title(s) : 'Paid', done: s === 'CONFIRMED', error: failed },
     { label: 'Confirmed', done: s === 'CONFIRMED' },
   ];
-  return (
-    <div className="timeline">
-      {steps.map((st) => (
-        <div key={st.label} className={`timeline-step ${st.done ? 'done' : ''} ${st.fail ? 'fail' : ''}`}>
-          {st.label}
-        </div>
-      ))}
-    </div>
-  );
+  const active = s === 'CONFIRMED' ? 4 : 2;
+  return { steps, active };
 }
 
 export default function OrderDetail() {
@@ -66,152 +63,173 @@ export default function OrderDetail() {
     toast('Order cancelled; reserved stock released', 'info');
   });
 
-  if (loading && !order) return <Spinner />;
+  if (loading && !order) return <Spinner className="py-32" />;
   if (error && !order) return <ErrorBox error={error} onRetry={reload} />;
 
   const pending = order.status === 'PENDING_PAYMENT';
+  const { steps, active } = progress(order);
+
   return (
-    <div className="stack">
-      <div className="small muted">
-        <Link to="/orders">My orders</Link> / {order.id.slice(0, 8)}
-      </div>
-      <div className="page-head" style={{ marginBottom: 0 }}>
+    <div className="space-y-8">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link to="/orders" className="hover:text-foreground">
+          My orders
+        </Link>
+        <ChevronRight className="size-3.5" />
+        <span className="font-mono font-semibold text-foreground">{order.id.slice(0, 8)}</span>
+      </nav>
+
+      <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="row gap-sm">
-            <h1>Order</h1>
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-3xl font-extrabold tracking-tight sm:text-4xl">Order</h1>
             <CopyId id={order.id} />
-            <Badge status={order.status} />
+            <Badge status={order.status} dot />
           </div>
-          <p>Placed {dateTime(order.createdAt)} · updated {dateTime(order.updatedAt)}</p>
+          <p className="mt-2 text-muted-foreground">
+            Placed {dateTime(order.createdAt)} · updated {dateTime(order.updatedAt)}
+          </p>
         </div>
         <Button variant="secondary" onClick={reload} busy={loading}>
-          Refresh
+          <RefreshCw /> Refresh
         </Button>
       </div>
 
-      <div className="split">
-        <div className="stack">
-          <Card>
-            <Timeline order={order} />
-          </Card>
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-6">
+          <Reveal>
+            <Card className="px-4 py-6 sm:px-8">
+              <ProgressStepper steps={steps} active={active} />
+            </Card>
+          </Reveal>
 
-          <Card title="Items" pad={false}>
-            <div className="table-wrap">
-              <table className="table">
-                <thead>
-                  <tr>
-                    <th>Product</th>
-                    <th>Seller</th>
-                    <th className="num">Qty</th>
-                    <th className="num">Unit</th>
-                    <th className="num">Line total</th>
-                  </tr>
-                </thead>
-                <tbody>
+          <Reveal delay={0.05}>
+            <Panel icon={Package} title="Items" description={`${order.items.length} line${order.items.length === 1 ? '' : 's'}`} pad={false}>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Product</TableHead>
+                    <TableHead>Seller</TableHead>
+                    <TableHead className="text-right">Qty</TableHead>
+                    <TableHead className="text-right">Unit</TableHead>
+                    <TableHead className="text-right">Line total</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
                   {order.items.map((i) => (
-                    <tr key={i.id}>
-                      <td>
-                        <Link to={`/product/${i.variantId}`}>{i.variantName}</Link>
-                      </td>
-                      <td>{i.sellerName}</td>
-                      <td className="num">{i.quantity}</td>
-                      <td className="num">{money(i.unitPriceMinor)}</td>
-                      <td className="num price">{money(i.unitPriceMinor * i.quantity)}</td>
-                    </tr>
+                    <TableRow key={i.id}>
+                      <TableCell>
+                        <Link to={`/product/${i.variantId}`} className="font-bold hover:text-primary">
+                          {i.variantName}
+                        </Link>
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">{i.sellerName}</TableCell>
+                      <TableCell className="num text-right">{i.quantity}</TableCell>
+                      <TableCell className="num text-right">{money(i.unitPriceMinor)}</TableCell>
+                      <TableCell className="num text-right font-extrabold">{money(i.unitPriceMinor * i.quantity)}</TableCell>
+                    </TableRow>
                   ))}
-                </tbody>
-              </table>
-            </div>
-          </Card>
+                </TableBody>
+              </Table>
+            </Panel>
+          </Reveal>
 
-          <Card title={`Shipments (${order.shipments.length})`}>
-            <div className="grid grid-2">
-              {order.shipments.map((s, n) => (
-                <div key={s.id} className="shipment stack-sm">
-                  <div className="row between">
-                    <strong>
-                      #{n + 1} from {s.warehouseName}
-                    </strong>
-                    <Badge status={s.status} />
+          <Reveal delay={0.1}>
+            <Panel icon={Truck} title={`Shipments (${order.shipments.length})`} description="Each shipment leaves from its own warehouse">
+              <div className="grid gap-3 sm:grid-cols-2">
+                {order.shipments.map((s, n) => (
+                  <div key={s.id} className="rounded-2xl border bg-muted/20 p-4">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="flex items-center gap-3">
+                        <span className="grid size-10 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white">
+                          <Warehouse className="size-5" />
+                        </span>
+                        <div>
+                          <div className="text-xs font-semibold text-muted-foreground">Shipment #{n + 1}</div>
+                          <div className="font-bold">{s.warehouseName}</div>
+                        </div>
+                      </div>
+                      <Badge status={s.status} />
+                    </div>
+                    <div className="mt-3 text-xs text-muted-foreground">{s.provider ? `${s.provider.name} · ${title(s.provider.type)}` : 'No courier assigned'}</div>
+                    <div className="mt-3 flex justify-between border-t pt-3 text-sm">
+                      <span>
+                        Fee <strong className="num">{money(s.deliveryFeeMinor)}</strong>
+                      </span>
+                      <span>
+                        ETA <strong>{minutes(s.etaMinutes)}</strong>
+                      </span>
+                    </div>
                   </div>
-                  <div className="small muted">
-                    {s.provider ? `${s.provider.name} · ${title(s.provider.type)}` : 'No courier assigned'}
-                  </div>
-                  <div className="row between small">
-                    <span>Delivery fee {money(s.deliveryFeeMinor)}</span>
-                    <span>ETA {minutes(s.etaMinutes)}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
+                ))}
+              </div>
+            </Panel>
+          </Reveal>
 
           {lastEvent && (
-            <Card title="Last sandbox webhook" actions={<span className="small faint">verified HMAC path</span>}>
+            <Panel icon={Webhook} title="Last sandbox webhook" description="Delivered through the verified HMAC path">
               <Json value={lastEvent} small />
-            </Card>
+            </Panel>
           )}
         </div>
 
-        <div className="sticky stack">
-          <Card title="Payment">
-            <div className="stack">
-              <dl className="kv" style={{ margin: 0 }}>
-                <dt>Subtotal</dt>
-                <dd>{money(order.subtotalMinor)}</dd>
-                <dt>Delivery</dt>
-                <dd>{money(order.deliveryFeeMinor)}</dd>
-                <dt className="total-row">Total</dt>
-                <dd className="total-row">{money(order.totalMinor)}</dd>
-                {order.payment && (
-                  <>
-                    <dt>Provider</dt>
-                    <dd>
-                      {order.payment.provider} <span className="mono small faint">{order.payment.providerPaymentId.slice(0, 12)}…</span>
-                    </dd>
-                    <dt>Status</dt>
-                    <dd>
-                      <Badge status={order.payment.status} />
-                    </dd>
-                  </>
-                )}
-              </dl>
+        <div className="space-y-6 lg:sticky lg:top-24">
+          <Card className="overflow-hidden">
+            <div className="flex items-center gap-3 border-b bg-muted/30 px-6 py-4">
+              <CreditCard className="size-5 text-primary" />
+              <h3 className="font-bold">Payment</h3>
+              {order.payment && <Badge status={order.payment.status} className="ml-auto" />}
+            </div>
+            <div className="space-y-5 p-6">
+              <KV
+                rows={[
+                  ['Subtotal', money(order.subtotalMinor)],
+                  ['Delivery', money(order.deliveryFeeMinor)],
+                  ['Total', money(order.totalMinor), true],
+                ]}
+              />
+              {order.payment && (
+                <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
+                  <span className="capitalize text-muted-foreground">{order.payment.provider}</span>
+                  <span className="font-mono">{order.payment.providerPaymentId.slice(0, 16)}…</span>
+                </div>
+              )}
 
               {pending && countdown && (
-                <div className={`alert ${countdown === 'expired' ? 'alert-bad' : 'alert-warn'}`}>
+                <Alert tone={countdown === 'expired' ? 'bad' : 'warn'}>
                   {countdown === 'expired' ? (
-                    <span>The reservation has expired. The worker will release the stock and paying now will trigger a refund.</span>
+                    'The reservation has expired. The worker will release the stock and paying now will trigger a refund.'
                   ) : (
-                    <span>
-                      Stock reserved for <strong className="mono">{countdown}</strong>. Pay before it runs out.
+                    <span className="flex items-center gap-2">
+                      <Hourglass className="size-4" /> Stock reserved for <strong className="num font-mono text-base">{countdown}</strong>
                     </span>
                   )}
-                </div>
+                </Alert>
               )}
 
               <ErrorBox error={pay.error} />
               <ErrorBox error={cancel.error} />
               {pending && order.payment && (
-                <>
-                  <Button size="lg" className="btn-block" busy={pay.busy} onClick={() => pay.run('SUCCEEDED')}>
-                    Pay {money(order.totalMinor)} (sandbox)
+                <div className="space-y-2.5">
+                  <Button size="lg" variant="gold" block busy={pay.busy} onClick={() => pay.run('SUCCEEDED')}>
+                    <CircleDollarSign /> Pay {money(order.totalMinor)}
                   </Button>
-                  <div className="row">
-                    <Button variant="secondary" className="grow" disabled={pay.busy} onClick={() => pay.run('FAILED')}>
+                  <div className="grid grid-cols-2 gap-2">
+                    <Button variant="secondary" disabled={pay.busy} onClick={() => pay.run('FAILED')}>
                       Simulate failure
                     </Button>
-                    <Button variant="danger" className="grow" busy={cancel.busy} onClick={() => cancel.run()}>
-                      Cancel order
+                    <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" busy={cancel.busy} onClick={() => cancel.run()}>
+                      <XCircle /> Cancel
                     </Button>
                   </div>
-                </>
+                </div>
               )}
-              {order.status === 'CONFIRMED' && <div className="alert alert-good">Paid and confirmed. Your shipments are being prepared.</div>}
+              {order.status === 'CONFIRMED' && <Alert tone="good" title="Paid and confirmed">Your shipments are being prepared.</Alert>}
               {!pending && order.payment?.status === 'SUCCEEDED' && order.status !== 'CONFIRMED' && (
-                <div className="alert alert-info">Payment captured after the order closed; a refund is pending.</div>
+                <Alert tone="info">Payment captured after the order closed; a refund is pending.</Alert>
               )}
-              <p className="small faint" style={{ margin: 0 }}>
-                The sandbox button stands in for a real payment page. It sends a signed webhook through the same code path a provider would use.
+              <p className="text-xs text-muted-foreground">
+                Sandbox payments stand in for a real payment page. Each one sends a signed webhook through the same code path a provider would use.
               </p>
             </div>
           </Card>

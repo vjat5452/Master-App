@@ -1,7 +1,19 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Badge, Button, Card, ErrorBox, Field, Json, Spinner, useSubmit } from '../components/ui.jsx';
-import { API_BASE, get, newIdempotencyKey, rawRequest } from '../lib/api.js';
-import { useAuth, useDeliveryLocation } from '../lib/store.jsx';
+import { Activity, KeyRound, Lock, Search, Send, ShieldCheck, Terminal } from 'lucide-react';
+import { Alert, Badge, Button, ErrorBox, Field, Json, PageHeader, Panel, Spinner, useSubmit } from '@/components/kit';
+import { Input, Textarea } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/misc';
+import { Table, TableBody, TableCell, TableRow } from '@/components/ui/table';
+import { API_BASE, get, newIdempotencyKey, rawRequest } from '@/lib/api';
+import { useAuth, useDeliveryLocation } from '@/lib/store';
+import { cn } from '@/lib/utils';
+
+const METHOD_STYLE = {
+  GET: 'bg-sky-500/15 text-sky-700 dark:text-sky-300',
+  POST: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-300',
+  PATCH: 'bg-amber-500/15 text-amber-700 dark:text-amber-300',
+};
+const Method = ({ m }) => <span className={cn('inline-block w-12 shrink-0 rounded-md py-0.5 text-center font-mono text-[10px] font-bold', METHOD_STYLE[m])}>{m}</span>;
 
 // Every route the API exposes. `auth`: none | user | company | company-manager | admin.
 const ENDPOINTS = [
@@ -170,118 +182,128 @@ export default function Explorer() {
 
   return (
     <>
-      <div className="page-head">
-        <div>
-          <h1>API explorer</h1>
-          <p>
-            Every LocalStock endpoint, called through the dev proxy with your current session{user ? ` (${user.email})` : ' (signed out)'}. Ids are filled in from live data.
-          </p>
-        </div>
-      </div>
+      <PageHeader
+        eyebrow="Developers"
+        title="API explorer"
+        description={`Every LocalStock endpoint, called through the dev proxy with your current session${user ? ` (${user.email})` : ' (signed out)'}. Ids are filled in from live data.`}
+      />
 
       <SmokeTest ids={ids} discovering={discovering} user={user} />
 
-      <div className="split split-left" style={{ marginTop: 20 }}>
-        <Card pad={false} className="sticky">
-          <div style={{ padding: 10, borderBottom: '1px solid var(--border)' }}>
-            <input className="input" placeholder={`Filter ${ENDPOINTS.length} endpoints…`} value={filter} onChange={(e) => setFilter(e.target.value)} />
+      <div className="mt-6 grid items-start gap-6 lg:grid-cols-[320px_minmax(0,1fr)]">
+        <Panel pad={false} className="lg:sticky lg:top-24">
+          <div className="relative border-b p-3">
+            <Search className="absolute left-6 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input className="pl-9" placeholder={`Filter ${ENDPOINTS.length} endpoints…`} value={filter} onChange={(e) => setFilter(e.target.value)} />
           </div>
-          <div style={{ padding: '0 6px 10px', maxHeight: 'calc(100vh - 220px)', overflow: 'auto' }}>
+          <div className="max-h-[calc(100vh-220px)] overflow-auto p-2 scrollbar-thin">
             {groups.map(([g, eps]) => (
-              <div key={g}>
-                <div className="ep-group">{g}</div>
+              <div key={g} className="mb-2">
+                <div className="px-2 pb-1 pt-2 text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">{g}</div>
                 {eps.map((ep) => (
-                  <button key={ep.m + ep.p} className={`endpoint ${sel === ep ? 'on' : ''}`} onClick={() => setSel(ep)} title={ep.d}>
-                    <span className={`method method-${ep.m}`}>{ep.m}</span>
-                    <code>{ep.p}</code>
-                    <span className="lock">{ep.auth === 'none' ? '' : ep.auth === 'admin' ? '🛡' : '🔒'}</span>
+                  <button
+                    key={ep.m + ep.p}
+                    onClick={() => setSel(ep)}
+                    title={ep.d}
+                    className={cn(
+                      'flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left transition hover:bg-muted/60',
+                      sel === ep && 'bg-accent ring-1 ring-primary/20',
+                    )}
+                  >
+                    <Method m={ep.m} />
+                    <code className="min-w-0 flex-1 truncate font-mono text-[11.5px]">{ep.p}</code>
+                    {ep.auth === 'admin' ? <ShieldCheck className="size-3.5 text-amber-500" /> : ep.auth !== 'none' && <Lock className="size-3 text-muted-foreground" />}
                   </button>
                 ))}
               </div>
             ))}
           </div>
-        </Card>
+        </Panel>
 
-        <div className="stack">
-          <Card
+        <div className="space-y-6">
+          <Panel
             title={
-              <span className="row gap-sm">
-                <span className={`method method-${sel.m}`}>{sel.m}</span> {sel.d}
+              <span className="flex items-center gap-2">
+                <Method m={sel.m} /> {sel.d}
               </span>
             }
             actions={<Badge kind={sel.auth === 'none' ? 'muted' : 'info'}>{AUTH_LABEL[sel.auth]}</Badge>}
           >
-            <div className="stack">
+            <div className="grid gap-4">
               <Field label="Path">
-                <input className="input mono" value={path} onChange={(e) => setPath(e.target.value)} />
+                <Input className="font-mono" value={path} onChange={(e) => setPath(e.target.value)} />
               </Field>
               {(sel.m === 'GET' || sel.query) && (
                 <Field label="Query string">
-                  <input className="input mono" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="key=value&…" />
+                  <Input className="font-mono" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="key=value&…" />
                 </Field>
               )}
               {sel.body && (
                 <Field label="JSON body">
-                  <textarea className="textarea" rows={Math.min(14, body.split('\n').length + 1)} value={body} onChange={(e) => setBody(e.target.value)} spellCheck={false} />
+                  <Textarea className="font-mono text-xs" rows={Math.min(14, body.split('\n').length + 1)} value={body} onChange={(e) => setBody(e.target.value)} spellCheck={false} />
                 </Field>
               )}
               {sel.idem && (
                 <Field label="Idempotency-Key" hint="Send twice with the same key: one order, and the replay is flagged in the response headers">
-                  <div className="row">
-                    <input className="input mono" value={idemKey} onChange={(e) => setIdemKey(e.target.value)} />
-                    <Button variant="secondary" size="sm" onClick={() => setIdemKey(newIdempotencyKey())}>
-                      New key
+                  <div className="flex gap-2">
+                    <Input className="font-mono" value={idemKey} onChange={(e) => setIdemKey(e.target.value)} />
+                    <Button type="button" variant="secondary" onClick={() => setIdemKey(newIdempotencyKey())}>
+                      <KeyRound /> New key
                     </Button>
                   </div>
                 </Field>
               )}
               {sel.webhook && (
                 <Field label="Webhook secret" hint="PAYMENT_WEBHOOK_SECRET from .env. The body is signed in your browser with HMAC-SHA256 and never stored.">
-                  <input className="input mono" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} />
+                  <Input className="font-mono" type="password" value={secret} onChange={(e) => setSecret(e.target.value)} />
                 </Field>
               )}
-              <div className="row between wrap">
-                <label className="check small">
-                  <input type="checkbox" checked={useAuthHeader} onChange={(e) => setUseAuthHeader(e.target.checked)} />
-                  Send Authorization: Bearer token{!user && ' (not signed in)'}
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                  <Checkbox checked={useAuthHeader} onCheckedChange={(v) => setUseAuthHeader(Boolean(v))} />
+                  Send <code className="font-mono text-xs">Authorization: Bearer</code>
+                  {!user && <span className="text-muted-foreground">(not signed in)</span>}
                 </label>
                 <Button busy={send.busy} onClick={() => send.run()}>
-                  Send request
+                  <Send /> Send request
                 </Button>
               </div>
               {unresolved.length > 0 && !discovering && (
-                <div className="alert alert-warn small">
+                <Alert tone="warn">
                   Fill in {[...new Set(unresolved)].join(', ')}.{' '}
                   {!user ? 'Sign in so the explorer can find your companies and orders.' : 'No matching record was found for your account yet.'}
-                </div>
+                </Alert>
               )}
               <ErrorBox error={send.error} />
             </div>
-          </Card>
+          </Panel>
 
           {send.busy && !response && <Spinner label="Waiting for the API…" />}
           {response && (
-            <Card
+            <Panel
+              icon={Terminal}
               title={
-                <span className="row gap-sm">
+                <span className="flex items-center gap-2">
                   <Badge kind={response.ok ? 'good' : response.status >= 500 ? 'bad' : 'warn'}>{response.status}</Badge>
-                  <span className="mono small">{response.method} {response.url}</span>
+                  <span className="truncate font-mono text-xs font-medium">
+                    {response.method} {response.url}
+                  </span>
                 </span>
               }
               actions={
                 <>
-                  <span className="small faint">{response.ms} ms</span>
-                  <button className="link small" onClick={() => setShowHeaders((s) => !s)}>
+                  <span className="num text-xs text-muted-foreground">{response.ms} ms</span>
+                  <Button size="sm" variant="ghost" onClick={() => setShowHeaders((s) => !s)}>
                     {showHeaders ? 'Hide' : 'Show'} headers
-                  </button>
+                  </Button>
                 </>
               }
             >
-              <div className="stack">
+              <div className="grid gap-4">
                 {showHeaders && <Json value={response.headers} small />}
-                {response.status === 204 ? <div className="muted">204 No Content</div> : <Json value={response.data} />}
+                {response.status === 204 ? <div className="text-muted-foreground">204 No Content</div> : <Json value={response.data} />}
               </div>
-            </Card>
+            </Panel>
           )}
         </div>
       </div>
@@ -321,12 +343,14 @@ function SmokeTest({ ids, discovering, user }) {
   const passed = results?.filter((r) => r.ok).length ?? 0;
   const ran = results?.filter((r) => !r.skipped).length ?? 0;
   return (
-    <Card
+    <Panel
+      icon={Activity}
       title="Endpoint health check"
+      description={results ? undefined : 'Call every read endpoint with real ids for your account'}
       actions={
         <>
           {results && !running && (
-            <Badge kind={passed === ran ? 'good' : 'bad'}>
+            <Badge kind={passed === ran ? 'good' : 'bad'} dot>
               {passed}/{ran} passed
             </Badge>
           )}
@@ -338,30 +362,27 @@ function SmokeTest({ ids, discovering, user }) {
       pad={!results}
     >
       {!results && (
-        <p className="muted" style={{ margin: 0 }}>
-          Calls all {ENDPOINTS.filter((e) => e.m === 'GET').length} read endpoints with real ids for your account and shows the status codes. Sign in as a seller to
-          include the company endpoints.
+        <p className="text-sm text-muted-foreground">
+          Calls all {ENDPOINTS.filter((e) => e.m === 'GET').length} read endpoints and shows the status codes. Sign in as a seller to include the company endpoints.
         </p>
       )}
       {results && (
-        <div className="table-wrap">
-          <table className="table">
-            <tbody>
-              {results.map((r) => (
-                <tr key={r.ep.p}>
-                  <td style={{ width: 70 }}>
-                    <span className="method method-GET">GET</span>
-                  </td>
-                  <td className="mono small">{r.ep.p}</td>
-                  <td className="small muted">{r.skipped ?? r.summary}</td>
-                  <td className="num small faint">{r.ms != null && `${r.ms} ms`}</td>
-                  <td className="right">{r.skipped ? <Badge kind="muted">skipped</Badge> : <Badge kind={r.ok ? 'good' : 'bad'}>{r.status}</Badge>}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableBody>
+            {results.map((r) => (
+              <TableRow key={r.ep.p}>
+                <TableCell className="w-16">
+                  <Method m="GET" />
+                </TableCell>
+                <TableCell className="font-mono text-xs">{r.ep.p}</TableCell>
+                <TableCell className="text-xs text-muted-foreground">{r.skipped ?? r.summary}</TableCell>
+                <TableCell className="num text-right text-xs text-muted-foreground">{r.ms != null && `${r.ms} ms`}</TableCell>
+                <TableCell className="text-right">{r.skipped ? <Badge kind="muted">skipped</Badge> : <Badge kind={r.ok ? 'good' : 'bad'}>{r.status}</Badge>}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
-    </Card>
+    </Panel>
   );
 }

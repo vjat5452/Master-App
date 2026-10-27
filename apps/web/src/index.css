@@ -1,0 +1,110 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Warm ivory + deep emerald, with a gold accent for "best pick" moments. */
+  :root {
+    --background: 40 33% 98%;
+    --foreground: 165 30% 9%;
+    --card: 0 0% 100%;
+    --card-foreground: 165 30% 9%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 165 30% 9%;
+    --primary: 160 78% 22%;
+    --primary-foreground: 150 40% 98%;
+    --secondary: 150 20% 94%;
+    --secondary-foreground: 162 40% 16%;
+    --muted: 40 22% 94%;
+    --muted-foreground: 165 8% 40%;
+    --accent: 152 38% 92%;
+    --accent-foreground: 162 60% 18%;
+    --destructive: 0 72% 48%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 40 14% 87%;
+    --input: 40 14% 84%;
+    --ring: 160 78% 26%;
+    --gold: 38 92% 50%;
+    --gold-foreground: 30 60% 12%;
+    --success: 152 69% 31%;
+    --warning: 32 95% 44%;
+    --info: 217 80% 50%;
+    --shadow: 165 30% 9%;
+    --radius: 0.85rem;
+  }
+
+  .dark {
+    --background: 165 28% 5%;
+    --foreground: 150 18% 93%;
+    --card: 165 24% 8%;
+    --card-foreground: 150 18% 93%;
+    --popover: 165 24% 9%;
+    --popover-foreground: 150 18% 93%;
+    --primary: 156 66% 46%;
+    --primary-foreground: 165 50% 6%;
+    --secondary: 165 18% 14%;
+    --secondary-foreground: 150 18% 90%;
+    --muted: 165 16% 13%;
+    --muted-foreground: 155 8% 62%;
+    --accent: 160 30% 15%;
+    --accent-foreground: 150 40% 88%;
+    --destructive: 0 70% 58%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 165 14% 16%;
+    --input: 165 14% 19%;
+    --ring: 156 66% 46%;
+    --gold: 42 95% 58%;
+    --gold-foreground: 30 60% 10%;
+    --success: 152 60% 50%;
+    --warning: 38 92% 58%;
+    --info: 213 90% 66%;
+    --shadow: 0 0% 0%;
+  }
+
+  * {
+    @apply border-border;
+  }
+  html {
+    -webkit-tap-highlight-color: transparent;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased;
+    font-feature-settings: 'ss01', 'cv11';
+  }
+  ::selection {
+    @apply bg-primary/20;
+  }
+}
+
+@layer components {
+  /* Soft emerald glow behind hero and auth surfaces. */
+  .bg-aurora {
+    background:
+      radial-gradient(60% 80% at 15% 0%, hsl(156 70% 40% / 0.35), transparent 60%),
+      radial-gradient(50% 70% at 90% 10%, hsl(42 95% 55% / 0.22), transparent 60%),
+      radial-gradient(70% 90% at 50% 120%, hsl(170 70% 30% / 0.45), transparent 60%),
+      linear-gradient(160deg, hsl(165 55% 9%), hsl(162 60% 14%));
+  }
+  .bg-grid {
+    background-image:
+      linear-gradient(to right, hsl(0 0% 100% / 0.06) 1px, transparent 1px),
+      linear-gradient(to bottom, hsl(0 0% 100% / 0.06) 1px, transparent 1px);
+    background-size: 44px 44px;
+    mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+  }
+  .glass {
+    @apply border border-white/15 bg-white/10 backdrop-blur-xl;
+  }
+  .text-gradient {
+    @apply bg-gradient-to-r from-emerald-300 via-teal-200 to-amber-200 bg-clip-text text-transparent;
+  }
+  .num {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}

@@ -6,7 +6,8 @@ LocalStock is a multi-vendor, multi-warehouse commerce and fulfillment platform.
 
 ```
 apps/
-  web/        Vite + React UI: shop, checkout, orders, seller hub, admin, API explorer
+  web/        Vite + React UI (Tailwind CSS, shadcn/ui, Material UI charts): shop, checkout,
+              orders, seller hub, admin, API explorer; light and dark themes
   api/        Express modular monolith (auth, organizations, warehouses, catalog, offers,
               inventory, discovery, checkout, orders, payments, delivery)
   worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers
@@ -33,7 +34,7 @@ scripts/      demo walkthrough (PowerShell), k6 load test
 | 10 Reliability | Done: outbox and inbox, publisher confirms, retries with a dead-letter queue, expiry job, reconciliation |
 | 11 Delivery | Partial: provider model, quoting and assignment at checkout. Live tracking events are not built yet |
 | 12 Production readiness | Not started: Prometheus/Grafana, AWS, runbooks. The k6 script exists |
-| Frontends (customer web, seller and admin dashboards) | Done (`apps/web`, Vite + React): shop, cart and checkout, orders and sandbox payment, seller hub, admin console, API explorer |
+| Frontends (customer web, seller and admin dashboards) | Done (`apps/web`, Vite + React, Tailwind CSS + shadcn/ui, Material UI for charts, stepper and slider): shop, cart and checkout, orders and sandbox payment, seller hub with dashboards, admin console, API explorer |
 
 ## Run locally (Windows PowerShell)
 

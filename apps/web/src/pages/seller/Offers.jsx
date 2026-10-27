@@ -1,70 +1,101 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { VariantPicker } from '../../components/VariantPicker.jsx';
-import { Badge, Button, Card, CopyId, Empty, ErrorBox, Field, Modal, Spinner, useSubmit } from '../../components/ui.jsx';
-import { get, patch, post } from '../../lib/api.js';
-import { money, toMinor } from '../../lib/format.js';
-import { useAsync, useToast } from '../../lib/store.jsx';
+import { Pencil, Plus, Tag } from 'lucide-react';
+import { ProductArt } from '@/components/product';
+import { VariantPicker } from '@/components/VariantPicker';
+import { Badge, Button, CopyId, Empty, ErrorBox, Field, Modal, Panel, Segmented, SkeletonRows, useSubmit } from '@/components/kit';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { get, patch, post } from '@/lib/api';
+import { money, toMinor } from '@/lib/format';
+import { useAsync, useToast } from '@/lib/store';
 
 export default function Offers({ companyId, canManage }) {
   const { data, error, loading, reload } = useAsync(() => get(`/companies/${companyId}/offers`), [companyId]);
   const [editing, setEditing] = useState(null);
 
   return (
-    <Card title="Offers" actions={canManage && <Button size="sm" onClick={() => setEditing('new')}>+ List a product</Button>} pad={false}>
+    <Panel
+      icon={Tag}
+      title="Offers"
+      description="Your price for each shared catalog product"
+      pad={false}
+      actions={
+        canManage && (
+          <Button size="sm" onClick={() => setEditing('new')}>
+            <Plus /> List a product
+          </Button>
+        )
+      }
+    >
       <ErrorBox error={error} onRetry={reload} />
-      {loading && !data && <Spinner />}
+      {loading && !data && <SkeletonRows />}
       {data?.items.length === 0 && (
-        <Empty icon="🏷️" title="No offers yet">
+        <Empty
+          icon={Tag}
+          title="No offers yet"
+          action={
+            canManage && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus /> List your first product
+              </Button>
+            )
+          }
+        >
           An offer is your price for a shared catalog product. Stock it in a warehouse to start selling.
         </Empty>
       )}
       {data?.items.length > 0 && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Your SKU</th>
-                <th className="num">Price</th>
-                <th>Status</th>
-                <th>Id</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    <div className="small faint">{o.brand}</div>
-                    <Link to={`/product/${o.variantId}`} className="strong">
-                      {o.variantName}
-                    </Link>
-                  </td>
-                  <td className="mono small">{o.sellerSku}</td>
-                  <td className="num price">{money(o.priceMinor)}</td>
-                  <td>
-                    <Badge status={o.status} />
-                  </td>
-                  <td>
-                    <CopyId id={o.id} />
-                  </td>
-                  <td className="right">
-                    {canManage && (
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(o)}>
-                        Edit
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Product</TableHead>
+              <TableHead>Your SKU</TableHead>
+              <TableHead className="text-right">Price</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Id</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((o) => (
+              <TableRow key={o.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <ProductArt names={[o.variantName]} size="sm" />
+                    <div>
+                      <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{o.brand}</div>
+                      <Link to={`/product/${o.variantId}`} className="font-bold hover:text-primary">
+                        {o.variantName}
+                      </Link>
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <span className="rounded-md border bg-muted/50 px-1.5 py-0.5 font-mono text-xs">{o.sellerSku}</span>
+                </TableCell>
+                <TableCell className="num text-right text-base font-extrabold">{money(o.priceMinor)}</TableCell>
+                <TableCell>
+                  <Badge status={o.status} dot />
+                </TableCell>
+                <TableCell>
+                  <CopyId id={o.id} />
+                </TableCell>
+                <TableCell className="text-right">
+                  {canManage && (
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(o)}>
+                      <Pencil /> Edit
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
       {editing === 'new' && <CreateOffer companyId={companyId} onClose={() => setEditing(null)} onDone={reload} />}
       {editing && editing !== 'new' && <EditOffer companyId={companyId} offer={editing} onClose={() => setEditing(null)} onDone={reload} />}
-    </Card>
+    </Panel>
   );
 }
 
@@ -83,24 +114,29 @@ function CreateOffer({ companyId, onClose, onDone }) {
   return (
     <Modal
       title="List a product"
+      description="Pick a product from the shared catalog and set your SKU and price."
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="offer-form" busy={submit.busy} disabled={!variant}>Create offer</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="offer-form" busy={submit.busy} disabled={!variant}>
+            Create offer
+          </Button>
         </>
       }
     >
-      <form id="offer-form" className="stack" onSubmit={submit.run}>
+      <form id="offer-form" className="grid gap-4" onSubmit={submit.run}>
         <Field label="Catalog product">
           <VariantPicker value={variant} onChange={setVariant} />
         </Field>
-        <div className="form-grid">
+        <div className="grid gap-4 sm:grid-cols-2">
           <Field label="Your SKU">
-            <input className="input" value={sku} onChange={(e) => setSku(e.target.value)} required maxLength={100} />
+            <Input value={sku} onChange={(e) => setSku(e.target.value)} required maxLength={100} />
           </Field>
           <Field label="Price (₹)">
-            <input className="input" type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
+            <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
           </Field>
         </div>
         <ErrorBox error={submit.error} />
@@ -130,23 +166,30 @@ function EditOffer({ companyId, offer, onClose, onDone }) {
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="offer-edit" busy={submit.busy}>Save</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="offer-edit" busy={submit.busy}>
+            Save changes
+          </Button>
         </>
       }
     >
-      <form id="offer-edit" className="stack" onSubmit={submit.run}>
+      <form id="offer-edit" className="grid gap-4" onSubmit={submit.run}>
         <Field label="Price (₹)">
-          <input className="input" type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
         </Field>
         <Field label="Status" hint="Paused offers are hidden from customers. Archived offers are retired.">
-          <div className="seg">
-            {['ACTIVE', 'PAUSED', 'ARCHIVED'].map((s) => (
-              <button key={s} type="button" className={status === s ? 'on' : ''} onClick={() => setStatus(s)}>
-                {s[0] + s.slice(1).toLowerCase()}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={status}
+            onChange={setStatus}
+            options={[
+              { id: 'ACTIVE', label: 'Active' },
+              { id: 'PAUSED', label: 'Paused' },
+              { id: 'ARCHIVED', label: 'Archived' },
+            ]}
+            className="w-fit"
+          />
         </Field>
         <ErrorBox error={submit.error} />
       </form>

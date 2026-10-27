@@ -1,11 +1,18 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Attrs, emojiFor } from '../components/product.jsx';
-import { Badge, Button, Card, CopyId, Empty, ErrorBox, Spinner, Stepper } from '../components/ui.jsx';
-import { get, qs } from '../lib/api.js';
-import { distance, minutes, money } from '../lib/format.js';
-import { useAsync, useCart, useDeliveryLocation, useToast } from '../lib/store.jsx';
+import { ChevronRight, Layers, MapPin, ShieldCheck, ShoppingCart, Store, Timer, Trophy, Truck } from 'lucide-react';
+import { Attrs, primaryAttr, ProductArt } from '@/components/product';
+import { RangeSlider } from '@/components/mui/lazy';
+import { Badge, Button, CopyId, Empty, ErrorBox, Panel, Reveal, Segmented, Spinner, Stepper } from '@/components/kit';
+import { Card } from '@/components/ui/card';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { get, qs } from '@/lib/api';
+import { distance, minutes, money } from '@/lib/format';
+import { useAsync, useCart, useDeliveryLocation, useToast } from '@/lib/store';
+import { cn } from '@/lib/utils';
 import { SORTS } from './Shop.jsx';
+
+const RADIUS_MARKS = [5, 10, 20, 30, 50].map((v) => ({ value: v, label: `${v} km` }));
 
 export default function Product() {
   const { variantId } = useParams();
@@ -14,6 +21,7 @@ export default function Product() {
   const toast = useToast();
   const [sort, setSort] = useState('best_value');
   const [radiusKm, setRadiusKm] = useState(20);
+  const [committedRadius, setCommittedRadius] = useState(20);
   const [qty, setQty] = useState(1);
 
   const variant = useAsync(async () => {
@@ -22,152 +30,207 @@ export default function Product() {
     return { ...v, group };
   }, [variantId]);
   const offers = useAsync(
-    () => get(`/catalog/variants/${variantId}/offers${qs({ lat: location.lat, lng: location.lng, radiusKm, sort })}`, { auth: false }),
-    [variantId, location.lat, location.lng, radiusKm, sort],
+    () => get(`/catalog/variants/${variantId}/offers${qs({ lat: location.lat, lng: location.lng, radiusKm: committedRadius, sort })}`, { auth: false }),
+    [variantId, location.lat, location.lng, committedRadius, sort],
   );
 
-  if (variant.loading && !variant.data) return <Spinner />;
+  if (variant.loading && !variant.data) return <Spinner className="py-32" />;
   if (variant.error) return <ErrorBox error={variant.error} onRetry={variant.reload} />;
   const v = variant.data;
   const list = offers.data?.offers ?? [];
   const stock = list.reduce((n, o) => n + o.availableUnits, 0);
   const from = list.length ? Math.min(...list.map((o) => o.priceMinor)) : null;
+  const top = list.length ? Math.max(...list.map((o) => o.priceMinor)) : null;
+  const fastest = list.reduce((m, o) => (o.estimatedDeliveryMinutes != null && (m == null || o.estimatedDeliveryMinutes < m) ? o.estimatedDeliveryMinutes : m), null);
   const siblings = v.group?.variants.filter((s) => s.id !== v.id) ?? [];
 
   return (
-    <div className="stack">
-      <div className="small muted">
-        <Link to="/">Shop</Link> / {v.groupName} / {v.name}
-      </div>
-      <div className="split">
-        <div className="stack">
-          <Card>
-            <div className="row" style={{ alignItems: 'flex-start', gap: 20 }}>
-              <div className="thumb thumb-lg">{emojiFor(v.groupName, v.name)}</div>
-              <div className="stack-sm grow">
-                {v.brand && <div className="faint strong">{v.brand}</div>}
-                <h1>{v.name}</h1>
-                <Attrs attributes={v.attributes} />
-                <div className="row wrap small muted" style={{ marginTop: 6 }}>
-                  <span>Group: {v.groupName}</span>
-                  {v.barcode && <span>· GTIN <span className="mono">{v.barcode}</span></span>}
-                  <span>· id <CopyId id={v.id} /></span>
-                  <Badge status={v.status} />
-                </div>
-                {v.group?.description && <p className="muted">{v.group.description}</p>}
-              </div>
-            </div>
-          </Card>
+    <div className="space-y-8">
+      <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
+        <Link to="/" className="hover:text-foreground">
+          Shop
+        </Link>
+        <ChevronRight className="size-3.5" />
+        <span>{v.groupName}</span>
+        <ChevronRight className="size-3.5" />
+        <span className="truncate font-semibold text-foreground">{v.name}</span>
+      </nav>
 
-          <Card
-            title={`Sellers delivering to ${location.label ?? 'your location'}`}
-            actions={
-              <div className="row wrap gap-sm">
-                <div className="seg">
-                  {SORTS.map((s) => (
-                    <button key={s.id} className={sort === s.id ? 'on' : ''} onClick={() => setSort(s.id)}>
-                      {s.label}
-                    </button>
-                  ))}
+      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="space-y-8">
+          <Reveal>
+            <Card className="grid gap-8 overflow-hidden p-6 sm:grid-cols-[260px_minmax(0,1fr)] sm:p-8">
+              <ProductArt names={[v.groupName, v.name]} size="lg" label={primaryAttr(v.attributes)} />
+              <div className="flex flex-col gap-4">
+                <div>
+                  {v.brand && <div className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{v.brand}</div>}
+                  <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">{v.name}</h1>
+                  <Attrs attributes={v.attributes} className="mt-3" />
                 </div>
-                <select className="select" style={{ width: 'auto' }} value={radiusKm} onChange={(e) => setRadiusKm(Number(e.target.value))}>
-                  {[5, 10, 20, 50].map((r) => (
-                    <option key={r} value={r}>
-                      {r} km
-                    </option>
-                  ))}
-                </select>
-              </div>
-            }
-            pad={false}
-          >
-            <ErrorBox error={offers.error} onRetry={offers.reload} />
-            {offers.loading && !offers.data && <Spinner />}
-            {offers.data && list.length === 0 && (
-              <Empty icon="🚚" title="No seller delivers here">
-                Try a larger radius or a different delivery location.
-              </Empty>
-            )}
-            {list.length > 0 && (
-              <div className="table-wrap">
-                <table className="table">
-                  <thead>
-                    <tr>
-                      <th>Seller</th>
-                      <th className="num">Price</th>
-                      <th className="num">Nearest warehouse</th>
-                      <th className="num">Est. delivery</th>
-                      <th className="num">In stock</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {list.map((o, i) => (
-                      <tr key={o.offerId}>
-                        <td>
-                          <span className="strong">{o.sellerName}</span> {i === 0 && list.length > 1 && <Badge kind="good">Best pick</Badge>}
-                        </td>
-                        <td className="num price">{money(o.priceMinor)}</td>
-                        <td className="num">{distance(o.distanceMeters)}</td>
-                        <td className="num">{minutes(o.estimatedDeliveryMinutes)}</td>
-                        <td className="num">{o.availableUnits}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </Card>
-
-          {siblings.length > 0 && (
-            <Card title={`Other ${v.groupName.toLowerCase()} options`}>
-              <div className="grid grid-2">
-                {siblings.map((s) => (
-                  <Link key={s.id} to={`/product/${s.id}`} className="demo-user" style={{ color: 'inherit', textDecoration: 'none' }}>
-                    <span style={{ fontSize: 22 }}>{emojiFor(s.groupName, s.name)}</span>
-                    <span className="grow">
-                      <div className="small faint">{s.brand}</div>
-                      <div className="strong">{s.name}</div>
-                      <Attrs attributes={s.attributes} />
-                    </span>
-                  </Link>
-                ))}
+                {v.group?.description && <p className="text-muted-foreground">{v.group.description}</p>}
+                <div className="grid grid-cols-3 gap-3">
+                  <MiniStat icon={Store} label="Sellers" value={offers.data ? list.length : '…'} />
+                  <MiniStat icon={Layers} label="Units nearby" value={offers.data ? stock : '…'} />
+                  <MiniStat icon={Timer} label="Fastest" value={fastest != null ? `~${minutes(fastest)}` : '—'} />
+                </div>
+                <div className="mt-auto flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+                  <Badge status={v.status} dot />
+                  {v.barcode && (
+                    <span className="rounded-md border bg-muted/50 px-1.5 py-0.5 font-mono">GTIN {v.barcode}</span>
+                  )}
+                  <CopyId id={v.id} />
+                </div>
               </div>
             </Card>
+          </Reveal>
+
+          <Reveal delay={0.08}>
+            <Panel
+              icon={MapPin}
+              title={`Sellers delivering to ${location.label ?? 'your location'}`}
+              description={from != null && top !== from ? `Prices range ${money(from)} to ${money(top)}` : 'Live price, stock and delivery estimates'}
+              pad={false}
+              actions={<Segmented value={sort} onChange={setSort} options={SORTS} />}
+            >
+              <div className="border-b px-5 py-4">
+                <div className="mb-1 flex items-center justify-between text-xs font-semibold text-muted-foreground">
+                  <span>Search radius</span>
+                  <span className="num text-foreground">{radiusKm} km</span>
+                </div>
+                <div className="px-2">
+                  <RangeSlider value={radiusKm} onChange={setRadiusKm} onCommit={setCommittedRadius} min={2} max={50} step={1} marks={RADIUS_MARKS} format={(x) => `${x} km`} />
+                </div>
+              </div>
+              <ErrorBox error={offers.error} onRetry={offers.reload} />
+              {offers.loading && !offers.data && <Spinner />}
+              {offers.data && list.length === 0 && (
+                <Empty icon={Truck} title="No seller delivers here yet">
+                  Widen the radius or choose a different delivery location.
+                </Empty>
+              )}
+              {list.length > 0 && (
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Seller</TableHead>
+                      <TableHead className="text-right">Price</TableHead>
+                      <TableHead className="text-right">Nearest warehouse</TableHead>
+                      <TableHead className="text-right">Est. delivery</TableHead>
+                      <TableHead className="text-right">In stock</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {list.map((o, i) => {
+                      const best = i === 0 && list.length > 1;
+                      return (
+                        <TableRow key={o.offerId} className={cn(best && 'bg-gold/[0.06] hover:bg-gold/10')}>
+                          <TableCell>
+                            <div className="flex items-center gap-3">
+                              <span className={cn('grid size-9 place-items-center rounded-xl text-sm font-extrabold', best ? 'bg-gold text-gold-foreground' : 'bg-muted text-muted-foreground')}>
+                                {best ? <Trophy className="size-4" /> : o.sellerName[0]}
+                              </span>
+                              <div>
+                                <div className="font-bold">{o.sellerName}</div>
+                                {best && <div className="text-[11px] font-semibold text-amber-600 dark:text-gold">Best pick for {SORTS.find((s) => s.id === sort)?.label.toLowerCase()}</div>}
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="num text-right text-base font-extrabold">{money(o.priceMinor)}</TableCell>
+                          <TableCell className="num text-right text-muted-foreground">{distance(o.distanceMeters)}</TableCell>
+                          <TableCell className="num text-right">{minutes(o.estimatedDeliveryMinutes)}</TableCell>
+                          <TableCell className="text-right">
+                            <Badge kind={o.availableUnits > 5 ? 'good' : 'warn'}>{o.availableUnits}</Badge>
+                          </TableCell>
+                        </TableRow>
+                      );
+                    })}
+                  </TableBody>
+                </Table>
+              )}
+            </Panel>
+          </Reveal>
+
+          {siblings.length > 0 && (
+            <Reveal delay={0.12}>
+              <div>
+                <h2 className="mb-4 text-xl font-extrabold tracking-tight">Other {v.groupName.toLowerCase()} options</h2>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  {siblings.map((s) => (
+                    <Link
+                      key={s.id}
+                      to={`/product/${s.id}`}
+                      className="group flex items-center gap-4 rounded-2xl border bg-card p-3 shadow-soft transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
+                    >
+                      <ProductArt names={[s.groupName, s.name]} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{s.brand}</div>
+                        <div className="truncate font-bold group-hover:text-primary">{s.name}</div>
+                        <Attrs attributes={s.attributes} className="mt-1" />
+                      </div>
+                      <ChevronRight className="size-4 text-muted-foreground transition group-hover:translate-x-0.5" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+            </Reveal>
           )}
         </div>
 
-        <div className="sticky">
-          <Card title="Add to cart">
-            <div className="stack">
-              <div>
-                <div className="small faint">{from != null ? 'Best price from' : ''}</div>
-                <div style={{ fontSize: 28, fontWeight: 700 }}>{from != null ? money(from) : <span className="muted" style={{ fontSize: 16 }}>Not available here</span>}</div>
-                <div className="small muted">
+        <Reveal delay={0.05} className="lg:sticky lg:top-24">
+          <Card className="overflow-hidden">
+            <div className="bg-aurora relative p-6 text-white">
+              <div className="bg-grid absolute inset-0" aria-hidden />
+              <div className="relative">
+                <div className="text-xs font-semibold uppercase tracking-wider text-emerald-100/80">{from != null ? 'Best price from' : 'Availability'}</div>
+                <div className="num mt-1 text-4xl font-extrabold tracking-tight">
+                  {from != null ? money(from) : <span className="text-xl">Not available here</span>}
+                </div>
+                <div className="mt-1 text-sm text-emerald-50/80">
                   {list.length} seller{list.length === 1 ? '' : 's'} · {stock} units nearby
                 </div>
               </div>
-              <div className="row between">
-                <span className="muted">Quantity</span>
+            </div>
+            <div className="space-y-4 p-6">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-semibold text-muted-foreground">Quantity</span>
                 <Stepper value={qty} onChange={setQty} min={1} max={Math.max(1, Math.min(100, stock))} />
               </div>
               <Button
                 size="lg"
-                className="btn-block"
+                block
                 disabled={!list.length}
                 onClick={() => {
                   cart.add({ variantId: v.id, name: v.name, brand: v.brand, group: v.groupName, attributes: v.attributes, priceHintMinor: from }, qty);
                   toast(`Added ${qty} × ${v.name}`);
                 }}
               >
-                Add to cart
+                <ShoppingCart /> Add to cart{from != null ? ` · ${money(from * qty)}` : ''}
               </Button>
-              <p className="small faint" style={{ margin: 0 }}>
-                At checkout the allocation engine picks warehouses and couriers for the whole cart. It may split the order if that's cheaper or faster.
-              </p>
+              <Button asChild variant="secondary" block>
+                <Link to="/cart">Go to checkout</Link>
+              </Button>
+              <ul className="space-y-2.5 border-t pt-4 text-xs text-muted-foreground">
+                <li className="flex gap-2">
+                  <Layers className="size-4 shrink-0 text-primary" /> Checkout plans the best warehouses and couriers for your whole cart.
+                </li>
+                <li className="flex gap-2">
+                  <ShieldCheck className="size-4 shrink-0 text-primary" /> Stock is reserved the moment you place the order.
+                </li>
+              </ul>
             </div>
           </Card>
-        </div>
+        </Reveal>
       </div>
+    </div>
+  );
+}
+
+function MiniStat({ icon: Icon, label, value }) {
+  return (
+    <div className="rounded-2xl border bg-muted/30 p-3">
+      <Icon className="size-4 text-primary" />
+      <div className="num mt-2 text-lg font-extrabold leading-none">{value}</div>
+      <div className="mt-1 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</div>
     </div>
   );
 }

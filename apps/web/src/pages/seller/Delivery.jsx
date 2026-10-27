@@ -1,44 +1,65 @@
 import { useState } from 'react';
-import { Badge, Button, Card, Empty, ErrorBox, Field, Modal, Spinner, useSubmit } from '../../components/ui.jsx';
-import { get, post } from '../../lib/api.js';
-import { money, title, toMinor } from '../../lib/format.js';
-import { useAsync, useToast } from '../../lib/store.jsx';
+import { Bike, Gauge, Plus, Timer, Truck } from 'lucide-react';
+import { Badge, Button, Empty, ErrorBox, Field, Modal, Panel, SkeletonRows, useSubmit } from '@/components/kit';
+import { Input, NativeSelect } from '@/components/ui/input';
+import { get, post } from '@/lib/api';
+import { money, title, toMinor } from '@/lib/format';
+import { useAsync, useToast } from '@/lib/store';
 
+const TYPE_TINT = {
+  SELLER_FLEET: 'from-amber-400 to-orange-600',
+  PLATFORM_FLEET: 'from-emerald-500 to-teal-700',
+  THIRD_PARTY: 'from-sky-500 to-indigo-600',
+};
+
+/** Provider cards: pricing, speed and reliability at a glance. */
 export function ProviderTable({ items }) {
   return (
-    <div className="table-wrap">
-      <table className="table">
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Type</th>
-            <th className="num">Base fee</th>
-            <th className="num">Per km</th>
-            <th className="num">Speed</th>
-            <th className="num">Pickup</th>
-            <th className="num">Reliability</th>
-            <th className="num">Max distance</th>
-            <th>Status</th>
-          </tr>
-        </thead>
-        <tbody>
-          {items.map((p) => (
-            <tr key={p.id}>
-              <td className="strong">{p.name}</td>
-              <td>{title(p.type)}</td>
-              <td className="num">{money(p.baseFeeMinor)}</td>
-              <td className="num">{money(p.perKmFeeMinor)}</td>
-              <td className="num">{p.speedKmph} km/h</td>
-              <td className="num">{p.pickupMinutes} min</td>
-              <td className="num">{Math.round(p.reliability * 100)}%</td>
-              <td className="num">{p.maxDistanceMeters / 1000} km</td>
-              <td>
-                <Badge status={p.status} />
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">
+      {items.map((p) => (
+        <div key={p.id} className="rounded-2xl border bg-card p-4 shadow-sm transition hover:shadow-lift">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex items-center gap-3">
+              <span className={`grid size-10 place-items-center rounded-xl bg-gradient-to-br text-white ${TYPE_TINT[p.type] ?? TYPE_TINT.THIRD_PARTY}`}>
+                {p.type === 'SELLER_FLEET' ? <Bike className="size-5" /> : <Truck className="size-5" />}
+              </span>
+              <div>
+                <div className="font-bold">{p.name}</div>
+                <div className="text-xs text-muted-foreground">{title(p.type)}</div>
+              </div>
+            </div>
+            <Badge status={p.status} dot />
+          </div>
+          <div className="mt-4 grid grid-cols-2 gap-2 text-xs">
+            <Metric label="Base fee" value={money(p.baseFeeMinor)} />
+            <Metric label="Per km" value={money(p.perKmFeeMinor)} />
+            <Metric label="Speed" value={`${p.speedKmph} km/h`} icon={Gauge} />
+            <Metric label="Pickup" value={`${p.pickupMinutes} min`} icon={Timer} />
+          </div>
+          <div className="mt-4">
+            <div className="mb-1 flex justify-between text-xs">
+              <span className="font-semibold text-muted-foreground">Reliability</span>
+              <span className="num font-bold">{Math.round(p.reliability * 100)}%</span>
+            </div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted">
+              <div className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400" style={{ width: `${p.reliability * 100}%` }} />
+            </div>
+            <div className="mt-2 text-[11px] text-muted-foreground">Delivers up to {p.maxDistanceMeters / 1000} km</div>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function Metric({ label, value, icon: Icon }) {
+  return (
+    <div className="rounded-lg bg-muted/50 px-2.5 py-2">
+      <div className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
+        {Icon && <Icon className="size-3" />}
+        {label}
+      </div>
+      <div className="num mt-0.5 text-sm font-bold">{value}</div>
     </div>
   );
 }
@@ -49,22 +70,34 @@ export default function Delivery({ companyId, canManage }) {
   const [creating, setCreating] = useState(false);
 
   return (
-    <div className="stack">
-      <Card title="Your own fleet" actions={canManage && <Button size="sm" onClick={() => setCreating(true)}>+ Register fleet</Button>} pad={false}>
+    <div className="space-y-6">
+      <Panel
+        icon={Bike}
+        title="Your own fleet"
+        description="Your riders only carry your shipments and compete with platform couriers at checkout"
+        pad={false}
+        actions={
+          canManage && (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus /> Register fleet
+            </Button>
+          )
+        }
+      >
         <ErrorBox error={own.error} onRetry={own.reload} />
-        {own.loading && !own.data && <Spinner />}
+        {own.loading && !own.data && <SkeletonRows rows={2} />}
         {own.data?.items.length === 0 && (
-          <Empty icon="🛵" title="No own fleet">
-            Your riders only carry your shipments. At checkout they compete with the platform couriers.
+          <Empty icon={Bike} title="No own fleet yet">
+            Register your riders to deliver your own orders. At checkout they compete with the platform couriers on price and speed.
           </Empty>
         )}
         {own.data?.items.length > 0 && <ProviderTable items={own.data.items} />}
-      </Card>
-      <Card title="Platform couriers" actions={<span className="small faint">available to every seller</span>} pad={false}>
+      </Panel>
+      <Panel icon={Truck} title="Platform couriers" description="Available to every seller" pad={false}>
         <ErrorBox error={platform.error} onRetry={platform.reload} />
-        {platform.loading && !platform.data && <Spinner />}
+        {platform.loading && !platform.data && <SkeletonRows rows={2} />}
         {platform.data && <ProviderTable items={platform.data.items} />}
-      </Card>
+      </Panel>
       {creating && (
         <ProviderModal
           title="Register your delivery fleet"
@@ -100,46 +133,52 @@ export function ProviderModal({ title: heading, onClose, onSubmit, onDone, withT
   return (
     <Modal
       title={heading}
+      description="Fees, speed and reliability feed the checkout allocation engine."
       onClose={onClose}
+      className="max-w-xl"
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="prov-form" busy={submit.busy}>Register</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="prov-form" busy={submit.busy}>
+            Register
+          </Button>
         </>
       }
     >
-      <form id="prov-form" className="stack" onSubmit={submit.run}>
-        <div className="form-grid">
-          <Field label="Name">
-            <input className="input" value={f.name} onChange={set('name')} required maxLength={200} />
+      <form id="prov-form" className="grid gap-4" onSubmit={submit.run}>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Name" className={withType ? '' : 'sm:col-span-2'}>
+            <Input value={f.name} onChange={set('name')} required maxLength={200} />
           </Field>
           {withType && (
             <Field label="Type">
-              <select className="select" value={f.type} onChange={set('type')}>
+              <NativeSelect value={f.type} onChange={set('type')}>
                 <option value="PLATFORM_FLEET">Platform fleet</option>
                 <option value="THIRD_PARTY">Third party</option>
-              </select>
+              </NativeSelect>
             </Field>
           )}
         </div>
-        <div className="form-grid">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Base fee (₹)">
-            <input className="input" type="number" min={0} step="0.01" value={f.baseFee} onChange={set('baseFee')} required />
+            <Input type="number" min={0} step="0.01" value={f.baseFee} onChange={set('baseFee')} required />
           </Field>
           <Field label="Per km (₹)">
-            <input className="input" type="number" min={0} step="0.01" value={f.perKm} onChange={set('perKm')} required />
+            <Input type="number" min={0} step="0.01" value={f.perKm} onChange={set('perKm')} required />
           </Field>
           <Field label="Speed (km/h)">
-            <input className="input" type="number" min={1} max={200} value={f.speedKmph} onChange={set('speedKmph')} required />
+            <Input type="number" min={1} max={200} value={f.speedKmph} onChange={set('speedKmph')} required />
           </Field>
-          <Field label="Pickup time (min)">
-            <input className="input" type="number" min={0} max={1440} value={f.pickupMinutes} onChange={set('pickupMinutes')} required />
+          <Field label="Pickup (min)">
+            <Input type="number" min={0} max={1440} value={f.pickupMinutes} onChange={set('pickupMinutes')} required />
           </Field>
           <Field label="Reliability (%)">
-            <input className="input" type="number" min={0} max={100} value={f.reliability} onChange={set('reliability')} required />
+            <Input type="number" min={0} max={100} value={f.reliability} onChange={set('reliability')} required />
           </Field>
           <Field label="Max distance (km)">
-            <input className="input" type="number" min={0.5} max={500} step="0.5" value={f.maxDistanceKm} onChange={set('maxDistanceKm')} required />
+            <Input type="number" min={0.5} max={500} step="0.5" value={f.maxDistanceKm} onChange={set('maxDistanceKm')} required />
           </Field>
         </div>
         <ErrorBox error={submit.error} />

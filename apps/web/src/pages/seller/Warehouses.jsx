@@ -1,73 +1,110 @@
 import { useState } from 'react';
-import { Badge, Button, Card, CopyId, Empty, ErrorBox, Field, Modal, Spinner, useSubmit } from '../../components/ui.jsx';
-import { get, patch, post } from '../../lib/api.js';
-import { PLACES, useAsync, useToast } from '../../lib/store.jsx';
+import { ExternalLink, MapPin, Pencil, Plus, Radar, Warehouse } from 'lucide-react';
+import { Badge, Button, CopyId, Empty, ErrorBox, Field, Modal, Panel, Segmented, SkeletonRows, useSubmit } from '@/components/kit';
+import { Input } from '@/components/ui/input';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { get, patch, post } from '@/lib/api';
+import { PLACES, useAsync, useToast } from '@/lib/store';
 
 export default function Warehouses({ companyId, canManage }) {
   const { data, error, loading, reload } = useAsync(() => get(`/companies/${companyId}/warehouses`), [companyId]);
   const [editing, setEditing] = useState(null);
 
   return (
-    <Card
+    <Panel
+      icon={Warehouse}
       title="Warehouses"
-      actions={canManage && <Button size="sm" onClick={() => setEditing('new')}>+ Add warehouse</Button>}
+      description="Each warehouse serves customers inside its service radius"
       pad={false}
+      actions={
+        canManage && (
+          <Button size="sm" onClick={() => setEditing('new')}>
+            <Plus /> Add warehouse
+          </Button>
+        )
+      }
     >
       <ErrorBox error={error} onRetry={reload} />
-      {loading && !data && <Spinner />}
+      {loading && !data && <SkeletonRows />}
       {data?.items.length === 0 && (
-        <Empty icon="🏭" title="No warehouses yet">
+        <Empty
+          icon={Warehouse}
+          title="No warehouses yet"
+          action={
+            canManage && (
+              <Button onClick={() => setEditing('new')}>
+                <Plus /> Add your first warehouse
+              </Button>
+            )
+          }
+        >
           A warehouse serves customers inside its service radius.
         </Empty>
       )}
       {data?.items.length > 0 && (
-        <div className="table-wrap">
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Location</th>
-                <th className="num">Service radius</th>
-                <th>Status</th>
-                <th>Id</th>
-                <th />
-              </tr>
-            </thead>
-            <tbody>
-              {data.items.map((w) => (
-                <tr key={w.id}>
-                  <td>
-                    <div className="strong">{w.name}</div>
-                    {w.address && <div className="small muted">{w.address}</div>}
-                  </td>
-                  <td className="mono small">
-                    <a href={`https://www.openstreetmap.org/?mlat=${w.lat}&mlon=${w.lng}#map=14/${w.lat}/${w.lng}`} target="_blank" rel="noreferrer">
-                      {w.lat.toFixed(4)}, {w.lng.toFixed(4)}
-                    </a>
-                  </td>
-                  <td className="num">{w.serviceRadiusKm} km</td>
-                  <td>
-                    <Badge status={w.status} />
-                  </td>
-                  <td>
-                    <CopyId id={w.id} />
-                  </td>
-                  <td className="right">
-                    {canManage && (
-                      <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
-                        Edit
-                      </Button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Name</TableHead>
+              <TableHead>Location</TableHead>
+              <TableHead className="text-right">Service radius</TableHead>
+              <TableHead>Status</TableHead>
+              <TableHead>Id</TableHead>
+              <TableHead />
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {data.items.map((w) => (
+              <TableRow key={w.id}>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    <span className="grid size-9 place-items-center rounded-xl bg-accent text-accent-foreground">
+                      <Warehouse className="size-4" />
+                    </span>
+                    <div>
+                      <div className="font-bold">{w.name}</div>
+                      {w.address && <div className="text-xs text-muted-foreground">{w.address}</div>}
+                    </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <a
+                    href={`https://www.openstreetmap.org/?mlat=${w.lat}&mlon=${w.lng}#map=14/${w.lat}/${w.lng}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 font-mono text-xs text-primary hover:underline"
+                  >
+                    <MapPin className="size-3" />
+                    {w.lat.toFixed(4)}, {w.lng.toFixed(4)}
+                    <ExternalLink className="size-3" />
+                  </a>
+                </TableCell>
+                <TableCell className="text-right">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-xs font-semibold">
+                    <Radar className="size-3 text-primary" /> {w.serviceRadiusKm} km
+                  </span>
+                </TableCell>
+                <TableCell>
+                  <Badge status={w.status} dot />
+                </TableCell>
+                <TableCell>
+                  <CopyId id={w.id} />
+                </TableCell>
+                <TableCell className="text-right">
+                  {canManage && (
+                    <Button size="sm" variant="ghost" onClick={() => setEditing(w)}>
+                      <Pencil /> Edit
+                    </Button>
+                  )}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
       {editing === 'new' && <CreateWarehouse companyId={companyId} onClose={() => setEditing(null)} onDone={reload} />}
       {editing && editing !== 'new' && <EditWarehouse companyId={companyId} warehouse={editing} onClose={() => setEditing(null)} onDone={reload} />}
-    </Card>
+    </Panel>
   );
 }
 
@@ -91,38 +128,48 @@ function CreateWarehouse({ companyId, onClose, onDone }) {
   return (
     <Modal
       title="Add warehouse"
+      description="Customers inside the service radius will see this warehouse's stock."
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="wh-form" busy={submit.busy}>Create</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="wh-form" busy={submit.busy}>
+            Create warehouse
+          </Button>
         </>
       }
     >
-      <form id="wh-form" className="stack" onSubmit={submit.run}>
+      <form id="wh-form" className="grid gap-4" onSubmit={submit.run}>
         <Field label="Name">
-          <input className="input" value={f.name} onChange={set('name')} required maxLength={200} />
+          <Input value={f.name} onChange={set('name')} required maxLength={200} />
         </Field>
         <Field label="Address">
-          <input className="input" value={f.address} onChange={set('address')} maxLength={500} />
+          <Input value={f.address} onChange={set('address')} maxLength={500} />
         </Field>
-        <div className="row wrap gap-sm">
-          <span className="small muted">Quick fill:</span>
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs text-muted-foreground">Quick fill:</span>
           {PLACES.map((p) => (
-            <button key={p.label} type="button" className="chip" style={{ cursor: 'pointer' }} onClick={() => setF((x) => ({ ...x, lat: String(p.lat), lng: String(p.lng), name: x.name || p.label }))}>
+            <button
+              key={p.label}
+              type="button"
+              className="rounded-full border bg-muted/50 px-2.5 py-0.5 text-[11px] font-semibold transition hover:border-primary/40 hover:bg-accent"
+              onClick={() => setF((x) => ({ ...x, lat: String(p.lat), lng: String(p.lng), name: x.name || p.label }))}
+            >
               {p.label}
             </button>
           ))}
         </div>
-        <div className="form-grid">
+        <div className="grid gap-4 sm:grid-cols-3">
           <Field label="Latitude">
-            <input className="input" type="number" step="any" min={-90} max={90} value={f.lat} onChange={set('lat')} required />
+            <Input type="number" step="any" min={-90} max={90} value={f.lat} onChange={set('lat')} required />
           </Field>
           <Field label="Longitude">
-            <input className="input" type="number" step="any" min={-180} max={180} value={f.lng} onChange={set('lng')} required />
+            <Input type="number" step="any" min={-180} max={180} value={f.lng} onChange={set('lng')} required />
           </Field>
-          <Field label="Service radius (km)">
-            <input className="input" type="number" step="0.5" min={0.5} max={100} value={f.serviceRadiusKm} onChange={set('serviceRadiusKm')} required />
+          <Field label="Radius (km)">
+            <Input type="number" step="0.5" min={0.5} max={100} value={f.serviceRadiusKm} onChange={set('serviceRadiusKm')} required />
           </Field>
         </div>
         <ErrorBox error={submit.error} />
@@ -152,26 +199,40 @@ function EditWarehouse({ companyId, warehouse, onClose, onDone }) {
       onClose={onClose}
       footer={
         <>
-          <Button variant="ghost" onClick={onClose}>Cancel</Button>
-          <Button type="submit" form="wh-edit" busy={submit.busy}>Save</Button>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" form="wh-edit" busy={submit.busy}>
+            Save changes
+          </Button>
         </>
       }
     >
-      <form id="wh-edit" className="stack" onSubmit={submit.run}>
+      <form id="wh-edit" className="grid gap-4" onSubmit={submit.run}>
         <Field label="Name">
-          <input className="input" value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} required maxLength={200} />
+          <Input value={f.name} onChange={(e) => setF((x) => ({ ...x, name: e.target.value }))} required maxLength={200} />
         </Field>
         <Field label="Service radius (km)">
-          <input className="input" type="number" step="0.5" min={0.5} max={100} value={f.serviceRadiusKm} onChange={(e) => setF((x) => ({ ...x, serviceRadiusKm: e.target.value }))} required />
+          <Input
+            type="number"
+            step="0.5"
+            min={0.5}
+            max={100}
+            value={f.serviceRadiusKm}
+            onChange={(e) => setF((x) => ({ ...x, serviceRadiusKm: e.target.value }))}
+            required
+          />
         </Field>
         <Field label="Status" hint="Inactive warehouses are hidden from search and checkout.">
-          <div className="seg">
-            {['ACTIVE', 'INACTIVE'].map((s) => (
-              <button key={s} type="button" className={f.status === s ? 'on' : ''} onClick={() => setF((x) => ({ ...x, status: s }))}>
-                {s === 'ACTIVE' ? 'Active' : 'Inactive'}
-              </button>
-            ))}
-          </div>
+          <Segmented
+            value={f.status}
+            onChange={(status) => setF((x) => ({ ...x, status }))}
+            options={[
+              { id: 'ACTIVE', label: 'Active' },
+              { id: 'INACTIVE', label: 'Inactive' },
+            ]}
+            className="w-fit"
+          />
         </Field>
         <ErrorBox error={submit.error} />
       </form>
