@@ -3,27 +3,27 @@
 @tailwind utilities;
 
 @layer base {
-  /* Warm ivory + deep emerald, with a gold accent for "best pick" moments. */
+  /* Quick-commerce palette: crisp white shelves, fresh green actions, sunny yellow highlights. */
   :root {
-    --background: 40 33% 98%;
-    --foreground: 165 30% 9%;
+    --background: 140 20% 98%;
+    --foreground: 160 25% 9%;
     --card: 0 0% 100%;
-    --card-foreground: 165 30% 9%;
+    --card-foreground: 160 25% 9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 165 30% 9%;
-    --primary: 160 78% 22%;
-    --primary-foreground: 150 40% 98%;
-    --secondary: 150 20% 94%;
-    --secondary-foreground: 162 40% 16%;
-    --muted: 40 22% 94%;
-    --muted-foreground: 165 8% 40%;
-    --accent: 152 38% 92%;
-    --accent-foreground: 162 60% 18%;
+    --popover-foreground: 160 25% 9%;
+    --primary: 146 78% 29%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 140 22% 94%;
+    --secondary-foreground: 155 40% 16%;
+    --muted: 140 14% 95%;
+    --muted-foreground: 160 7% 40%;
+    --accent: 142 50% 93%;
+    --accent-foreground: 150 60% 18%;
     --destructive: 0 72% 48%;
     --destructive-foreground: 0 0% 100%;
-    --border: 40 14% 87%;
-    --input: 40 14% 84%;
-    --ring: 160 78% 26%;
+    --border: 140 10% 89%;
+    --input: 140 10% 85%;
+    --ring: 146 78% 32%;
     --gold: 38 92% 50%;
     --gold-foreground: 30 60% 12%;
     --success: 152 69% 31%;
@@ -40,8 +40,8 @@
     --card-foreground: 150 18% 93%;
     --popover: 165 24% 9%;
     --popover-foreground: 150 18% 93%;
-    --primary: 156 66% 46%;
-    --primary-foreground: 165 50% 6%;
+    --primary: 146 64% 46%;
+    --primary-foreground: 150 50% 6%;
     --secondary: 165 18% 14%;
     --secondary-foreground: 150 18% 90%;
     --muted: 165 16% 13%;
@@ -106,5 +106,11 @@
 @layer utilities {
   .scrollbar-thin {
     scrollbar-width: thin;
+  }
+  .scrollbar-none {
+    scrollbar-width: none;
+  }
+  .scrollbar-none::-webkit-scrollbar {
+    display: none;
   }
 }

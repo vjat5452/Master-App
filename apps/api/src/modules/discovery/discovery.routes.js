@@ -13,7 +13,12 @@ const locationQuery = {
 const requireBoth = (q) => (q.lat == null) === (q.lng == null);
 
 const searchQuery = z
-  .object({ q: z.string().trim().max(200).default(''), ...locationQuery, ...pagination })
+  .object({
+    q: z.string().trim().max(200).default(''),
+    category: z.string().trim().toLowerCase().regex(/^[a-z0-9-]{0,100}$/).default(''),
+    ...locationQuery,
+    ...pagination,
+  })
   .refine(requireBoth, 'lat and lng must be provided together');
 const offersQuery = z.object(locationQuery).refine(requireBoth, 'lat and lng must be provided together');
 

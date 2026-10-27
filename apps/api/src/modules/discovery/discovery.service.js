@@ -67,23 +67,26 @@ export function createDiscoveryService({ pool, redis, logger }) {
   return {
     search(params) {
       return cached({ op: 'search', ...params }, async () => {
-        const { q, lat, lng, radiusKm, sort, page, limit } = params;
+        const { q, category, lat, lng, radiusKm, sort, page, limit } = params;
+        // $1 is the search text and $2 the optional category slug in both queries.
         const matchSql = `v.status = 'ACTIVE' AND ($1::text = ''
           OR v.search_vector @@ websearch_to_tsquery('english', $1::text)
-          OR v.name % $1::text)`;
+          OR v.name % $1::text)
+          AND ($2::text = '' OR g.category_id = (SELECT id FROM categories WHERE slug = $2::text))`;
+        const fromSql = 'FROM product_variants v JOIN product_groups g ON g.id = v.group_id';
 
         const [{ rows }, { rows: countRows }] = await Promise.all([
           pool.query(
             `SELECT v.id, v.name, v.brand, v.attributes, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url
-               FROM product_variants v JOIN product_groups g ON g.id = v.group_id
+               ${fromSql}
               WHERE ${matchSql}
               ORDER BY CASE WHEN $1::text = '' THEN 0
                             ELSE ts_rank(v.search_vector, websearch_to_tsquery('english', $1::text)) + similarity(v.name, $1::text)
                        END DESC, v.name, v.id
-              LIMIT $2 OFFSET $3`,
-            [q, limit, (page - 1) * limit],
+              LIMIT $3 OFFSET $4`,
+            [q, category, limit, (page - 1) * limit],
           ),
-          pool.query(`SELECT count(*)::int AS total FROM product_variants v WHERE ${matchSql}`, [q]),
+          pool.query(`SELECT count(*)::int AS total ${fromSql} WHERE ${matchSql}`, [q, category]),
         ]);
 
         const offers = await findOffers(pool, { variantIds: rows.map((r) => r.id), lat, lng, radiusMeters: radiusKm * 1000 });

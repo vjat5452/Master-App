@@ -136,6 +136,12 @@ test('search requires lat and lng together', async () => {
   assert.equal(res.status, 400);
 });
 
+test('search rejects a malformed category slug', async () => {
+  const { app } = makeApp();
+  const res = await request(app).get('/api/v1/catalog/search?category=Dairy%20%26%20Eggs');
+  assert.equal(res.status, 400);
+});
+
 test('unknown routes return a JSON 404', async () => {
   const { app } = makeApp();
   const res = await request(app).get('/api/v1/nope');

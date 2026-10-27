@@ -1,6 +1,9 @@
-import { lazy, Suspense, useEffect, useState } from 'react';
-import { Link, Navigate, NavLink, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
+import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { Link, Navigate, Route, Routes, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion } from 'framer-motion';
 import {
+  ChevronDown,
+  ChevronRight,
   Code2,
   Crosshair,
   LayoutDashboard,
@@ -10,12 +13,17 @@ import {
   Monitor,
   Moon,
   Package,
+  Search,
   ShieldCheck,
   ShoppingBag,
+  ShoppingCart,
   Store,
   Sun,
   UserRound,
+  X,
+  Zap,
 } from 'lucide-react';
+import { NumberTicker, RotatingText } from './components/fx.jsx';
 import { Button, Field, Modal, Spinner } from './components/kit.jsx';
 import { Input } from './components/ui/input.jsx';
 import { Avatar, AvatarFallback, Separator } from './components/ui/misc.jsx';
@@ -31,9 +39,12 @@ import {
 } from './components/ui/dropdown-menu.jsx';
 import { Tooltip, TooltipContent, TooltipTrigger } from './components/ui/tooltip.jsx';
 import { rawRequest } from './lib/api.js';
+import { searchCatalog } from './lib/categories.js';
+import { price } from './lib/format.js';
 import { PLACES, useAuth, useCart, useDeliveryLocation, useToast } from './lib/store.jsx';
 import { useTheme } from './lib/theme.jsx';
 import { cn } from './lib/utils.js';
+import Browse from './pages/Browse.jsx';
 import Cart from './pages/Cart.jsx';
 import Login from './pages/Login.jsx';
 import Product from './pages/Product.jsx';
@@ -64,6 +75,8 @@ export default function App() {
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Shop />} />
+          <Route path="/search" element={<Browse />} />
+          <Route path="/c/:slug" element={<Browse />} />
           <Route path="/login" element={<Login />} />
           <Route path="/product/:variantId" element={<Contained><Product /></Contained>} />
           <Route path="/cart" element={<Contained><Cart /></Contained>} />
@@ -78,7 +91,51 @@ export default function App() {
         </Routes>
       </main>
       {pathname !== '/login' && <Footer />}
+      <CartBar />
     </div>
+  );
+}
+
+const SHOPPER_PATHS = /^\/($|search|c\/|product\/)/;
+
+/** Floating "View cart" bar on shopping pages, like a quick-commerce app. */
+function CartBar() {
+  const { count, items } = useCart();
+  const { pathname } = useLocation();
+  const total = items.reduce((n, i) => n + (i.priceHintMinor ?? 0) * i.quantity, 0);
+  const show = count > 0 && SHOPPER_PATHS.test(pathname);
+  return (
+    <AnimatePresence>
+      {show && (
+        <motion.div
+          initial={{ y: 90, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 90, opacity: 0 }}
+          transition={{ type: 'spring', damping: 24, stiffness: 260 }}
+          className="pointer-events-none fixed inset-x-0 bottom-4 z-40 flex justify-center px-4"
+        >
+          <Link
+            to="/cart"
+            className="pointer-events-auto flex w-full max-w-md items-center gap-3 rounded-2xl bg-primary px-4 py-3 text-primary-foreground shadow-2xl shadow-primary/30 ring-1 ring-black/5 transition hover:brightness-110"
+          >
+            <span className="grid size-10 place-items-center rounded-xl bg-white/15">
+              <ShoppingCart className="size-5" />
+            </span>
+            <span className="min-w-0 flex-1 leading-tight">
+              <span className="block text-sm font-extrabold">
+                {count} item{count === 1 ? '' : 's'}
+              </span>
+              <span className="block text-xs font-semibold opacity-85">
+                <NumberTicker value={total} format={price} /> · prices confirmed at checkout
+              </span>
+            </span>
+            <span className="inline-flex items-center gap-0.5 text-sm font-extrabold">
+              View cart <ChevronRight className="size-4" />
+            </span>
+          </Link>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 
@@ -104,65 +161,203 @@ function useNavItems() {
 
 function TopBar() {
   const { user } = useAuth();
-  const { count } = useCart();
   const items = useNavItems();
   return (
-    <header className="sticky top-0 z-40 border-b border-border/60 bg-background/75 backdrop-blur-xl supports-[backdrop-filter]:bg-background/60">
-      <div className="container flex h-16 items-center gap-3">
+    <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75">
+      <div className="container flex h-[72px] items-center gap-3 lg:gap-5">
         <MobileNav items={items} />
         <Logo />
-        <nav className="ml-4 hidden items-center gap-1 lg:flex">
-          {items.map((i) => (
-            <NavLink
-              key={i.to}
-              to={i.to}
-              end={i.end}
-              className={({ isActive }) =>
-                cn(
-                  'relative rounded-lg px-3 py-2 text-sm font-semibold text-muted-foreground transition-colors hover:text-foreground',
-                  isActive && 'text-foreground after:absolute after:inset-x-3 after:-bottom-[13px] after:h-0.5 after:rounded-full after:bg-primary',
-                )
-              }
-            >
-              {i.label}
-            </NavLink>
-          ))}
-        </nav>
-        <div className="ml-auto flex items-center gap-1.5 sm:gap-2">
+        <span className="hidden h-10 w-px bg-border md:block" />
+        <DeliveryEta />
+        <SearchBar className="hidden flex-1 md:flex" />
+        <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:ml-0">
           <Health />
-          <LocationButton />
-          <ThemeToggle />
-          <Button asChild variant="ghost" size="icon" className="relative" aria-label="Cart">
-            <Link to="/cart">
-              <ShoppingBag />
-              {count > 0 && (
-                <span className="num absolute -right-0.5 -top-0.5 grid h-5 min-w-5 place-items-center rounded-full bg-gold px-1 text-[10px] font-extrabold text-gold-foreground ring-2 ring-background">
-                  {count}
-                </span>
-              )}
-            </Link>
-          </Button>
+          <nav className="hidden items-center xl:flex">
+            {items
+              .filter((i) => i.to !== '/')
+              .map((i) => (
+                <Tooltip key={i.to}>
+                  <TooltipTrigger asChild>
+                    <Button asChild variant="ghost" size="icon" aria-label={i.label}>
+                      <Link to={i.to}>
+                        <i.icon />
+                      </Link>
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>{i.label}</TooltipContent>
+                </Tooltip>
+              ))}
+          </nav>
+          <div className="hidden sm:block">
+            <ThemeToggle />
+          </div>
           {user ? (
             <UserMenu />
           ) : (
-            <Button asChild size="sm" className="ml-1">
-              <Link to="/login">Sign in</Link>
+            <Button asChild variant="ghost" className="px-2 font-bold sm:px-4">
+              <Link to="/login">
+                <UserRound className="sm:hidden" />
+                <span className="hidden sm:inline">Login</span>
+              </Link>
             </Button>
           )}
+          <CartButton />
         </div>
+      </div>
+      <div className="container pb-3 md:hidden">
+        <SearchBar />
       </div>
     </header>
   );
 }
 
+function CartButton() {
+  const { count, items } = useCart();
+  const total = items.reduce((n, i) => n + (i.priceHintMinor ?? 0) * i.quantity, 0);
+  return (
+    <Link
+      to="/cart"
+      aria-label="Cart"
+      className={cn(
+        'ml-1 flex h-11 items-center gap-2 rounded-xl px-3 text-sm font-extrabold shadow-sm transition active:scale-[0.97]',
+        count ? 'bg-primary text-primary-foreground hover:brightness-110' : 'bg-muted text-muted-foreground hover:text-foreground',
+      )}
+    >
+      <ShoppingCart className="size-5" />
+      {count ? (
+        <span className="hidden flex-col leading-none sm:flex">
+          <span className="text-[11px] font-bold opacity-90">
+            {count} item{count === 1 ? '' : 's'}
+          </span>
+          <NumberTicker value={total} format={price} className="mt-0.5" />
+        </span>
+      ) : (
+        <span className="hidden sm:inline">My Cart</span>
+      )}
+      {count > 0 && <span className="num grid min-w-5 place-items-center rounded-full bg-gold px-1 text-[10px] text-gold-foreground sm:hidden">{count}</span>}
+    </Link>
+  );
+}
+
+// Fastest delivery estimate to the chosen point, from the first page of the catalog.
+const etaCache = new Map();
+function useFastestEta(location) {
+  const key = `${location.lat},${location.lng}`;
+  const [eta, setEta] = useState(etaCache.get(key));
+  useEffect(() => {
+    let alive = true;
+    if (etaCache.has(key)) return setEta(etaCache.get(key));
+    searchCatalog({ limit: 30, location, sort: 'fastest' })
+      .then((r) => {
+        const all = r.items.flatMap((i) => i.offers.map((o) => o.estimatedDeliveryMinutes)).filter((m) => m != null);
+        const best = all.length ? Math.min(...all) : null;
+        etaCache.set(key, best);
+        if (alive) setEta(best);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, [key, location]);
+  return eta;
+}
+
+function DeliveryEta() {
+  const { location } = useDeliveryLocation();
+  const eta = useFastestEta(location);
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button onClick={() => setOpen(true)} className="group min-w-0 shrink-0 text-left" title="Change delivery location">
+        <span className="flex items-center gap-1 text-[15px] font-black leading-tight tracking-tight sm:text-base">
+          <Zap className="size-4 fill-gold text-gold" />
+          {eta === undefined ? 'Finding riders…' : eta === null ? 'Not serviceable yet' : `Delivery in ${eta} minutes`}
+        </span>
+        <span className="flex max-w-[210px] items-center gap-0.5 truncate text-xs font-medium text-muted-foreground group-hover:text-foreground">
+          <MapPin className="size-3 shrink-0" />
+          <span className="truncate">{location.label ?? `${location.lat}, ${location.lng}`}</span>
+          <ChevronDown className="size-3.5 shrink-0" />
+        </span>
+      </button>
+      {open && <LocationModal onClose={() => setOpen(false)} />}
+    </>
+  );
+}
+
+const SEARCH_HINTS = ['"milk"', '"maggi"', '"chips"', '"atta"', '"chocolate"', '"paneer"', '"coffee"', '"ghee"'];
+
+/** Header search: debounced live results on /search, rotating placeholder when empty. */
+function SearchBar({ className }) {
+  const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [params] = useSearchParams();
+  const current = pathname === '/search' ? params.get('q') ?? '' : '';
+  const [draft, setDraft] = useState(current);
+  const inputRef = useRef(null);
+  const timer = useRef();
+
+  useEffect(() => {
+    setDraft(current);
+  }, [current]);
+
+  const go = (term, replace) => {
+    clearTimeout(timer.current);
+    navigate(`/search?q=${encodeURIComponent(term.trim())}`, { replace });
+  };
+
+  return (
+    <form
+      role="search"
+      className={cn('relative flex h-12 items-center gap-2 rounded-xl border bg-muted/60 px-3.5 transition focus-within:border-primary/50 focus-within:bg-card focus-within:ring-4 focus-within:ring-primary/10', className)}
+      onSubmit={(e) => {
+        e.preventDefault();
+        go(draft, pathname === '/search');
+      }}
+    >
+      <Search className="size-[18px] shrink-0 text-muted-foreground" />
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => {
+          const v = e.target.value;
+          setDraft(v);
+          clearTimeout(timer.current);
+          if (v.trim().length >= 2) timer.current = setTimeout(() => go(v, pathname === '/search'), 350);
+        }}
+        aria-label="Search products"
+        className="peer h-full min-w-0 flex-1 bg-transparent text-[15px] font-medium focus:outline-none"
+      />
+      {!draft && (
+        <span className="pointer-events-none absolute left-11 flex items-center gap-1 text-[15px] text-muted-foreground">
+          Search <RotatingText words={SEARCH_HINTS} className="font-semibold text-foreground/70" />
+        </span>
+      )}
+      {draft && (
+        <button
+          type="button"
+          aria-label="Clear search"
+          onClick={() => {
+            setDraft('');
+            inputRef.current?.focus();
+          }}
+          className="grid size-7 place-items-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        >
+          <X className="size-4" />
+        </button>
+      )}
+    </form>
+  );
+}
+
 function Logo({ light }) {
   return (
-    <Link to="/" className="group flex shrink-0 items-center gap-2.5">
-      <span className="grid size-9 place-items-center rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-800 font-black text-white shadow-glow transition-transform group-hover:rotate-[-6deg]">
-        L
+    <Link to="/" className="group flex shrink-0 items-center gap-2">
+      <span className="relative grid size-10 place-items-center rounded-xl bg-gold font-black text-gold-foreground shadow-sm transition-transform group-hover:rotate-[-6deg]">
+        <span className="text-lg leading-none">L</span>
+        <Zap className="absolute -bottom-1 -right-1 size-4 rounded-full bg-primary p-0.5 text-white" />
       </span>
-      <span className={cn('text-lg font-extrabold tracking-tight', light && 'text-white')}>
-        Local<span className="font-display text-xl font-normal italic text-primary">Stock</span>
+      <span className={cn('hidden text-xl font-black tracking-tight sm:block', light && 'text-white')}>
+        local<span className="text-primary">stock</span>
       </span>
     </Link>
   );
@@ -253,27 +448,6 @@ function ThemeToggle() {
         </DropdownMenuRadioGroup>
       </DropdownMenuContent>
     </DropdownMenu>
-  );
-}
-
-function LocationButton() {
-  const { location } = useDeliveryLocation();
-  const [open, setOpen] = useState(false);
-  return (
-    <>
-      <button
-        onClick={() => setOpen(true)}
-        className="flex max-w-[180px] items-center gap-2 rounded-full border bg-card px-3 py-1.5 text-left shadow-sm transition hover:border-primary/40 hover:shadow-soft"
-        title="Delivery location"
-      >
-        <MapPin className="size-4 shrink-0 text-primary" />
-        <span className="hidden min-w-0 sm:block">
-          <span className="block text-[10px] font-semibold uppercase leading-none tracking-wider text-muted-foreground">Deliver to</span>
-          <span className="block truncate text-xs font-bold leading-tight">{location.label ?? `${location.lat}, ${location.lng}`}</span>
-        </span>
-      </button>
-      {open && <LocationModal onClose={() => setOpen(false)} />}
-    </>
   );
 }
 

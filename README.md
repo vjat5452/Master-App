@@ -6,7 +6,8 @@ LocalStock is a multi-vendor, multi-warehouse commerce and fulfillment platform.
 
 ```
 apps/
-  web/        Vite + React UI (Tailwind CSS, shadcn/ui, Material UI charts): shop, checkout,
+  web/        Vite + React UI (Tailwind CSS, shadcn/ui, Material UI charts, effects after Magic UI /
+              React Bits / Aceternity UI): quick-commerce storefront, category browse, checkout,
               orders, seller hub, admin, API explorer; light and dark themes
   api/        Express modular monolith (auth, organizations, warehouses, catalog, offers,
               inventory, discovery, checkout, orders, payments, delivery)
@@ -88,7 +89,7 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Catalog | `GET/POST /catalog/categories` Â· `POST /catalog/groups` Â· `GET /catalog/groups/:id` Â· `POST /catalog/variants` Â· `GET /catalog/variants/:id` Â· `PATCH /catalog/variants/:id/status` |
 | Offers | `POST/GET /companies/:id/offers` Â· `PATCH /companies/:id/offers/:offerId` |
 | Inventory | `POST /companies/:id/inventory/adjustments` Â· `GET /companies/:id/inventory` |
-| Discovery | `GET /catalog/search?q&lat&lng&radiusKm&sort&page&limit` Â· `GET /catalog/variants/:id/offers` |
+| Discovery | `GET /catalog/search?q&category&lat&lng&radiusKm&sort&page&limit` Â· `GET /catalog/variants/:id/offers` |
 | Checkout | `POST /checkout/quote` (advisory, reserves nothing) |
 | Orders | `POST /orders` (requires an `Idempotency-Key` header) Â· `GET /orders` Â· `GET /orders/:id` Â· `POST /orders/:id/cancel` |
 | Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) Â· `POST /payments/sandbox/:paymentId/simulate` (outside production only) |

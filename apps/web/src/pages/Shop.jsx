@@ -1,15 +1,13 @@
-import { useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useRef } from 'react';
+import { Link, Navigate, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowRight, ChevronLeft, ChevronRight, Layers, MapPin, PackageCheck, Search, SearchX, ShieldCheck, ShoppingCart, Sparkles, Store, Truck } from 'lucide-react';
-import { Attrs, OfferLine, primaryAttr, ProductArt } from '@/components/product';
-import { Button, Empty, ErrorBox, Segmented, Stepper } from '@/components/kit';
-import { Card } from '@/components/ui/card';
-import { Skeleton, Switch } from '@/components/ui/misc';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { get, qs } from '@/lib/api';
-import { money } from '@/lib/format';
-import { useAsync, useCart, useDeliveryLocation, useToast } from '@/lib/store';
+import { ArrowRight, ChevronLeft, ChevronRight, Layers, PackageCheck, ShieldCheck, Sparkles, Store, Timer, Truck, Zap } from 'lucide-react';
+import { BlurFade, BorderBeam, Marquee, NumberTicker, ShimmerButton, ShinyText, SpotlightCard } from '@/components/fx';
+import { QuickCard, QuickCardSkeleton } from '@/components/product';
+import { ErrorBox } from '@/components/kit';
+import { loadCategories, searchCatalog, styleFor } from '@/lib/categories';
+import { useAsync, useDeliveryLocation } from '@/lib/store';
+import { cn } from '@/lib/utils';
 
 export const SORTS = [
   { id: 'best_value', label: 'Best value' },
@@ -17,403 +15,345 @@ export const SORTS = [
   { id: 'fastest', label: 'Fastest' },
   { id: 'nearest', label: 'Nearest' },
 ];
-const RADII = [2, 5, 10, 20, 50];
-const SUGGESTIONS = ['milk', 'atta', 'biscuits', 'tea', 'namkeen'];
 
 const FEATURES = [
-  { icon: Store, title: 'Every seller, side by side', body: 'One product page lists each nearby seller with price, stock and delivery estimate.' },
-  { icon: Layers, title: 'One cart, many warehouses', body: 'The allocation engine plans the cheapest or fastest way to fulfil the whole cart.' },
-  { icon: ShieldCheck, title: 'Stock held at checkout', body: 'Placing an order reserves units atomically, so what you pay for is really there.' },
-  { icon: Truck, title: 'Hybrid delivery', body: 'Platform fleet, couriers or the seller’s own riders: whichever lands it best.' },
+  { icon: Store, title: 'Every seller, side by side', body: 'Each product lists every nearby seller with price, stock and ETA.' },
+  { icon: Layers, title: 'One cart, many warehouses', body: 'The allocation engine plans the cheapest or fastest way to fulfil it.' },
+  { icon: ShieldCheck, title: 'Stock held at checkout', body: 'Orders reserve units atomically, so what you pay for is really there.' },
+  { icon: Truck, title: 'Hybrid delivery', body: 'Platform fleet, couriers or the seller’s own riders: whichever is fastest.' },
 ];
 
+const PROMOS = [
+  { slug: 'dairy', title: 'Fresh dairy, every morning', body: 'Milk, curd, paneer and ice cream from sellers near you', bg: 'from-sky-500 to-indigo-600' },
+  { slug: 'snacks', title: 'Snack attack sorted', body: 'Chips, namkeen and popcorn at the lowest local price', bg: 'from-orange-500 to-rose-600' },
+  { slug: 'staples', title: 'Stock up the kitchen', body: 'Atta, rice, dals and oils compared across warehouses', bg: 'from-emerald-500 to-teal-700' },
+];
+
+// Recognisable packs for the hero collage (first hit of each search).
+const HERO_QUERIES = ['dairy milk silk', 'maggi masala noodles', 'lays classic salted', 'kool kesar', 'oreo'];
+
+// Load every category's first shelf in parallel; the home page is built from these.
+function useShelves(location) {
+  return useAsync(async () => {
+    const categories = await loadCategories();
+    const [all, hero, ...shelves] = await Promise.all([
+      searchCatalog({ limit: 1, location }),
+      Promise.all(HERO_QUERIES.map((q) => searchCatalog({ q, limit: 1, location }).then((r) => r.items[0]))),
+      ...categories.map((c) => searchCatalog({ category: c.slug, limit: 14, location })),
+    ]);
+    return {
+      total: all.total,
+      hero: hero.filter((i) => i?.imageUrl),
+      shelves: categories.map((c, i) => ({ ...c, items: shelves[i].items, total: shelves[i].total })).filter((s) => s.total > 0),
+    };
+  }, [location.lat, location.lng]);
+}
+
 export default function Shop() {
+  const [params] = useSearchParams();
   const { location } = useDeliveryLocation();
-  const [params, setParams] = useSearchParams();
-  const q = params.get('q') ?? '';
-  const sort = params.get('sort') ?? 'best_value';
-  // 20 km reaches every demo seller from central Delhi; matches the product page default.
-  const radiusKm = Number(params.get('radiusKm') ?? 20);
-  const page = Number(params.get('page') ?? 1);
-  const anywhere = params.get('anywhere') === '1';
-  const [draft, setDraft] = useState(q);
+  const { data, error, reload } = useShelves(location);
 
-  const update = (patch) => {
-    const next = new URLSearchParams(params);
-    for (const [k, v] of Object.entries(patch)) {
-      if (v === '' || v == null || v === false) next.delete(k);
-      else next.set(k, v === true ? '1' : String(v));
-    }
-    if (!('page' in patch)) next.delete('page');
-    setParams(next);
-  };
+  // Old links used /?q=; search now lives on its own page.
+  if (params.get('q')) return <Navigate to={`/search?${params}`} replace />;
 
-  const { data, error, loading, reload } = useAsync(
-    () =>
-      get(`/catalog/search${qs({ q, sort, radiusKm, page, limit: 12, ...(anywhere ? {} : { lat: location.lat, lng: location.lng }) })}`, { auth: false }),
-    [q, sort, radiusKm, page, anywhere, location.lat, location.lng],
-  );
-
-  const pages = data ? Math.max(1, Math.ceil(data.total / data.limit)) : 1;
-  const withStock = data?.items.filter((i) => i.offers.length > 0).length ?? 0;
-  const showcase = data?.items.find((i) => i.offers.length > 1) ?? data?.items.find((i) => i.offers.length > 0);
+  const items = data?.shelves.flatMap((s) => s.items) ?? [];
+  const sellers = new Set(items.flatMap((i) => i.offers.map((o) => o.sellerName))).size;
+  const etas = items.flatMap((i) => i.offers.map((o) => o.estimatedDeliveryMinutes)).filter((m) => m != null);
+  const brands = [...new Set(items.map((i) => i.brand).filter(Boolean))];
 
   return (
-    <>
-      <Hero
-        location={location}
-        draft={draft}
-        setDraft={setDraft}
-        onSearch={(term) => update({ q: term.trim() })}
-        showcase={showcase}
-      />
+    <div className="pb-10">
+      <section className="container pt-5">
+        <Hero total={data?.total} sellers={sellers} fastest={etas.length ? Math.min(...etas) : null} picks={data?.hero ?? []} location={location} />
+      </section>
 
-      <section className="container -mt-10 relative z-10">
-        <div className="grid gap-3 rounded-3xl border bg-card/90 p-3 shadow-lift backdrop-blur sm:grid-cols-2 lg:grid-cols-4">
+      <section className="container mt-4 grid gap-3 md:grid-cols-3">
+        {PROMOS.map((p, i) => (
+          <PromoCard key={p.slug} promo={p} index={i} shelf={data?.shelves.find((s) => s.slug === p.slug)} />
+        ))}
+      </section>
+
+      <section className="container mt-10" id="categories">
+        <SectionTitle eyebrow="Explore" title="Shop by category" />
+        <ErrorBox error={error} onRetry={reload} />
+        <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-11">
+          {data
+            ? data.shelves.map((s, i) => <CategoryTile key={s.id} shelf={s} index={i} />)
+            : Array.from({ length: 11 }, (_, i) => <div key={i} className="aspect-[4/5] animate-pulse rounded-2xl bg-muted" />)}
+        </div>
+      </section>
+
+      {brands.length > 0 && (
+        <section className="mt-10 border-y bg-card py-4">
+          <Marquee duration={50} repeat={3}>
+            {brands.map((b) => (
+              <Link
+                key={b}
+                to={`/search?q=${encodeURIComponent(b)}`}
+                className="whitespace-nowrap rounded-full border bg-background px-4 py-1.5 text-sm font-bold text-foreground/70 transition hover:border-primary/40 hover:text-primary"
+              >
+                {b}
+              </Link>
+            ))}
+          </Marquee>
+        </section>
+      )}
+
+      <div className="container mt-10 space-y-10">
+        {data
+          ? data.shelves.map((s) => <Shelf key={s.id} shelf={s} />)
+          : Array.from({ length: 3 }, (_, i) => (
+              <div key={i}>
+                <div className="mb-4 h-7 w-56 animate-pulse rounded bg-muted" />
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-6">
+                  {Array.from({ length: 6 }, (_, j) => (
+                    <QuickCardSkeleton key={j} />
+                  ))}
+                </div>
+              </div>
+            ))}
+      </div>
+
+      <section className="container mt-14">
+        <div className="grid gap-3 rounded-3xl border bg-card p-3 sm:grid-cols-2 lg:grid-cols-4">
           {FEATURES.map((f, i) => (
-            <motion.div
-              key={f.title}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 + i * 0.07 }}
-              className="flex gap-3 rounded-2xl p-3 transition-colors hover:bg-muted/50"
-            >
-              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-emerald-500 to-teal-700 text-white shadow-glow">
+            <BlurFade key={f.title} delay={i * 0.06} className="flex gap-3 rounded-2xl p-3 transition-colors hover:bg-muted/60">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-primary">
                 <f.icon className="size-5" />
               </span>
               <div>
-                <div className="text-sm font-bold">{f.title}</div>
+                <div className="text-sm font-extrabold">{f.title}</div>
                 <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{f.body}</p>
+              </div>
+            </BlurFade>
+          ))}
+        </div>
+      </section>
+
+      <SellerCta />
+    </div>
+  );
+}
+
+function SectionTitle({ eyebrow, title, action }) {
+  return (
+    <div className="mb-4 flex items-end justify-between gap-4">
+      <div>
+        {eyebrow && <div className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-primary">{eyebrow}</div>}
+        <h2 className="text-xl font-black tracking-tight sm:text-2xl">{title}</h2>
+      </div>
+      {action}
+    </div>
+  );
+}
+
+function Hero({ total, sellers, fastest, picks: floats, location }) {
+  return (
+    <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-emerald-600 via-green-700 to-emerald-900 text-white shadow-lift">
+      <div className="bg-grid absolute inset-0 opacity-60" aria-hidden />
+      <div className="absolute -right-24 -top-24 size-80 rounded-full bg-yellow-300/30 blur-3xl" aria-hidden />
+      <div className="absolute -bottom-32 left-1/3 size-96 rounded-full bg-emerald-300/20 blur-3xl" aria-hidden />
+      <BorderBeam size={260} duration={10} from="#fde047" to="#86efac" />
+
+      <div className="relative grid items-center gap-8 px-6 py-9 sm:px-10 lg:grid-cols-[1.1fr_0.9fr] lg:py-12">
+        <motion.div initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}>
+          <div className="inline-flex items-center gap-2 rounded-full bg-black/20 px-3 py-1 text-xs font-bold ring-1 ring-white/15 backdrop-blur">
+            <Sparkles className="size-3.5 text-yellow-300" />
+            <ShinyText className="text-yellow-100">Every local seller · one checkout</ShinyText>
+          </div>
+          <h1 className="mt-4 text-[34px] font-black leading-[1.02] tracking-tight sm:text-5xl lg:text-[56px]">
+            Groceries in <span className="text-yellow-300">minutes</span>,
+            <br />
+            at the best local price.
+          </h1>
+          <p className="mt-4 max-w-lg text-[15px] text-emerald-50/85 sm:text-base">
+            We compare every nearby store's price, stock and rider ETA for {location.label ?? 'you'}, then deliver your whole cart in one order.
+          </p>
+          <div className="mt-6 flex flex-wrap items-center gap-3">
+            <ShimmerButton background="#facc15" className="text-[15px] !text-yellow-950" onClick={() => document.getElementById('categories')?.scrollIntoView({ behavior: 'smooth' })}>
+              Start shopping <ArrowRight className="size-4" />
+            </ShimmerButton>
+            <Link to="/seller" className="rounded-full px-4 py-3 text-sm font-bold text-white/90 ring-1 ring-white/25 transition hover:bg-white/10">
+              Sell on LocalStock
+            </Link>
+          </div>
+          <div className="mt-7 flex flex-wrap gap-2.5">
+            <HeroStat icon={PackageCheck} label="products">
+              {total != null ? <NumberTicker value={total} /> : '…'}
+            </HeroStat>
+            <HeroStat icon={Store} label="sellers nearby">
+              <NumberTicker value={sellers} />
+            </HeroStat>
+            <HeroStat icon={Timer} label="fastest ETA">
+              {fastest != null ? (
+                <>
+                  <NumberTicker value={fastest} /> min
+                </>
+              ) : (
+                '—'
+              )}
+            </HeroStat>
+          </div>
+        </motion.div>
+
+        <div className="relative hidden h-[320px] lg:block" aria-hidden>
+          {floats.map((p, i) => (
+            <motion.div
+              key={`${p.variantId}-${i}`}
+              initial={{ opacity: 0, scale: 0.7, rotate: 0 }}
+              animate={{ opacity: 1, scale: 1, rotate: [-8, 6, -4, 8, -6][i] }}
+              transition={{ delay: 0.15 + i * 0.08, type: 'spring', damping: 14 }}
+              className="absolute rounded-3xl bg-white shadow-2xl shadow-black/25"
+              style={
+                [
+                  { left: '6%', top: '2%', width: 168, height: 168 },
+                  { right: '4%', top: 0, width: 150, height: 150 },
+                  { left: '33%', top: '28%', width: 190, height: 190, zIndex: 10 },
+                  { left: '2%', bottom: 0, width: 132, height: 132 },
+                  { right: '8%', bottom: 0, width: 150, height: 150 },
+                ][i]
+              }
+            >
+              <div className="absolute inset-3 animate-float" style={{ animationDelay: `${i * 0.7}s` }}>
+                <img src={p.imageUrl} alt="" className="absolute inset-0 size-full object-contain mix-blend-multiply" />
               </div>
             </motion.div>
           ))}
         </div>
-      </section>
-
-      <section className="container py-14" id="products">
-        <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-[0.18em] text-primary">{q ? 'Search results' : 'Available near you'}</div>
-            <h2 className="mt-1 text-2xl font-extrabold tracking-tight sm:text-3xl">
-              {q ? (
-                <>
-                  Results for <span className="font-display font-normal italic text-primary">“{q}”</span>
-                </>
-              ) : (
-                'Fresh from local warehouses'
-              )}
-            </h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              {data ? (
-                <>
-                  <strong className="text-foreground">{data.total}</strong> product{data.total === 1 ? '' : 's'} · sellers{' '}
-                  {anywhere ? 'anywhere' : `within ${radiusKm} km of ${location.label ?? 'you'}`}
-                  {withStock < data.items.length && ` · ${data.items.length - withStock} on this page not deliverable here`}
-                </>
-              ) : (
-                'Searching…'
-              )}
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Select value={sort} onValueChange={(v) => update({ sort: v })}>
-              <SelectTrigger className="w-40" aria-label="Sort">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {SORTS.map((s) => (
-                  <SelectItem key={s.id} value={s.id}>
-                    {s.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Segmented
-              value={String(radiusKm)}
-              onChange={(v) => update({ radiusKm: v })}
-              options={RADII.map((r) => ({ id: String(r), label: `${r} km` }))}
-              className={anywhere ? 'pointer-events-none opacity-50' : ''}
-            />
-            <label className="flex cursor-pointer items-center gap-2 rounded-xl border bg-card px-3 py-2 text-xs font-semibold shadow-sm">
-              <Switch checked={anywhere} onCheckedChange={(v) => update({ anywhere: v })} />
-              Any location
-            </label>
-          </div>
-        </div>
-
-        <ErrorBox error={error} onRetry={reload} />
-        {loading && !data && <ProductGridSkeleton />}
-        {data && data.items.length === 0 && (
-          <Card>
-            <Empty icon={SearchX} title="No products match" action={q && <Button variant="secondary" onClick={() => (setDraft(''), update({ q: '' }))}>Clear search</Button>}>
-              Try a different word, or clear the search to browse everything.
-            </Empty>
-          </Card>
-        )}
-        {data && data.items.length > 0 && (
-          <div className="grid gap-5 transition-opacity sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4" style={{ opacity: loading ? 0.6 : 1 }}>
-            {data.items.map((item, i) => (
-              <ProductCard key={item.variantId} item={item} index={i} />
-            ))}
-          </div>
-        )}
-
-        {data && pages > 1 && (
-          <div className="mt-10 flex items-center justify-center gap-3">
-            <Button variant="secondary" size="sm" disabled={page <= 1} onClick={() => update({ page: page - 1 })}>
-              <ChevronLeft /> Previous
-            </Button>
-            <span className="text-sm text-muted-foreground">
-              Page <strong className="text-foreground">{page}</strong> of {pages}
-            </span>
-            <Button variant="secondary" size="sm" disabled={page >= pages} onClick={() => update({ page: page + 1 })}>
-              Next <ChevronRight />
-            </Button>
-          </div>
-        )}
-      </section>
-
-      <SellerCta />
-    </>
-  );
-}
-
-function Hero({ location, draft, setDraft, onSearch, showcase }) {
-  return (
-    <section className="bg-aurora relative overflow-hidden text-white">
-      <div className="bg-grid absolute inset-0" aria-hidden />
-      <div className="container relative grid items-center gap-12 pb-24 pt-14 lg:grid-cols-[1.15fr_0.85fr] lg:pb-32 lg:pt-20">
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}>
-          <div className="glass inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-xs font-semibold text-emerald-50">
-            <span className="relative flex size-2">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-300 opacity-70" />
-              <span className="relative inline-flex size-2 rounded-full bg-emerald-300" />
-            </span>
-            Delivering to {location.label ?? 'your location'}
-          </div>
-          <h1 className="mt-6 text-4xl font-extrabold leading-[1.05] tracking-tight sm:text-5xl lg:text-6xl">
-            Every local seller.
-            <br />
-            <span className="text-gradient font-display text-[1.12em] font-normal italic">One checkout.</span>
-          </h1>
-          <p className="mt-5 max-w-xl text-base text-emerald-50/80 sm:text-lg">
-            Compare every nearby seller's price, stock and delivery time, then check out across warehouses in a single order.
-          </p>
-
-          <form
-            className="glass mt-8 flex max-w-xl items-center gap-2 rounded-2xl p-2 shadow-2xl shadow-black/20"
-            onSubmit={(e) => {
-              e.preventDefault();
-              onSearch(draft);
-              document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-            }}
-          >
-            <Search className="ml-2 size-5 shrink-0 text-emerald-100/70" />
-            <input
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              placeholder="Search products, e.g. whole wheat bread"
-              aria-label="Search"
-              className="h-11 min-w-0 flex-1 bg-transparent text-[15px] text-white placeholder:text-emerald-50/50 focus:outline-none"
-            />
-            <Button type="submit" variant="gold" size="lg" className="h-11 rounded-xl">
-              Search
-            </Button>
-          </form>
-          <div className="mt-4 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-emerald-50/60">Popular:</span>
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                className="rounded-full border border-white/15 bg-white/5 px-3 py-1 text-xs font-medium text-emerald-50/90 transition hover:border-white/30 hover:bg-white/15"
-                onClick={() => {
-                  setDraft(s);
-                  onSearch(s);
-                  document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' });
-                }}
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 24, rotate: 1.5 }}
-          animate={{ opacity: 1, y: 0, rotate: 0 }}
-          transition={{ duration: 0.8, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
-          className="hidden lg:block"
-        >
-          {showcase ? <LiveComparison item={showcase} /> : <Skeleton className="h-80 w-full rounded-3xl bg-white/10" />}
-        </motion.div>
-      </div>
-    </section>
-  );
-}
-
-/** Real offers for one product, framed as the "why LocalStock" moment in the hero. */
-function LiveComparison({ item }) {
-  const offers = item.offers.slice(0, 3);
-  return (
-    <div className="relative">
-      <div className="absolute -inset-6 rounded-[2rem] bg-emerald-400/20 blur-3xl" aria-hidden />
-      <div className="glass relative animate-float rounded-3xl p-5 shadow-2xl shadow-black/30">
-        <div className="flex items-center justify-between">
-          <span className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-[0.16em] text-emerald-100/80">
-            <Sparkles className="size-3.5 text-amber-200" /> Live comparison
-          </span>
-          <span className="rounded-full bg-white/10 px-2 py-0.5 text-[11px] font-semibold text-emerald-50">
-            {item.offers.length} seller{item.offers.length === 1 ? '' : 's'}
-          </span>
-        </div>
-        <Link to={`/product/${item.variantId}`} className="mt-4 flex items-center gap-4 rounded-2xl bg-white/95 p-3 text-foreground shadow-lg transition hover:scale-[1.01] dark:bg-card">
-          <ProductArt names={[item.group, item.name]} src={item.imageUrl} size="md" />
-          <div className="min-w-0">
-            <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{item.brand}</div>
-            <div className="truncate font-bold">{item.name}</div>
-            <Attrs attributes={item.attributes} className="mt-1" />
-          </div>
-        </Link>
-        <div className="mt-3 space-y-2">
-          {offers.map((o, i) => (
-            <div key={o.offerId} className={`flex items-center justify-between rounded-xl px-3 py-2.5 ${i === 0 ? 'bg-amber-300/20 ring-1 ring-amber-200/40' : 'bg-white/5'}`}>
-              <div className="min-w-0">
-                <div className="truncate text-sm font-semibold">{o.sellerName}</div>
-                <div className="text-[11px] text-emerald-50/70">
-                  {o.estimatedDeliveryMinutes != null ? `~${o.estimatedDeliveryMinutes} min` : 'delivery estimate at checkout'} · {o.availableUnits} in stock
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                {i === 0 && <span className="rounded-full bg-amber-300 px-2 py-0.5 text-[10px] font-extrabold text-amber-950">BEST</span>}
-                <span className="num text-sm font-extrabold">{money(o.priceMinor)}</span>
-              </div>
-            </div>
-          ))}
-        </div>
       </div>
     </div>
   );
 }
 
-function ProductCard({ item, index }) {
-  const cart = useCart();
-  const toast = useToast();
-  const [qty, setQty] = useState(1);
-  const shown = item.offers.slice(0, 2);
-  const from = item.offers.length ? Math.min(...item.offers.map((o) => o.priceMinor)) : null;
-  const stock = item.offers.reduce((n, o) => n + o.availableUnits, 0);
-  const fastest = item.offers.reduce((m, o) => (o.estimatedDeliveryMinutes != null && (m == null || o.estimatedDeliveryMinutes < m) ? o.estimatedDeliveryMinutes : m), null);
-
+function HeroStat({ icon: Icon, label, children }) {
   return (
-    <motion.article
-      initial={{ opacity: 0, y: 14 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: Math.min(index, 8) * 0.04, duration: 0.4 }}
-      className="group flex flex-col overflow-hidden rounded-3xl border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift"
-    >
-      <Link to={`/product/${item.variantId}`} className="relative block p-3 pb-0">
-        <ProductArt
-          names={[item.group, item.name]}
-          src={item.imageUrl}
-          size="tile"
-          label={primaryAttr(item.attributes)}
-          className="transition-transform duration-500 group-hover:scale-[1.03]"
-        />
-        {item.offers.length > 1 && (
-          <span className="absolute right-5 top-5 rounded-full bg-card/90 px-2 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur">
-            {item.offers.length} sellers
-          </span>
-        )}
-        {fastest != null && (
-          <span className="absolute left-5 top-5 inline-flex items-center gap-1 rounded-full bg-primary px-2 py-0.5 text-[10px] font-bold text-primary-foreground shadow-sm">
-            <Truck className="size-3" /> ~{fastest} min
-          </span>
-        )}
+    <div className="flex items-center gap-2.5 rounded-2xl bg-white/10 px-3.5 py-2 ring-1 ring-white/15 backdrop-blur">
+      <Icon className="size-4 text-yellow-300" />
+      <div className="leading-tight">
+        <div className="text-lg font-black">{children}</div>
+        <div className="text-[10px] font-semibold uppercase tracking-wider text-emerald-50/70">{label}</div>
+      </div>
+    </div>
+  );
+}
+
+function PromoCard({ promo, shelf, index }) {
+  const pics = (shelf?.items ?? []).filter((i) => i.imageUrl).slice(0, 3);
+  return (
+    <BlurFade delay={index * 0.08}>
+      <Link to={`/c/${promo.slug}`} className="block">
+        <SpotlightCard className={cn('group h-full rounded-3xl bg-gradient-to-br p-5 text-white shadow-soft transition hover:shadow-lift', promo.bg)}>
+          <div className="relative flex min-h-[132px] items-center justify-between gap-3">
+            <div className="max-w-[60%]">
+              <h3 className="text-lg font-black leading-tight">{promo.title}</h3>
+              <p className="mt-1.5 text-xs text-white/85">{promo.body}</p>
+              <span className="mt-4 inline-flex items-center gap-1 rounded-lg bg-white px-3 py-1.5 text-xs font-extrabold text-black/80 transition group-hover:gap-2">
+                Order now <ChevronRight className="size-3.5" />
+              </span>
+            </div>
+            <div className="relative h-28 w-28 shrink-0">
+              {pics.map((p, i) => (
+                <img
+                  key={p.variantId}
+                  src={p.imageUrl}
+                  alt=""
+                  className={cn(
+                    'absolute size-16 rounded-2xl bg-white object-contain p-1.5 shadow-lg transition-transform duration-500',
+                    ['right-0 top-0 rotate-6 group-hover:rotate-12', 'bottom-0 left-0 -rotate-6 group-hover:-rotate-12', 'bottom-2 right-3 z-10 group-hover:scale-110'][i],
+                  )}
+                />
+              ))}
+            </div>
+          </div>
+        </SpotlightCard>
       </Link>
-      <div className="flex flex-1 flex-col gap-3 p-4">
-        <div>
-          {item.brand && <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{item.brand}</div>}
-          <Link to={`/product/${item.variantId}`} className="line-clamp-1 text-[15px] font-bold tracking-tight hover:text-primary">
-            {item.name}
-          </Link>
-          <div className="text-xs text-muted-foreground">{item.group}</div>
-        </div>
-        <div className="space-y-1.5">
-          {shown.length === 0 && (
-            <div className="flex items-center gap-2 rounded-xl bg-muted/50 px-3 py-2.5 text-xs text-muted-foreground">
-              <MapPin className="size-3.5" /> No seller delivers here right now
-            </div>
-          )}
-          {shown.map((o, i) => (
-            <OfferLine key={o.offerId} offer={o} best={i === 0 && item.offers.length > 1} />
-          ))}
-        </div>
-        <div className="mt-auto flex items-end justify-between gap-2 pt-1">
-          <div>
-            <div className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{from != null ? 'from' : ''}</div>
-            <div className="num text-xl font-extrabold tracking-tight">{from != null ? money(from) : <span className="text-sm font-semibold text-muted-foreground">Unavailable</span>}</div>
-          </div>
-          <div className="flex items-center gap-1.5">
-            <Stepper size="sm" value={qty} onChange={setQty} min={1} max={Math.max(1, Math.min(100, stock))} />
-            <Button
-              size="sm"
-              disabled={!item.offers.length}
-              onClick={() => {
-                cart.add(
-                  { variantId: item.variantId, name: item.name, brand: item.brand, group: item.group, attributes: item.attributes, imageUrl: item.imageUrl, priceHintMinor: from },
-                  qty,
-                );
-                toast(`Added ${qty} × ${item.name}`);
-                setQty(1);
-              }}
-            >
-              <ShoppingCart /> Add
-            </Button>
-          </div>
-        </div>
-      </div>
-    </motion.article>
+    </BlurFade>
   );
 }
 
-function ProductGridSkeleton() {
+function CategoryTile({ shelf, index }) {
+  const { tint, short } = styleFor(shelf.slug);
+  const pics = shelf.items.filter((i) => i.imageUrl).slice(0, 4);
   return (
-    <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-      {Array.from({ length: 8 }, (_, i) => (
-        <div key={i} className="space-y-3 rounded-3xl border bg-card p-3">
-          <Skeleton className="aspect-[4/3] w-full rounded-2xl" />
-          <Skeleton className="h-4 w-1/3" />
-          <Skeleton className="h-5 w-2/3" />
-          <Skeleton className="h-12 w-full" />
-          <Skeleton className="h-9 w-full" />
+    <BlurFade delay={Math.min(index, 10) * 0.03}>
+      <Link to={`/c/${shelf.slug}`} className="group block text-center">
+        <div className={cn('grid aspect-square grid-cols-2 gap-1 rounded-2xl bg-gradient-to-b p-2.5 transition duration-300 group-hover:-translate-y-1 group-hover:shadow-lift', tint)}>
+          {pics.map((p) => (
+            <div key={p.variantId} className="grid place-items-center overflow-hidden rounded-lg bg-white/80 p-1 dark:bg-white/90">
+              <img src={p.imageUrl} alt="" loading="lazy" className="size-full object-contain mix-blend-multiply" />
+            </div>
+          ))}
         </div>
-      ))}
-    </div>
+        <div className="mt-2 line-clamp-2 text-xs font-bold leading-tight text-foreground/85 group-hover:text-primary">{short ?? shelf.name}</div>
+      </Link>
+    </BlurFade>
+  );
+}
+
+function Shelf({ shelf }) {
+  const scroller = useRef(null);
+  const nudge = (dir) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
+  return (
+    <BlurFade as="section">
+      <SectionTitle
+        title={shelf.name}
+        action={
+          <div className="flex items-center gap-1.5">
+            <Link to={`/c/${shelf.slug}`} className="mr-1 text-sm font-extrabold text-primary hover:underline">
+              See all {shelf.total}
+            </Link>
+            <ArrowButton onClick={() => nudge(-1)} label="Scroll left" icon={ChevronLeft} />
+            <ArrowButton onClick={() => nudge(1)} label="Scroll right" icon={ChevronRight} />
+          </div>
+        }
+      />
+      <div ref={scroller} className="scrollbar-none -mx-1 flex snap-x gap-3 overflow-x-auto px-1 pb-2">
+        {shelf.items.map((item) => (
+          <QuickCard key={item.variantId} item={item} className="w-[158px] shrink-0 snap-start sm:w-[176px]" />
+        ))}
+        <Link
+          to={`/c/${shelf.slug}`}
+          className="grid w-[150px] shrink-0 snap-start place-items-center rounded-2xl border border-dashed bg-card text-center text-sm font-extrabold text-primary transition hover:border-primary/50 hover:bg-accent"
+        >
+          <span>
+            See all
+            <br />
+            <span className="text-xs font-semibold text-muted-foreground">{shelf.total} products</span>
+          </span>
+        </Link>
+      </div>
+    </BlurFade>
+  );
+}
+
+function ArrowButton({ onClick, label, icon: Icon }) {
+  return (
+    <button onClick={onClick} aria-label={label} className="hidden size-8 place-items-center rounded-full border bg-card shadow-sm transition hover:border-primary/40 hover:text-primary sm:grid">
+      <Icon className="size-4" />
+    </button>
   );
 }
 
 function SellerCta() {
   return (
-    <section className="container pb-6">
-      <div className="bg-aurora relative overflow-hidden rounded-[2rem] px-8 py-12 text-white shadow-lift sm:px-12">
+    <section className="container mt-12">
+      <div className="relative overflow-hidden rounded-[28px] bg-gradient-to-br from-zinc-900 via-emerald-950 to-zinc-900 px-8 py-10 text-white shadow-lift sm:px-12">
         <div className="bg-grid absolute inset-0" aria-hidden />
+        <BorderBeam size={200} duration={12} />
         <div className="relative flex flex-wrap items-center justify-between gap-8">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-[0.18em] text-emerald-200">
-              <PackageCheck className="size-4" /> For sellers
+            <div className="inline-flex items-center gap-2 text-xs font-extrabold uppercase tracking-[0.18em] text-yellow-300">
+              <Zap className="size-4 fill-yellow-300" /> For sellers
             </div>
-            <h2 className="mt-3 text-3xl font-extrabold tracking-tight sm:text-4xl">
-              Turn every warehouse into a <span className="font-display font-normal italic text-amber-200">storefront.</span>
-            </h2>
-            <p className="mt-3 text-emerald-50/80">
+            <h2 className="mt-3 text-3xl font-black tracking-tight sm:text-4xl">Turn every warehouse into a dark store.</h2>
+            <p className="mt-3 text-emerald-50/75">
               List against the shared catalog, keep stock in as many warehouses as you run, and let checkout route each order to the right one, with your own riders or ours.
             </p>
           </div>
-          <Button asChild variant="gold" size="lg">
-            <Link to="/seller">
-              Open the seller hub <ArrowRight />
-            </Link>
-          </Button>
+          <ShimmerButton as={Link} to="/seller" background="hsl(146 78% 32%)" className="text-[15px]">
+            Open the seller hub <ArrowRight className="size-4" />
+          </ShimmerButton>
         </div>
       </div>
     </section>

@@ -1,7 +1,9 @@
-import { Apple, Carrot, Coffee, Cookie, Croissant, Droplets, Egg, MapPin, Milk, Package, Timer, Trophy, Wheat } from 'lucide-react';
+import { Apple, Carrot, Coffee, Cookie, Croissant, Droplets, Egg, MapPin, Milk, Minus, Package, Plus, Timer, Trophy, Wheat, Zap } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { attrs, distance, minutes, money } from '@/lib/format';
+import { AnimatePresence, motion } from 'framer-motion';
+import { attrs, distance, minutes, money, price } from '@/lib/format';
+import { useCart } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
 // Category artwork: a gradient tile with an icon, so every product has a consistent, polished visual.
@@ -24,9 +26,15 @@ export const artFor = (...names) => ART.find(([re]) => names.some((n) => re.test
 export function ProductArt({ names, src, size = 'md', label, className }) {
   const [failed, setFailed] = useState(false);
   const [, Icon, gradient] = artFor(...names);
-  const dims = { sm: 'size-12 rounded-xl', md: 'size-16 rounded-2xl', lg: 'aspect-square w-full rounded-3xl', tile: 'aspect-[4/3] w-full rounded-2xl' }[size];
-  const icon = { sm: 'size-6', md: 'size-8', lg: 'size-24', tile: 'size-14' }[size];
-  const pad = { sm: 'p-1', md: 'p-1.5', lg: 'p-8', tile: 'p-4' }[size];
+  const dims = {
+    sm: 'size-12 rounded-xl',
+    md: 'size-16 rounded-2xl',
+    lg: 'aspect-square w-full rounded-3xl',
+    tile: 'aspect-[4/3] w-full rounded-2xl',
+    square: 'aspect-square w-full rounded-xl',
+  }[size];
+  const icon = { sm: 'size-6', md: 'size-8', lg: 'size-24', tile: 'size-14', square: 'size-12' }[size];
+  const pad = { sm: 'p-1', md: 'p-1.5', lg: 'p-8', tile: 'p-4', square: 'p-3' }[size];
 
   if (src && !failed) {
     return (
@@ -104,6 +112,128 @@ export function OfferLine({ offer, best }) {
         </div>
       </div>
       <div className="num shrink-0 text-sm font-extrabold">{money(offer.priceMinor)}</div>
+    </div>
+  );
+}
+
+/** Cheapest price, total stock and fastest ETA across a search item's offers. */
+export function summarize(item) {
+  const from = item.offers.length ? Math.min(...item.offers.map((o) => o.priceMinor)) : null;
+  const stock = item.offers.reduce((n, o) => n + o.availableUnits, 0);
+  const eta = item.offers.reduce((m, o) => (o.estimatedDeliveryMinutes != null && (m == null || o.estimatedDeliveryMinutes < m) ? o.estimatedDeliveryMinutes : m), null);
+  return { from, stock, eta };
+}
+
+/** Quick-commerce ADD control: an outlined button that becomes a −/+ stepper bound to the cart. */
+export function AddButton({ item, className, size = 'sm' }) {
+  const cart = useCart();
+  const { from, stock } = summarize(item);
+  const qty = cart.items.find((i) => i.variantId === item.variantId)?.quantity ?? 0;
+  const max = Math.max(1, Math.min(100, stock));
+  const big = size === 'lg';
+  const add = () =>
+    cart.add({ variantId: item.variantId, name: item.name, brand: item.brand, group: item.group, attributes: item.attributes, imageUrl: item.imageUrl, priceHintMinor: from }, 1);
+
+  return (
+    <div className={cn('relative', big ? 'h-11 w-36' : 'h-9 w-[76px]', className)}>
+      <AnimatePresence initial={false} mode="popLayout">
+        {qty === 0 ? (
+          <motion.button
+            key="add"
+            type="button"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.85, opacity: 0 }}
+            whileTap={{ scale: 0.92 }}
+            disabled={!item.offers.length}
+            onClick={add}
+            className={cn(
+              'absolute inset-0 rounded-lg border-[1.5px] border-primary bg-primary/[0.06] font-extrabold uppercase tracking-wide text-primary shadow-sm transition-colors hover:bg-primary/10',
+              'disabled:cursor-not-allowed disabled:border-border disabled:bg-muted disabled:text-muted-foreground',
+              big ? 'text-sm' : 'text-[13px]',
+            )}
+          >
+            Add
+          </motion.button>
+        ) : (
+          <motion.div
+            key="stepper"
+            initial={{ scale: 0.85, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0.85, opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-between rounded-lg bg-primary text-primary-foreground shadow-glow"
+          >
+            <button type="button" aria-label="Remove one" onClick={() => cart.setQuantity(item.variantId, qty - 1)} className="grid h-full w-8 place-items-center rounded-l-lg transition hover:bg-black/10">
+              <Minus className="size-3.5" strokeWidth={3} />
+            </button>
+            <motion.span key={qty} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cn('num font-extrabold', big ? 'text-base' : 'text-sm')}>
+              {qty}
+            </motion.span>
+            <button
+              type="button"
+              aria-label="Add one"
+              disabled={qty >= max}
+              onClick={() => cart.setQuantity(item.variantId, qty + 1)}
+              className="grid h-full w-8 place-items-center rounded-r-lg transition hover:bg-black/10 disabled:opacity-40"
+            >
+              <Plus className="size-3.5" strokeWidth={3} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** Compact shelf card: photo, ETA chip, name, pack size, price and ADD. */
+export function QuickCard({ item, className }) {
+  const { from, eta } = summarize(item);
+  const pack = primaryAttr(item.attributes);
+  return (
+    <article className={cn('group relative flex flex-col rounded-2xl border bg-card p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lift', className)}>
+      <Link to={`/product/${item.variantId}`} className="relative block">
+        <ProductArt names={[item.group, item.name]} src={item.imageUrl} size="square" className="transition-transform duration-500 group-hover:scale-[1.04]" />
+        {item.offers.length > 1 && (
+          <span className="absolute left-1.5 top-1.5 rounded-md bg-info px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wide text-white shadow-sm">
+            {item.offers.length} sellers
+          </span>
+        )}
+      </Link>
+      <div className={cn('mt-2 inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wide', eta != null ? 'bg-muted text-foreground/80' : 'bg-destructive/10 text-destructive')}>
+        {eta != null ? (
+          <>
+            <Zap className="size-3 fill-gold text-gold" /> {eta} mins
+          </>
+        ) : (
+          'Not deliverable here'
+        )}
+      </div>
+      <Link to={`/product/${item.variantId}`} className="mt-1.5 line-clamp-2 min-h-[2.4rem] text-[13px] font-bold leading-tight tracking-tight hover:text-primary">
+        {item.brand ? `${item.brand} ${item.name}` : item.name}
+      </Link>
+      <div className="mt-0.5 truncate text-xs text-muted-foreground">{pack ?? item.group}</div>
+      <div className="mt-auto flex items-end justify-between gap-2 pt-3">
+        <div className="min-w-0">
+          <div className="num text-[15px] font-extrabold leading-none">{from != null ? price(from) : '—'}</div>
+          {item.offers.length > 1 && <div className="mt-1 text-[10px] font-semibold text-muted-foreground">lowest of {item.offers.length}</div>}
+        </div>
+        <AddButton item={item} />
+      </div>
+    </article>
+  );
+}
+
+export function QuickCardSkeleton() {
+  return (
+    <div className="space-y-2 rounded-2xl border bg-card p-2.5">
+      <div className="aspect-square w-full animate-pulse rounded-xl bg-muted" />
+      <div className="h-3 w-14 animate-pulse rounded bg-muted" />
+      <div className="h-4 w-full animate-pulse rounded bg-muted" />
+      <div className="h-3 w-10 animate-pulse rounded bg-muted" />
+      <div className="flex justify-between pt-2">
+        <div className="h-5 w-10 animate-pulse rounded bg-muted" />
+        <div className="h-9 w-[76px] animate-pulse rounded-lg bg-muted" />
+      </div>
     </div>
   );
 }
