@@ -45,7 +45,7 @@ Copy-Item .env.example .env      # dev-only secrets
 npm install
 npm run infra:up                 # PostGIS, Redis, RabbitMQ (docker compose)
 npm run db:migrate
-npm run db:seed                  # demo sellers, warehouses, providers + 69-product catalog with photos
+npm run db:seed                  # demo sellers, warehouses, providers + 284-product catalog with photos
 
 npm run dev:api                  # http://localhost:5000
 npm run dev:worker               # in a second terminal
