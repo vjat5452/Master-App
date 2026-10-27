@@ -1,4 +1,4 @@
-﻿// Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
+// Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
 // Uses a separate *_test database (see ../test-support/isolated-database.js), never the dev data.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
