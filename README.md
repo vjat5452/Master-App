@@ -2,7 +2,7 @@
 
 LocalStock is a multi-vendor, multi-warehouse commerce and fulfillment platform. Sellers list standardized product variants and keep stock in several warehouses. Customers compare seller offers by price, availability and delivery estimate. Checkout allocates the cart across warehouses and delivery providers, then reserves stock atomically.
 
-**Stack:** Node.js · Express 5 · PostgreSQL + PostGIS · Redis · RabbitMQ · Zod · Docker
+**Stack:** Node.js Â· Express 5 Â· PostgreSQL + PostGIS Â· Redis Â· RabbitMQ Â· Zod Â· Docker
 
 ```
 apps/
@@ -24,7 +24,7 @@ scripts/      demo walkthrough (PowerShell), k6 load test
 
 | Blueprint phase | State |
 |---|---|
-| 1–3 Repository, infrastructure, backend foundation | Done: config validation, health and readiness checks, graceful shutdown |
+| 1â€“3 Repository, infrastructure, backend foundation | Done: config validation, health and readiness checks, graceful shutdown |
 | 4 Identity and tenancy | Done: scrypt passwords, JWT access tokens plus rotating refresh tokens with reuse detection, company roles |
 | 5 Catalog and sellers | Done: categories, groups, variants with barcode and normalized matching plus a review queue, offers |
 | 6 Warehouse inventory | Done: PostGIS warehouses, audited adjustments, movement ledger, tenant trigger |
@@ -45,7 +45,7 @@ Copy-Item .env.example .env      # dev-only secrets
 npm install
 npm run infra:up                 # PostGIS, Redis, RabbitMQ (docker compose)
 npm run db:migrate
-npm run db:seed                  # demo sellers, warehouses, providers + 284-product catalog with photos
+npm run db:seed                  # demo sellers, warehouses, providers + 500-product catalog with photos
 
 npm run dev:api                  # http://localhost:5000
 npm run dev:worker               # in a second terminal
@@ -61,7 +61,7 @@ The seeded users all have the password `localstock-dev-password`:
 | `admin@localstock.dev` | Platform admin |
 | `seller.a@localstock.dev` | Owner of FreshMart Noida |
 | `seller.b@localstock.dev` | Owner of Daily Needs Delhi |
-| `seller.c@` … `seller.g@localstock.dev` | Owners of Gurgaon Fresh Bazaar, Dwarka Kirana Co., Rohini SuperMart, East Delhi Grocers, Saket Gourmet Pantry |
+| `seller.c@` â€¦ `seller.g@localstock.dev` | Owners of Gurgaon Fresh Bazaar, Dwarka Kirana Co., Rohini SuperMart, East Delhi Grocers, Saket Gourmet Pantry |
 | `customer@localstock.dev` | Customer |
 
 The RabbitMQ management UI is at http://localhost:15672 (user `localstock`, password `localstock_dev_password`).
@@ -81,17 +81,17 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 
 | Area | Endpoints |
 |---|---|
-| Auth | `POST /auth/register` · `POST /auth/login` · `POST /auth/refresh` · `POST /auth/logout` · `GET /users/me` |
-| Companies | `POST /companies` · `GET /companies` · `POST/GET /companies/:id/members` |
-| Warehouses | `POST/GET /companies/:id/warehouses` · `PATCH /companies/:id/warehouses/:warehouseId` |
-| Delivery | `POST/GET /companies/:id/delivery-providers` (seller fleet) · `POST /admin/delivery-providers` · `GET /delivery/providers` |
-| Catalog | `GET/POST /catalog/categories` · `POST /catalog/groups` · `GET /catalog/groups/:id` · `POST /catalog/variants` · `GET /catalog/variants/:id` · `PATCH /catalog/variants/:id/status` |
-| Offers | `POST/GET /companies/:id/offers` · `PATCH /companies/:id/offers/:offerId` |
-| Inventory | `POST /companies/:id/inventory/adjustments` · `GET /companies/:id/inventory` |
-| Discovery | `GET /catalog/search?q&lat&lng&radiusKm&sort&page&limit` · `GET /catalog/variants/:id/offers` |
+| Auth | `POST /auth/register` Â· `POST /auth/login` Â· `POST /auth/refresh` Â· `POST /auth/logout` Â· `GET /users/me` |
+| Companies | `POST /companies` Â· `GET /companies` Â· `POST/GET /companies/:id/members` |
+| Warehouses | `POST/GET /companies/:id/warehouses` Â· `PATCH /companies/:id/warehouses/:warehouseId` |
+| Delivery | `POST/GET /companies/:id/delivery-providers` (seller fleet) Â· `POST /admin/delivery-providers` Â· `GET /delivery/providers` |
+| Catalog | `GET/POST /catalog/categories` Â· `POST /catalog/groups` Â· `GET /catalog/groups/:id` Â· `POST /catalog/variants` Â· `GET /catalog/variants/:id` Â· `PATCH /catalog/variants/:id/status` |
+| Offers | `POST/GET /companies/:id/offers` Â· `PATCH /companies/:id/offers/:offerId` |
+| Inventory | `POST /companies/:id/inventory/adjustments` Â· `GET /companies/:id/inventory` |
+| Discovery | `GET /catalog/search?q&lat&lng&radiusKm&sort&page&limit` Â· `GET /catalog/variants/:id/offers` |
 | Checkout | `POST /checkout/quote` (advisory, reserves nothing) |
-| Orders | `POST /orders` (requires an `Idempotency-Key` header) · `GET /orders` · `GET /orders/:id` · `POST /orders/:id/cancel` |
-| Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) · `POST /payments/sandbox/:paymentId/simulate` (outside production only) |
+| Orders | `POST /orders` (requires an `Idempotency-Key` header) Â· `GET /orders` Â· `GET /orders/:id` Â· `POST /orders/:id/cancel` |
+| Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) Â· `POST /payments/sandbox/:paymentId/simulate` (outside production only) |
 
 Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (PostgreSQL and Redis are reachable and the process isn't shutting down).
 
@@ -99,10 +99,10 @@ Errors always have this shape: `{ "error": { "code", "message", "details", "requ
 
 ## Correctness design
 
-- **No overselling.** Rows are locked in id order, then each one gets a conditional `UPDATE … WHERE on_hand - reserved >= qty`. The table also enforces `CHECK (reserved <= on_hand)`. Redis is never asked whether stock exists.
+- **No overselling.** Rows are locked in id order, then each one gets a conditional `UPDATE â€¦ WHERE on_hand - reserved >= qty`. The table also enforces `CHECK (reserved <= on_hand)`. Redis is never asked whether stock exists.
 - **Atomic order placement.** The reservation, order, items, shipments, allocations, reservation records, payment record, outbox event and stored idempotency response all commit in one transaction.
 - **Idempotency.** A key is scoped to a user and stores a hash of the request body. A replay returns the stored response, and reusing a key with a different body returns 422.
-- **Expiry versus payment race.** Both paths lock the order row first and change reservations with a conditional `ACTIVE →` update, so only one of them can win. A payment that arrives after expiry is moved to `REFUND_PENDING`. Stock is never shipped without a live reservation.
+- **Expiry versus payment race.** Both paths lock the order row first and change reservations with a conditional `ACTIVE â†’` update, so only one of them can win. A payment that arrives after expiry is moved to `REFUND_PENDING`. Stock is never shipped without a live reservation.
 - **Events.** Delivery is at least once (outbox, then RabbitMQ with publisher confirms), and consumers deduplicate through `inbox_events`. Failures retry with exponential backoff and jitter, then go to the dead-letter queue.
 
 See [docs/adr/README.md](docs/adr/README.md) for the reasoning and trade-offs.
