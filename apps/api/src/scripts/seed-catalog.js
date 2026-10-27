@@ -60,6 +60,15 @@ function rng(seedText) {
   };
 }
 
+// The base seed's products are fictional brands, so they get illustrated packshots
+// (apps/web/public/products/*.svg) instead of photos.
+const BASE_SEED_IMAGES = {
+  '8900000000011': '/products/8900000000011.svg',
+  '8900000000028': '/products/8900000000028.svg',
+  '8900000000035': '/products/8900000000035.svg',
+  '8900000000042': '/products/8900000000042.svg',
+};
+
 const point = (lat, lng) => `SRID=4326;POINT(${lng} ${lat})`;
 const stats = { categories: 0, groups: 0, variants: 0, images: 0, companies: 0, warehouses: 0, offers: 0, stockRows: 0, fleets: 0 };
 
@@ -111,6 +120,16 @@ async function seed(client) {
       stats.images++;
     }
     products.push({ ...p, variantId: variant.id });
+  }
+
+  for (const [barcode, url] of Object.entries(BASE_SEED_IMAGES)) {
+    const { rowCount } = await client.query(
+      `INSERT INTO product_images (variant_id, image_url)
+       SELECT v.id, $2 FROM product_variants v
+        WHERE v.barcode = $1 AND NOT EXISTS (SELECT 1 FROM product_images pi WHERE pi.variant_id = v.id)`,
+      [barcode, url],
+    );
+    stats.images += rowCount;
   }
 
   // Sellers, warehouses, fleets, offers and stock.

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
+  <defs>
+    <linearGradient id="bag" x1="0" x2="1"><stop offset="0" stop-color="#f3e3c3" stop-opacity=".85"/><stop offset=".5" stop-color="#f3e3c3"/><stop offset="1" stop-color="#f3e3c3" stop-opacity=".8"/></linearGradient>
+    <linearGradient id="crust" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#c98a4b"/><stop offset="1" stop-color="#8f5626"/></linearGradient>
+    <linearGradient id="shine" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0"/><stop offset=".5" stop-color="#fff" stop-opacity=".35"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient>
+  </defs>
+  <rect width="480" height="480" fill="#fff"/>
+  <ellipse cx="240" cy="440" rx="150" ry="14" fill="#000" opacity=".08"/>
+  <!-- twist tie -->
+  <path d="M212 70 Q240 40 268 70 L262 92 L218 92 Z" fill="url(#bag)"/>
+  <rect x="214" y="88" width="52" height="12" rx="4" fill="#b45309"/>
+  <!-- bag body -->
+  <path d="M150 104 Q240 92 330 104 L352 400 Q352 432 320 434 L160 434 Q128 432 128 400 Z" fill="url(#bag)"/>
+  <!-- window with loaf -->
+  <rect x="152" y="208" width="176" height="110" rx="22" fill="#e9c896"/>
+  <path d="M152 236 Q152 208 180 208 L300 208 Q328 208 328 236 L328 244 Q240 226 152 244 Z" fill="url(#crust)"/>
+  
+  <rect x="152" y="208" width="176" height="110" rx="22" fill="none" stroke="#fff" stroke-opacity=".7" stroke-width="4"/>
+  <!-- brand band -->
+  <rect x="140" y="128" width="200" height="62" rx="14" fill="#7c3f12"/>
+  <text x="240" y="152" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="15" font-weight="700" letter-spacing="3" fill="#fff" opacity=".85">BRAND X</text>
+  <text x="240" y="178" text-anchor="middle" font-family="Georgia, serif" font-size="22" font-style="italic" font-weight="700" fill="#fff">Whole Wheat</text>
+  <text x="240" y="352" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="17" font-weight="700" fill="#7c3f12">100% whole wheat bread</text>
+  <rect x="200" y="372" width="80" height="30" rx="15" fill="#b45309"/>
+  <text x="240" y="393" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="16" font-weight="800" fill="#fff">400 g</text>
+  <rect x="160" y="104" width="44" height="320" fill="url(#shine)"/>
+</svg>

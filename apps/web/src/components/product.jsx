@@ -37,7 +37,8 @@ export function ProductArt({ names, src, size = 'md', label, className }) {
           loading="lazy"
           decoding="async"
           onError={() => setFailed(true)}
-          className={cn('size-full object-contain mix-blend-multiply', pad)}
+          // Absolutely positioned so tall images scale to fit instead of stretching the grid row.
+          className={cn('absolute inset-0 size-full object-contain mix-blend-multiply', pad)}
         />
         {label && (
           <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur">

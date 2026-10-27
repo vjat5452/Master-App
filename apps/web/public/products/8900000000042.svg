@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 480" width="480" height="480">
+  <defs>
+    <linearGradient id="front" x1="0" x2="1"><stop offset="0" stop-color="#f4f8ff"/><stop offset="1" stop-color="#ffffff"/></linearGradient>
+    <linearGradient id="side" x1="0" x2="1"><stop offset="0" stop-color="#cfdcf2"/><stop offset="1" stop-color="#b9cbe8"/></linearGradient>
+    <linearGradient id="wave" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563eb"/><stop offset="1" stop-color="#1e3a8a"/></linearGradient>
+  </defs>
+  <rect width="480" height="480" fill="#fff"/>
+  <ellipse cx="240" cy="444" rx="130" ry="13" fill="#000" opacity=".08"/>
+  <!-- gable top -->
+  <path d="M168 120 L240 70 L272 92 L200 142 Z" fill="#dbe6f7"/>
+  <path d="M272 92 L316 120 L316 142 L200 142 L272 92 Z" fill="#c4d4ee"/>
+  <rect x="226" y="56" width="30" height="16" rx="3" fill="#1e40af" transform="rotate(-34 240 64)"/>
+  <!-- body -->
+  <rect x="168" y="142" width="104" height="296" fill="url(#front)" stroke="#d6e0f0"/>
+  <path d="M272 142 L316 120 L316 416 L272 438 Z" fill="url(#side)"/>
+  <!-- wave band -->
+  <path d="M168 330 Q195 312 220 330 T272 330 L272 438 L168 438 Z" fill="url(#wave)"/>
+  <path d="M272 330 Q294 316 316 306 L316 416 L272 438 Z" fill="#1e3a8a" opacity=".85"/>
+  <!-- splash -->
+  <path d="M190 300 Q206 270 220 298 Q232 276 246 300 Q236 318 220 312 Q204 320 190 300 Z" fill="#fff" stroke="#bcd0f0" stroke-width="2"/>
+  <text x="220" y="176" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="13" font-weight="700" letter-spacing="3" fill="#1e40af">BRAND M</text>
+  <text x="220" y="214" text-anchor="middle" font-family="Georgia, serif" font-size="27" font-style="italic" font-weight="700" fill="#1e3a8a">Toned</text>
+  <text x="220" y="244" text-anchor="middle" font-family="Georgia, serif" font-size="27" font-style="italic" font-weight="700" fill="#1e3a8a">Milk</text>
+  <text x="220" y="268" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="12" font-weight="600" fill="#3b5ba5">3% fat · pasteurised</text>
+  <text x="220" y="398" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="28" font-weight="800" fill="#fff">1 L</text>
+</svg>
