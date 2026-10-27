@@ -443,7 +443,13 @@ function Footer() {
       </div>
       <div className="border-t">
         <div className="container flex flex-wrap items-center justify-between gap-3 py-5 text-xs text-muted-foreground">
-          <span>© {new Date().getFullYear()} LocalStock · Multi-vendor, multi-warehouse commerce</span>
+          <span>
+            © {new Date().getFullYear()} LocalStock · Product images from{' '}
+            <a href="https://world.openfoodfacts.org" target="_blank" rel="noreferrer" className="underline-offset-2 hover:text-primary hover:underline">
+              Open Food Facts
+            </a>{' '}
+            contributors (CC BY-SA)
+          </span>
           <span className="inline-flex items-center gap-1.5">
             <ShieldCheck className="size-3.5 text-primary" /> Atomic stock reservations · Idempotent checkout · Signed payments
           </span>

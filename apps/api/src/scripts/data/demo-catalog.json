@@ -1,0 +1,872 @@
+{
+  "note": "Demo catalog. Product names, barcodes, pack sizes and images from Open Food Facts (ODbL / images CC BY-SA). Prices are demo estimates.",
+  "categories": {
+    "dairy": "Dairy",
+    "bakery": "Bakery",
+    "beverages": "Beverages",
+    "snacks": "Snacks",
+    "staples": "Staples",
+    "breakfast-instant": "Breakfast & Instant",
+    "spices-masalas": "Spices & Masalas",
+    "spreads-sauces": "Spreads & Sauces",
+    "chocolates-sweets": "Chocolates & Sweets"
+  },
+  "groups": {
+    "Milk": "dairy",
+    "Curd & Buttermilk": "dairy",
+    "Ghee & Butter": "dairy",
+    "Cheese & Paneer": "dairy",
+    "Bread": "bakery",
+    "Biscuits & Cookies": "bakery",
+    "Rusk & Cakes": "bakery",
+    "Tea": "beverages",
+    "Coffee": "beverages",
+    "Juices & Drinks": "beverages",
+    "Chips & Namkeen": "snacks",
+    "Nuts & Dry Fruits": "snacks",
+    "Atta & Flours": "staples",
+    "Dals & Pulses": "staples",
+    "Salt": "staples",
+    "Rava & Vermicelli": "staples",
+    "Edible Oils": "staples",
+    "Oats & Muesli": "breakfast-instant",
+    "Noodles & Pasta": "breakfast-instant",
+    "Ready Mixes": "breakfast-instant",
+    "Masalas & Powders": "spices-masalas",
+    "Ketchup & Sauces": "spreads-sauces",
+    "Jams & Spreads": "spreads-sauces",
+    "Pickles": "spreads-sauces",
+    "Chocolates": "chocolates-sweets",
+    "Chikki & Sweets": "chocolates-sweets"
+  },
+  "products": [
+    {
+      "barcode": "8901262150064",
+      "brand": "Amul",
+      "name": "Taaza Toned Milk",
+      "group": "Milk",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 5600,
+      "image": "/products/8901262150064.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901262150064"
+    },
+    {
+      "barcode": "8901648920236",
+      "brand": "Mother Dairy",
+      "name": "Full Cream Milk",
+      "group": "Milk",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 6800,
+      "image": "/products/8901648920236.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901648920236"
+    },
+    {
+      "barcode": "8901648920120",
+      "brand": "Mother Dairy",
+      "name": "Cow Milk",
+      "group": "Milk",
+      "attributes": {
+        "volume": "500 ml"
+      },
+      "priceMinor": 3000,
+      "image": "/products/8901648920120.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901648920120"
+    },
+    {
+      "barcode": "8901648097983",
+      "brand": "Mother Dairy",
+      "name": "Ultimate Dahi",
+      "group": "Curd & Buttermilk",
+      "attributes": {
+        "weight": "400 g"
+      },
+      "priceMinor": 5000,
+      "image": "/products/8901648097983.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901648097983"
+    },
+    {
+      "barcode": "8901262152945",
+      "brand": "Amul",
+      "name": "Protein Lassi Mango",
+      "group": "Curd & Buttermilk",
+      "attributes": {
+        "volume": "250 ml"
+      },
+      "priceMinor": 4000,
+      "image": "/products/8901262152945.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901262152945"
+    },
+    {
+      "barcode": "8901648094746",
+      "brand": "Mother Dairy",
+      "name": "Pure Ghee",
+      "group": "Ghee & Butter",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 64000,
+      "image": "/products/8901648094746.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901648094746"
+    },
+    {
+      "barcode": "8901262020015",
+      "brand": "Amul",
+      "name": "Cheese Slices",
+      "group": "Cheese & Paneer",
+      "attributes": {
+        "weight": "200 g"
+      },
+      "priceMinor": 15000,
+      "image": "/products/8901262020015.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901262020015"
+    },
+    {
+      "barcode": "8901262180146",
+      "brand": "Amul",
+      "name": "Malai Paneer",
+      "group": "Cheese & Paneer",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 44000,
+      "image": "/products/8901262180146.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901262180146"
+    },
+    {
+      "barcode": "8901063338623",
+      "brand": "Britannia",
+      "name": "Multi Grain Bread",
+      "group": "Bread",
+      "attributes": {
+        "weight": "400 g"
+      },
+      "priceMinor": 5500,
+      "image": "/products/8901063338623.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063338623"
+    },
+    {
+      "barcode": "8901063014206",
+      "brand": "Britannia",
+      "name": "Vita Marie Gold",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "400 g"
+      },
+      "priceMinor": 7000,
+      "image": "/products/8901063014206.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063014206"
+    },
+    {
+      "barcode": "8901063093287",
+      "brand": "Britannia",
+      "name": "Good Day Cashew Cookies",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "200 g"
+      },
+      "priceMinor": 5000,
+      "image": "/products/8901063093287.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063093287"
+    },
+    {
+      "barcode": "8901063012516",
+      "brand": "Britannia",
+      "name": "Milk Bikis",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8901063012516.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063012516"
+    },
+    {
+      "barcode": "8901063019027",
+      "brand": "Britannia",
+      "name": "Little Hearts Classic",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "75 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8901063019027.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063019027"
+    },
+    {
+      "barcode": "8901719122644",
+      "brand": "Parle",
+      "name": "Happy Happy Choco-Chip Cookies",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "400 g"
+      },
+      "priceMinor": 10000,
+      "image": "/products/8901719122644.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901719122644"
+    },
+    {
+      "barcode": "8901725135485",
+      "brand": "Sunfeast",
+      "name": "Mom's Magic",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 3000,
+      "image": "/products/8901725135485.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725135485"
+    },
+    {
+      "barcode": "7622201712617",
+      "brand": "Cadbury",
+      "name": "Chocobakes Choco Chip",
+      "group": "Biscuits & Cookies",
+      "attributes": {
+        "weight": "167 g"
+      },
+      "priceMinor": 9900,
+      "image": "/products/7622201712617.jpg",
+      "source": "https://world.openfoodfacts.org/product/7622201712617"
+    },
+    {
+      "barcode": "8901719902482",
+      "brand": "Parle",
+      "name": "Rusk",
+      "group": "Rusk & Cakes",
+      "attributes": {
+        "weight": "273 g"
+      },
+      "priceMinor": 5000,
+      "image": "/products/8901719902482.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901719902482"
+    },
+    {
+      "barcode": "8901063362871",
+      "brand": "Britannia",
+      "name": "Cake Nut & Raisin",
+      "group": "Rusk & Cakes",
+      "attributes": {
+        "weight": "60 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8901063362871.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901063362871"
+    },
+    {
+      "barcode": "8901052030330",
+      "brand": "Tata Tea",
+      "name": "Premium Tea",
+      "group": "Tea",
+      "attributes": {
+        "weight": "250 g"
+      },
+      "priceMinor": 14000,
+      "image": "/products/8901052030330.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901052030330"
+    },
+    {
+      "barcode": "8901052005604",
+      "brand": "Tata Tea",
+      "name": "Chakra Gold",
+      "group": "Tea",
+      "attributes": {
+        "weight": "250 g"
+      },
+      "priceMinor": 15000,
+      "image": "/products/8901052005604.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901052005604"
+    },
+    {
+      "barcode": "8901030774980",
+      "brand": "Bru",
+      "name": "Green Label Coffee",
+      "group": "Coffee",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 7200,
+      "image": "/products/8901030774980.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030774980"
+    },
+    {
+      "barcode": "8901030986888",
+      "brand": "Bru",
+      "name": "Instant Coffee",
+      "group": "Coffee",
+      "attributes": {
+        "weight": "50 g"
+      },
+      "priceMinor": 15000,
+      "image": "/products/8901030986888.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030986888"
+    },
+    {
+      "barcode": "8906080603938",
+      "brand": "Paper Boat",
+      "name": "Swing Slurpy Mango",
+      "group": "Juices & Drinks",
+      "attributes": {
+        "volume": "250 ml"
+      },
+      "priceMinor": 3000,
+      "image": "/products/8906080603938.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906080603938"
+    },
+    {
+      "barcode": "8906080600647",
+      "brand": "Paper Boat",
+      "name": "Santra",
+      "group": "Juices & Drinks",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 9900,
+      "image": "/products/8906080600647.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906080600647"
+    },
+    {
+      "barcode": "8906080604751",
+      "brand": "Paper Boat",
+      "name": "Swing Coconut Water",
+      "group": "Juices & Drinks",
+      "attributes": {
+        "volume": "1.2 l"
+      },
+      "priceMinor": 12000,
+      "image": "/products/8906080604751.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906080604751"
+    },
+    {
+      "barcode": "8901888008411",
+      "brand": "Dabur Real",
+      "name": "Activ Cranberry Juice",
+      "group": "Juices & Drinks",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 14000,
+      "image": "/products/8901888008411.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901888008411"
+    },
+    {
+      "barcode": "8901207004421",
+      "brand": "Dabur Real",
+      "name": "Fruit Juice Anar",
+      "group": "Juices & Drinks",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 13000,
+      "image": "/products/8901207004421.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901207004421"
+    },
+    {
+      "barcode": "8904004400731",
+      "brand": "Haldiram's",
+      "name": "Aloo Bhujia",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "200 g"
+      },
+      "priceMinor": 5500,
+      "image": "/products/8904004400731.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904004400731"
+    },
+    {
+      "barcode": "8904004404449",
+      "brand": "Haldiram's",
+      "name": "Boondi",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "200 g"
+      },
+      "priceMinor": 5000,
+      "image": "/products/8904004404449.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904004404449"
+    },
+    {
+      "barcode": "8904063218162",
+      "brand": "Haldiram's",
+      "name": "Punjabi Tadka",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "405 g"
+      },
+      "priceMinor": 11000,
+      "image": "/products/8904063218162.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904063218162"
+    },
+    {
+      "barcode": "8901491100519",
+      "brand": "Kurkure",
+      "name": "Masala Munch",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "78 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8901491100519.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901491100519"
+    },
+    {
+      "barcode": "8901725198442",
+      "brand": "Bingo",
+      "name": "Mad Angles Chaat Masti",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "90 g"
+      },
+      "priceMinor": 3000,
+      "image": "/products/8901725198442.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725198442"
+    },
+    {
+      "barcode": "8909081002083",
+      "brand": "Bingo",
+      "name": "Potato Chips Himalayan Pink Salt",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "42 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8909081002083.jpg",
+      "source": "https://world.openfoodfacts.org/product/8909081002083"
+    },
+    {
+      "barcode": "8901088724197",
+      "brand": "Saffola",
+      "name": "Munchiez Ragi Chips",
+      "group": "Chips & Namkeen",
+      "attributes": {
+        "weight": "80 g"
+      },
+      "priceMinor": 4000,
+      "image": "/products/8901088724197.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901088724197"
+    },
+    {
+      "barcode": "8906080604812",
+      "brand": "Paper Boat",
+      "name": "Classic Salted Cashews",
+      "group": "Nuts & Dry Fruits",
+      "attributes": {
+        "weight": "70 g"
+      },
+      "priceMinor": 10000,
+      "image": "/products/8906080604812.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906080604812"
+    },
+    {
+      "barcode": "8901725121143",
+      "brand": "Aashirvaad",
+      "name": "Whole Wheat Atta",
+      "group": "Atta & Flours",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 6000,
+      "image": "/products/8901725121143.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725121143"
+    },
+    {
+      "barcode": "8901725006679",
+      "brand": "Aashirvaad",
+      "name": "Atta with Multigrains",
+      "group": "Atta & Flours",
+      "attributes": {
+        "weight": "5.5 kg"
+      },
+      "priceMinor": 35000,
+      "image": "/products/8901725006679.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725006679"
+    },
+    {
+      "barcode": "8906007285018",
+      "brand": "Fortune",
+      "name": "Chana Besan",
+      "group": "Atta & Flours",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 6000,
+      "image": "/products/8906007285018.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906007285018"
+    },
+    {
+      "barcode": "8904043926728",
+      "brand": "Tata Sampann",
+      "name": "Besan",
+      "group": "Atta & Flours",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 6500,
+      "image": "/products/8904043926728.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043926728"
+    },
+    {
+      "barcode": "8904043926643",
+      "brand": "Tata Sampann",
+      "name": "Unpolished Chana Dal",
+      "group": "Dals & Pulses",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 12000,
+      "image": "/products/8904043926643.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043926643"
+    },
+    {
+      "barcode": "8906007286039",
+      "brand": "Fortune",
+      "name": "Chana Dal",
+      "group": "Dals & Pulses",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 6200,
+      "image": "/products/8906007286039.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906007286039"
+    },
+    {
+      "barcode": "8904043926308",
+      "brand": "Tata Sampann",
+      "name": "Kala Chana",
+      "group": "Dals & Pulses",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 6500,
+      "image": "/products/8904043926308.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043926308"
+    },
+    {
+      "barcode": "8904043901015",
+      "brand": "Tata",
+      "name": "Iodised Salt",
+      "group": "Salt",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 2800,
+      "image": "/products/8904043901015.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043901015"
+    },
+    {
+      "barcode": "8904043926612",
+      "brand": "Tata",
+      "name": "Himalayan Rock Salt",
+      "group": "Salt",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 9000,
+      "image": "/products/8904043926612.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043926612"
+    },
+    {
+      "barcode": "8901725001063",
+      "brand": "Aashirvaad",
+      "name": "Double Roasted Suji Rava",
+      "group": "Rava & Vermicelli",
+      "attributes": {
+        "weight": "1 kg"
+      },
+      "priceMinor": 6000,
+      "image": "/products/8901725001063.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725001063"
+    },
+    {
+      "barcode": "8906007280969",
+      "brand": "Fortune",
+      "name": "Kachi Ghani Mustard Oil",
+      "group": "Edible Oils",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 18000,
+      "image": "/products/8906007280969.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906007280969"
+    },
+    {
+      "barcode": "8906007280693",
+      "brand": "Fortune",
+      "name": "Rice Bran Oil",
+      "group": "Edible Oils",
+      "attributes": {
+        "volume": "1 l"
+      },
+      "priceMinor": 17000,
+      "image": "/products/8906007280693.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906007280693"
+    },
+    {
+      "barcode": "8901088155458",
+      "brand": "Saffola",
+      "name": "Gold Edible Oil",
+      "group": "Edible Oils",
+      "attributes": {
+        "volume": "3 l"
+      },
+      "priceMinor": 60000,
+      "image": "/products/8901088155458.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901088155458"
+    },
+    {
+      "barcode": "8901088129800",
+      "brand": "Saffola",
+      "name": "Masala Oats",
+      "group": "Oats & Muesli",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 19900,
+      "image": "/products/8901088129800.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901088129800"
+    },
+    {
+      "barcode": "8906113490337",
+      "brand": "Tata Soulfull",
+      "name": "Millet Muesli Chocolate & Cranberry",
+      "group": "Oats & Muesli",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 37500,
+      "image": "/products/8906113490337.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906113490337"
+    },
+    {
+      "barcode": "8901725005917",
+      "brand": "Sunfeast",
+      "name": "Yippee Magic Masala Noodles",
+      "group": "Noodles & Pasta",
+      "attributes": {
+        "weight": "240 g"
+      },
+      "priceMinor": 6000,
+      "image": "/products/8901725005917.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725005917"
+    },
+    {
+      "barcode": "8901725005214",
+      "brand": "Aashirvaad",
+      "name": "Yippee Atta Noodles",
+      "group": "Noodles & Pasta",
+      "attributes": {
+        "weight": "280 g"
+      },
+      "priceMinor": 8000,
+      "image": "/products/8901725005214.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725005214"
+    },
+    {
+      "barcode": "8901042967349",
+      "brand": "MTR",
+      "name": "3 Minute Khatta Meetha Poha",
+      "group": "Ready Mixes",
+      "attributes": {
+        "weight": "60 g"
+      },
+      "priceMinor": 3000,
+      "image": "/products/8901042967349.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042967349"
+    },
+    {
+      "barcode": "8901042970738",
+      "brand": "MTR",
+      "name": "Minute Fresh Idli Batter",
+      "group": "Ready Mixes",
+      "attributes": {
+        "weight": "750 g"
+      },
+      "priceMinor": 8000,
+      "image": "/products/8901042970738.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042970738"
+    },
+    {
+      "barcode": "8901042954516",
+      "brand": "MTR",
+      "name": "Rava Idli Mix",
+      "group": "Ready Mixes",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 13000,
+      "image": "/products/8901042954516.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042954516"
+    },
+    {
+      "barcode": "8901042957968",
+      "brand": "MTR",
+      "name": "Dosa Mix",
+      "group": "Ready Mixes",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 12500,
+      "image": "/products/8901042957968.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042957968"
+    },
+    {
+      "barcode": "8901042954721",
+      "brand": "MTR",
+      "name": "Sambar Powder",
+      "group": "Masalas & Powders",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 5500,
+      "image": "/products/8901042954721.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042954721"
+    },
+    {
+      "barcode": "8904043905129",
+      "brand": "Tata Sampann",
+      "name": "Sambar Masala",
+      "group": "Masalas & Powders",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 6000,
+      "image": "/products/8904043905129.jpg",
+      "source": "https://world.openfoodfacts.org/product/8904043905129"
+    },
+    {
+      "barcode": "8901725125141",
+      "brand": "Aashirvaad",
+      "name": "Chilli Powder",
+      "group": "Masalas & Powders",
+      "attributes": {
+        "weight": "100 g"
+      },
+      "priceMinor": 4000,
+      "image": "/products/8901725125141.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725125141"
+    },
+    {
+      "barcode": "8901725125370",
+      "brand": "Aashirvaad",
+      "name": "Turmeric Powder",
+      "group": "Masalas & Powders",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 14000,
+      "image": "/products/8901725125370.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901725125370"
+    },
+    {
+      "barcode": "8901042968711",
+      "brand": "MTR",
+      "name": "Hing",
+      "group": "Masalas & Powders",
+      "attributes": {
+        "weight": "50 g"
+      },
+      "priceMinor": 7500,
+      "image": "/products/8901042968711.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042968711"
+    },
+    {
+      "barcode": "8901030667756",
+      "brand": "Kissan",
+      "name": "Fresh Tomato Ketchup",
+      "group": "Ketchup & Sauces",
+      "attributes": {
+        "weight": "950 g"
+      },
+      "priceMinor": 14500,
+      "image": "/products/8901030667756.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030667756"
+    },
+    {
+      "barcode": "8901030922565",
+      "brand": "Kissan",
+      "name": "No Onion No Garlic Tomato Sauce",
+      "group": "Ketchup & Sauces",
+      "attributes": {
+        "weight": "425 g"
+      },
+      "priceMinor": 12000,
+      "image": "/products/8901030922565.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030922565"
+    },
+    {
+      "barcode": "8901088081184",
+      "brand": "Saffola",
+      "name": "Eggless Mayonnaise",
+      "group": "Ketchup & Sauces",
+      "attributes": {
+        "weight": "250 g"
+      },
+      "priceMinor": 9900,
+      "image": "/products/8901088081184.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901088081184"
+    },
+    {
+      "barcode": "8901030926457",
+      "brand": "Kissan",
+      "name": "Orange Marmalade",
+      "group": "Jams & Spreads",
+      "attributes": {
+        "weight": "500 g"
+      },
+      "priceMinor": 18000,
+      "image": "/products/8901030926457.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030926457"
+    },
+    {
+      "barcode": "8901030857973",
+      "brand": "Kissan",
+      "name": "Peanut Butter",
+      "group": "Jams & Spreads",
+      "attributes": {
+        "weight": "350 g"
+      },
+      "priceMinor": 19000,
+      "image": "/products/8901030857973.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901030857973"
+    },
+    {
+      "barcode": "8901042955094",
+      "brand": "MTR",
+      "name": "Mango Sliced Pickle",
+      "group": "Pickles",
+      "attributes": {
+        "weight": "300 g"
+      },
+      "priceMinor": 10000,
+      "image": "/products/8901042955094.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901042955094"
+    },
+    {
+      "barcode": "8901262071048",
+      "brand": "Amul",
+      "name": "Sugar Free Chocolate",
+      "group": "Chocolates",
+      "attributes": {
+        "weight": "150 g"
+      },
+      "priceMinor": 18000,
+      "image": "/products/8901262071048.jpg",
+      "source": "https://world.openfoodfacts.org/product/8901262071048"
+    },
+    {
+      "barcode": "8906080600067",
+      "brand": "Paper Boat",
+      "name": "Chikki",
+      "group": "Chikki & Sweets",
+      "attributes": {
+        "weight": "31 g"
+      },
+      "priceMinor": 2000,
+      "image": "/products/8906080600067.jpg",
+      "source": "https://world.openfoodfacts.org/product/8906080600067"
+    }
+  ]
+}

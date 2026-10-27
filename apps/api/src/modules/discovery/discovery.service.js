@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto';
 import { SEARCH_VERSION_KEY } from '../../infrastructure/cache.js';
 import { estimateDeliveryMinutes, pointSql } from '../../shared/geo.js';
+import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
 
 const CACHE_TTL_SECONDS = 30;
 
@@ -73,7 +74,7 @@ export function createDiscoveryService({ pool, redis, logger }) {
 
         const [{ rows }, { rows: countRows }] = await Promise.all([
           pool.query(
-            `SELECT v.id, v.name, v.brand, v.attributes, g.name AS group_name
+            `SELECT v.id, v.name, v.brand, v.attributes, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url
                FROM product_variants v JOIN product_groups g ON g.id = v.group_id
               WHERE ${matchSql}
               ORDER BY CASE WHEN $1::text = '' THEN 0
@@ -92,6 +93,7 @@ export function createDiscoveryService({ pool, redis, logger }) {
           brand: v.brand,
           group: v.group_name,
           attributes: v.attributes,
+          imageUrl: v.image_url ?? null,
           offers: sortOffers(offers.filter((o) => o.variantId === v.id), sort).map(({ variantId, ...o }) => o),
         }));
         return { items, page, limit, total: countRows[0].total };

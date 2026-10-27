@@ -18,7 +18,7 @@ export const SORTS = [
   { id: 'nearest', label: 'Nearest' },
 ];
 const RADII = [2, 5, 10, 20, 50];
-const SUGGESTIONS = ['bread', 'milk', 'whole wheat', 'multigrain'];
+const SUGGESTIONS = ['milk', 'atta', 'biscuits', 'tea', 'namkeen'];
 
 const FEATURES = [
   { icon: Store, title: 'Every seller, side by side', body: 'One product page lists each nearby seller with price, stock and delivery estimate.' },
@@ -32,7 +32,8 @@ export default function Shop() {
   const [params, setParams] = useSearchParams();
   const q = params.get('q') ?? '';
   const sort = params.get('sort') ?? 'best_value';
-  const radiusKm = Number(params.get('radiusKm') ?? 10);
+  // 20 km reaches every demo seller from central Delhi; matches the product page default.
+  const radiusKm = Number(params.get('radiusKm') ?? 20);
   const page = Number(params.get('page') ?? 1);
   const anywhere = params.get('anywhere') === '1';
   const [draft, setDraft] = useState(q);
@@ -105,8 +106,9 @@ export default function Shop() {
             <p className="mt-1 text-sm text-muted-foreground">
               {data ? (
                 <>
-                  <strong className="text-foreground">{data.total}</strong> product{data.total === 1 ? '' : 's'} · {withStock} with sellers{' '}
+                  <strong className="text-foreground">{data.total}</strong> product{data.total === 1 ? '' : 's'} · sellers{' '}
                   {anywhere ? 'anywhere' : `within ${radiusKm} km of ${location.label ?? 'you'}`}
+                  {withStock < data.items.length && ` · ${data.items.length - withStock} on this page not deliverable here`}
                 </>
               ) : (
                 'Searching…'
@@ -265,7 +267,7 @@ function LiveComparison({ item }) {
           </span>
         </div>
         <Link to={`/product/${item.variantId}`} className="mt-4 flex items-center gap-4 rounded-2xl bg-white/95 p-3 text-foreground shadow-lg transition hover:scale-[1.01] dark:bg-card">
-          <ProductArt names={[item.group, item.name]} size="md" />
+          <ProductArt names={[item.group, item.name]} src={item.imageUrl} size="md" />
           <div className="min-w-0">
             <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{item.brand}</div>
             <div className="truncate font-bold">{item.name}</div>
@@ -310,7 +312,13 @@ function ProductCard({ item, index }) {
       className="group flex flex-col overflow-hidden rounded-3xl border bg-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:border-primary/30 hover:shadow-lift"
     >
       <Link to={`/product/${item.variantId}`} className="relative block p-3 pb-0">
-        <ProductArt names={[item.group, item.name]} size="tile" label={primaryAttr(item.attributes)} className="transition-transform duration-500 group-hover:scale-[1.03]" />
+        <ProductArt
+          names={[item.group, item.name]}
+          src={item.imageUrl}
+          size="tile"
+          label={primaryAttr(item.attributes)}
+          className="transition-transform duration-500 group-hover:scale-[1.03]"
+        />
         {item.offers.length > 1 && (
           <span className="absolute right-5 top-5 rounded-full bg-card/90 px-2 py-0.5 text-[10px] font-bold shadow-sm backdrop-blur">
             {item.offers.length} sellers
@@ -351,7 +359,10 @@ function ProductCard({ item, index }) {
               size="sm"
               disabled={!item.offers.length}
               onClick={() => {
-                cart.add({ variantId: item.variantId, name: item.name, brand: item.brand, group: item.group, attributes: item.attributes, priceHintMinor: from }, qty);
+                cart.add(
+                  { variantId: item.variantId, name: item.name, brand: item.brand, group: item.group, attributes: item.attributes, imageUrl: item.imageUrl, priceHintMinor: from },
+                  qty,
+                );
                 toast(`Added ${qty} × ${item.name}`);
                 setQty(1);
               }}

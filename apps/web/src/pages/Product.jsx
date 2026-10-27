@@ -60,7 +60,7 @@ export default function Product() {
         <div className="space-y-8">
           <Reveal>
             <Card className="grid gap-8 overflow-hidden p-6 sm:grid-cols-[260px_minmax(0,1fr)] sm:p-8">
-              <ProductArt names={[v.groupName, v.name]} size="lg" label={primaryAttr(v.attributes)} />
+              <ProductArt names={[v.groupName, v.name]} src={v.imageUrl} size="lg" label={primaryAttr(v.attributes)} />
               <div className="flex flex-col gap-4">
                 <div>
                   {v.brand && <div className="text-xs font-bold uppercase tracking-[0.16em] text-primary">{v.brand}</div>}
@@ -161,7 +161,7 @@ export default function Product() {
                       to={`/product/${s.id}`}
                       className="group flex items-center gap-4 rounded-2xl border bg-card p-3 shadow-soft transition hover:-translate-y-0.5 hover:border-primary/30 hover:shadow-lift"
                     >
-                      <ProductArt names={[s.groupName, s.name]} size="md" />
+                      <ProductArt names={[s.groupName, s.name]} src={s.imageUrl} size="md" />
                       <div className="min-w-0 flex-1">
                         <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{s.brand}</div>
                         <div className="truncate font-bold group-hover:text-primary">{s.name}</div>
@@ -200,7 +200,7 @@ export default function Product() {
                 block
                 disabled={!list.length}
                 onClick={() => {
-                  cart.add({ variantId: v.id, name: v.name, brand: v.brand, group: v.groupName, attributes: v.attributes, priceHintMinor: from }, qty);
+                  cart.add({ variantId: v.id, name: v.name, brand: v.brand, group: v.groupName, attributes: v.attributes, imageUrl: v.imageUrl, priceHintMinor: from }, qty);
                   toast(`Added ${qty} × ${v.name}`);
                 }}
               >

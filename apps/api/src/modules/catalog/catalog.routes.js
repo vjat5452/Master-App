@@ -26,7 +26,10 @@ const variantBody = z.object({
 });
 const variantStatusBody = z.object({ status: z.enum(['ACTIVE', 'ARCHIVED']) });
 
-const VARIANT_COLUMNS = 'v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, g.name AS group_name';
+// First image of a variant (alias `v`), or null.
+export const VARIANT_IMAGE_SQL = '(SELECT pi.image_url FROM product_images pi WHERE pi.variant_id = v.id ORDER BY pi.image_url LIMIT 1)';
+
+const VARIANT_COLUMNS = `v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url`;
 
 export const toVariant = (r) => ({
   id: r.id,
@@ -37,6 +40,7 @@ export const toVariant = (r) => ({
   attributes: r.attributes,
   barcode: r.barcode,
   status: r.status,
+  imageUrl: r.image_url ?? null,
 });
 
 async function findVariant(db, where, params) {

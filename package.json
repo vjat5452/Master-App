@@ -13,7 +13,7 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "db:migrate": "npm run migrate -w @localstock/database",
-    "db:seed": "npm run seed -w @localstock/api",
+    "db:seed": "npm run seed -w @localstock/api && npm run seed:catalog -w @localstock/api",
     "dev:api": "npm run dev -w @localstock/api",
     "dev:worker": "npm run dev -w @localstock/worker",
     "dev:web": "npm run dev -w @localstock/web",

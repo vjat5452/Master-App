@@ -22,7 +22,7 @@ export function VariantPicker({ value, onChange }) {
   if (value) {
     return (
       <div className="flex items-center gap-3 rounded-xl border border-primary/30 bg-accent/40 p-3">
-        <ProductArt names={[value.group, value.name]} size="sm" />
+        <ProductArt names={[value.group, value.name]} src={value.imageUrl} size="sm" />
         <div className="min-w-0 flex-1">
           <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{value.brand}</div>
           <div className="truncate font-bold">{value.name}</div>
@@ -51,7 +51,7 @@ export function VariantPicker({ value, onChange }) {
             onClick={() => onChange(v)}
             className="flex w-full items-center gap-3 border-b px-3 py-2.5 text-left transition last:border-0 hover:bg-accent/50"
           >
-            <ProductArt names={[v.group, v.name]} size="sm" className="size-9 rounded-lg [&_svg]:size-4" />
+            <ProductArt names={[v.group, v.name]} src={v.imageUrl} size="sm" className="size-9 rounded-lg [&_svg]:size-4" />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm">
                 <span className="text-muted-foreground">{v.brand} </span>
@@ -108,7 +108,7 @@ export function ProposeVariantModal({ onClose, onDone }) {
       <Modal title="Proposal result" onClose={onClose} footer={<Button onClick={() => onDone(v)}>{v.status === 'ACTIVE' ? 'Use this variant' : 'Done'}</Button>}>
         <Alert tone={v.status === 'ACTIVE' ? 'good' : 'warn'}>{message}</Alert>
         <div className="flex items-center gap-3 rounded-xl border p-3">
-          <ProductArt names={[v.groupName, v.name]} size="sm" />
+          <ProductArt names={[v.groupName, v.name]} src={v.imageUrl} size="sm" />
           <div className="min-w-0 flex-1">
             <div className="font-bold">
               {v.brand} {v.name}

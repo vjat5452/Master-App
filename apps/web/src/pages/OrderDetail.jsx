@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { ChevronRight, CircleDollarSign, CreditCard, Hourglass, Package, RefreshCw, Truck, Warehouse, Webhook, XCircle } from 'lucide-react';
 import { ProgressStepper } from '@/components/mui/lazy';
+import { ProductArt } from '@/components/product';
 import { Alert, Badge, Button, CopyId, ErrorBox, Json, KV, Panel, Reveal, Spinner, useSubmit } from '@/components/kit';
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -119,8 +120,12 @@ export default function OrderDetail() {
                   {order.items.map((i) => (
                     <TableRow key={i.id}>
                       <TableCell>
-                        <Link to={`/product/${i.variantId}`} className="font-bold hover:text-primary">
-                          {i.variantName}
+                        <Link to={`/product/${i.variantId}`} className="flex items-center gap-3 font-bold hover:text-primary">
+                          <ProductArt names={[i.variantName]} src={i.imageUrl} size="sm" className="size-10 rounded-lg [&_svg]:size-5" />
+                          <span>
+                            {i.brand && <span className="block text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{i.brand}</span>}
+                            {i.variantName}
+                          </span>
                         </Link>
                       </TableCell>
                       <TableCell className="text-muted-foreground">{i.sellerName}</TableCell>

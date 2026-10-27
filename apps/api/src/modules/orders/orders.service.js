@@ -10,6 +10,7 @@ import {
 } from '@localstock/database';
 import { AppError, conflict, notFound } from '../../shared/errors.js';
 import { pointSql } from '../../shared/geo.js';
+import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
 import { loadAllocationInput } from '../checkout/allocation-input.js';
 import { claimIdempotencyKey, completeIdempotencyKey, releaseIdempotencyKey, requestHash } from './idempotency.js';
 
@@ -34,7 +35,8 @@ export async function loadOrder(db, orderId, customerId = null) {
 
   const [items, shipments, payments, reservations] = await Promise.all([
     db.query(
-      `SELECT oi.id, oi.variant_id, v.name AS variant_name, oi.offer_id, c.name AS seller_name, oi.quantity, oi.unit_price_minor
+      `SELECT oi.id, oi.variant_id, v.name AS variant_name, v.brand, ${VARIANT_IMAGE_SQL} AS image_url,
+              oi.offer_id, c.name AS seller_name, oi.quantity, oi.unit_price_minor
          FROM order_items oi
          JOIN product_variants v ON v.id = oi.variant_id
          JOIN seller_offers so ON so.id = oi.offer_id
@@ -69,6 +71,8 @@ export async function loadOrder(db, orderId, customerId = null) {
       id: r.id,
       variantId: r.variant_id,
       variantName: r.variant_name,
+      brand: r.brand,
+      imageUrl: r.image_url ?? null,
       offerId: r.offer_id,
       sellerName: r.seller_name,
       quantity: r.quantity,

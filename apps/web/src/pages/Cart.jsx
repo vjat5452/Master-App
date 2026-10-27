@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { ArrowRight, Calculator, Fingerprint, Layers, Lock, MapPin, PackageOpen, Route, ShoppingBag, Sparkles, Trash2, Truck, Warehouse } from 'lucide-react';
-import { Attrs, primaryAttr, ProductArt } from '@/components/product';
+import { Attrs, ProductArt } from '@/components/product';
 import { Alert, Badge, Button, ErrorBox, Empty, KV, PageHeader, Panel, Segmented, Stepper, useSubmit } from '@/components/kit';
 import { Card } from '@/components/ui/card';
 import { Switch } from '@/components/ui/misc';
@@ -112,7 +112,7 @@ export default function Cart() {
                   exit={{ opacity: 0, height: 0 }}
                   className="flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap sm:p-5"
                 >
-                  <ProductArt names={[i.group, i.name]} size="md" label={primaryAttr(i.attributes)} />
+                  <ProductArt names={[i.group, i.name]} src={i.imageUrl} size="md" />
                   <div className="min-w-0 flex-1">
                     {i.brand && <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{i.brand}</div>}
                     <Link to={`/product/${i.variantId}`} className="font-bold hover:text-primary">

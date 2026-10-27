@@ -158,7 +158,7 @@ function CatalogAdmin() {
               {group.data.variants.length === 0 && <div className="text-sm text-muted-foreground">No active variants yet.</div>}
               {group.data.variants.map((v) => (
                 <Link key={v.id} to={`/product/${v.id}`} className="flex items-center gap-3 rounded-xl p-2 transition hover:bg-muted/50">
-                  <ProductArt names={[v.groupName, v.name]} size="sm" className="size-9 rounded-lg [&_svg]:size-4" />
+                  <ProductArt names={[v.groupName, v.name]} src={v.imageUrl} size="sm" className="size-9 rounded-lg [&_svg]:size-4" />
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                     {v.brand} {v.name}
                   </span>
@@ -251,7 +251,7 @@ function Moderation() {
             <TableRow key={id}>
               <TableCell>
                 <div className="flex items-center gap-3">
-                  <ProductArt names={[v.groupName ?? v.group, v.name]} size="sm" className="size-10 rounded-xl [&_svg]:size-5" />
+                  <ProductArt names={[v.groupName ?? v.group, v.name]} src={v.imageUrl} size="sm" className="size-10 rounded-xl [&_svg]:size-5" />
                   <div>
                     <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{v.brand}</div>
                     <div className="font-bold">{v.name}</div>

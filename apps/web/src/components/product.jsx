@@ -1,4 +1,5 @@
 import { Apple, Carrot, Coffee, Cookie, Croissant, Droplets, Egg, MapPin, Milk, Package, Timer, Trophy, Wheat } from 'lucide-react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { attrs, distance, minutes, money } from '@/lib/format';
 import { cn } from '@/lib/utils';
@@ -19,10 +20,33 @@ const FALLBACK = [null, Package, 'from-emerald-100 via-teal-100 to-cyan-100 text
 
 export const artFor = (...names) => ART.find(([re]) => names.some((n) => re.test(n ?? ''))) ?? FALLBACK;
 
-export function ProductArt({ names, size = 'md', label, className }) {
+/** Product photo when one exists; otherwise (or if it fails to load) category gradient art. */
+export function ProductArt({ names, src, size = 'md', label, className }) {
+  const [failed, setFailed] = useState(false);
   const [, Icon, gradient] = artFor(...names);
   const dims = { sm: 'size-12 rounded-xl', md: 'size-16 rounded-2xl', lg: 'aspect-square w-full rounded-3xl', tile: 'aspect-[4/3] w-full rounded-2xl' }[size];
   const icon = { sm: 'size-6', md: 'size-8', lg: 'size-24', tile: 'size-14' }[size];
+  const pad = { sm: 'p-1', md: 'p-1.5', lg: 'p-8', tile: 'p-4' }[size];
+
+  if (src && !failed) {
+    return (
+      <div className={cn('relative grid shrink-0 place-items-center overflow-hidden bg-white ring-1 ring-inset ring-black/5', dims, className)}>
+        <img
+          src={src}
+          alt={names.filter(Boolean).at(-1) ?? ''}
+          loading="lazy"
+          decoding="async"
+          onError={() => setFailed(true)}
+          className={cn('size-full object-contain mix-blend-multiply', pad)}
+        />
+        {label && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-black/70 px-2 py-0.5 text-[10px] font-bold text-white shadow-sm backdrop-blur">
+            {label}
+          </span>
+        )}
+      </div>
+    );
+  }
   return (
     <div className={cn('relative grid shrink-0 place-items-center overflow-hidden bg-gradient-to-br', gradient, dims, className)}>
       <div className="absolute -right-6 -top-6 size-24 rounded-full bg-white/40 blur-2xl dark:bg-white/10" />

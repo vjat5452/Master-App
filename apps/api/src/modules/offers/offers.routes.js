@@ -5,6 +5,7 @@ import { authenticate, COMPANY_MANAGERS, requireCompanyRole } from '../../middle
 import { writeAudit } from '../../shared/audit.js';
 import { conflict, notFound } from '../../shared/errors.js';
 import { idParams, validate } from '../../shared/validate.js';
+import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
 
 const createBody = z.object({
   variantId: z.string().uuid(),
@@ -16,12 +17,13 @@ const updateBody = z
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Provide at least one field');
 
-const COLUMNS = 'o.id, o.variant_id, o.seller_sku, o.price_minor, o.status, v.name AS variant_name, v.brand';
+const COLUMNS = `o.id, o.variant_id, o.seller_sku, o.price_minor, o.status, v.name AS variant_name, v.brand, ${VARIANT_IMAGE_SQL} AS image_url`;
 const toOffer = (r) => ({
   id: r.id,
   variantId: r.variant_id,
   variantName: r.variant_name,
   brand: r.brand,
+  imageUrl: r.image_url ?? null,
   sellerSku: r.seller_sku,
   priceMinor: r.price_minor,
   status: r.status,

@@ -62,7 +62,7 @@ export default function Offers({ companyId, canManage }) {
               <TableRow key={o.id}>
                 <TableCell>
                   <div className="flex items-center gap-3">
-                    <ProductArt names={[o.variantName]} size="sm" />
+                    <ProductArt names={[o.variantName]} src={o.imageUrl} size="sm" />
                     <div>
                       <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{o.brand}</div>
                       <Link to={`/product/${o.variantId}`} className="font-bold hover:text-primary">
