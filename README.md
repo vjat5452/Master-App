@@ -69,7 +69,7 @@ The RabbitMQ management UI is at http://localhost:15672 (user `localstock`, pass
 
 ```powershell
 npm test                                   # unit and HTTP tests, no infrastructure needed
-$env:RUN_DB_TESTS='1'; npm run test:db     # concurrency tests against real PostgreSQL
+$env:RUN_DB_TESTS='1'; npm run test:db     # concurrency tests in a separate localstock_test database
 npm run bench -w @localstock/allocation-engine
 k6 run scripts/k6/search.js
 ```

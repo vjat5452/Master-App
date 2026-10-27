@@ -1,13 +1,15 @@
-// Requires a migrated PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
+﻿// Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
+// Uses a separate *_test database (see ../test-support/isolated-database.js), never the dev data.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
-import { createPool, withTransaction, migrate, reserveInventory, releaseReservations } from '../src/index.js';
+import { withTransaction, reserveInventory, releaseReservations } from '../src/index.js';
+import { prepareTestDatabase, testDatabaseUrl } from '../test-support/isolated-database.js';
 
 config({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
-const enabled = process.env.RUN_DB_TESTS === '1' && Boolean(process.env.DATABASE_URL);
+const enabled = process.env.RUN_DB_TESTS === '1' && Boolean(testDatabaseUrl());
 
 let pool;
 
@@ -51,8 +53,7 @@ const inventoryRow = (id) =>
 
 before(async () => {
   if (!enabled) return;
-  pool = createPool(process.env.DATABASE_URL, { max: 20 });
-  await migrate(pool);
+  pool = await prepareTestDatabase({ max: 20 });
 });
 
 after(async () => {
