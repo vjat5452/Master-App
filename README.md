@@ -17,6 +17,7 @@ packages/
               (reserve/release stock, order state machine, outbox)
   allocation-engine/  pure warehouse + delivery allocation (no Express, no DB)
   logger/     structured JSON logger
+docs/ABOUT.md tech stack, required software and how to deploy online
 docs/adr/     architecture decision records
 scripts/      demo walkthrough (PowerShell), k6 load test
 ```
