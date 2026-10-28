@@ -291,7 +291,7 @@ function CategoryTile({ shelf, index }) {
   );
 }
 
-function Shelf({ shelf }) {
+export function Shelf({ shelf }) {
   const scroller = useRef(null);
   const nudge = (dir) => scroller.current?.scrollBy({ left: dir * scroller.current.clientWidth * 0.8, behavior: 'smooth' });
   return (

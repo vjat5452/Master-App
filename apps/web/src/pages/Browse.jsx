@@ -157,8 +157,14 @@ export default function Browse() {
 }
 
 function SideLink({ to, active, label, tint }) {
+  const ref = useRef(null);
+  // Keep the active chip visible in the horizontal mobile row.
+  useEffect(() => {
+    if (active) ref.current?.scrollIntoView({ block: 'nearest', inline: 'center' });
+  }, [active]);
   return (
     <Link
+      ref={ref}
       to={to}
       className={cn(
         'relative flex shrink-0 items-center gap-2.5 whitespace-nowrap rounded-xl border px-3 py-2 text-sm font-semibold transition lg:border-transparent',

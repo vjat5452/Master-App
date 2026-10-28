@@ -156,31 +156,34 @@ export function AddButton({ item, className, size = 'sm' }) {
             Add
           </motion.button>
         ) : (
-          <motion.div
-            key="stepper"
-            initial={{ scale: 0.85, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
-            exit={{ scale: 0.85, opacity: 0 }}
-            className="absolute inset-0 flex items-center justify-between rounded-lg bg-primary text-primary-foreground shadow-glow"
-          >
-            <button type="button" aria-label="Remove one" onClick={() => cart.setQuantity(item.variantId, qty - 1)} className="grid h-full w-8 place-items-center rounded-l-lg transition hover:bg-black/10">
-              <Minus className="size-3.5" strokeWidth={3} />
-            </button>
-            <motion.span key={qty} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cn('num font-extrabold', big ? 'text-base' : 'text-sm')}>
-              {qty}
-            </motion.span>
-            <button
-              type="button"
-              aria-label="Add one"
-              disabled={qty >= max}
-              onClick={() => cart.setQuantity(item.variantId, qty + 1)}
-              className="grid h-full w-8 place-items-center rounded-r-lg transition hover:bg-black/10 disabled:opacity-40"
-            >
-              <Plus className="size-3.5" strokeWidth={3} />
-            </button>
+          <motion.div key="stepper" initial={{ scale: 0.85, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.85, opacity: 0 }} className="absolute inset-0">
+            <QtyStepper value={qty} max={max} onChange={(q) => cart.setQuantity(item.variantId, q)} big={big} className="size-full" />
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/** Solid green −/+ stepper; going below 1 calls onChange(0), which the cart treats as remove. */
+export function QtyStepper({ value, onChange, max = 100, big = false, className }) {
+  return (
+    <div className={cn('flex items-center justify-between rounded-lg bg-primary text-primary-foreground shadow-glow', big ? 'h-11 w-36' : 'h-9 w-[76px]', className)}>
+      <button type="button" aria-label="Remove one" onClick={() => onChange(value - 1)} className="grid h-full w-8 place-items-center rounded-l-lg transition hover:bg-black/10">
+        <Minus className="size-3.5" strokeWidth={3} />
+      </button>
+      <motion.span key={value} initial={{ y: -6, opacity: 0 }} animate={{ y: 0, opacity: 1 }} className={cn('num font-extrabold', big ? 'text-base' : 'text-sm')}>
+        {value}
+      </motion.span>
+      <button
+        type="button"
+        aria-label="Add one"
+        disabled={value >= max}
+        onClick={() => onChange(value + 1)}
+        className="grid h-full w-8 place-items-center rounded-r-lg transition hover:bg-black/10 disabled:opacity-40"
+      >
+        <Plus className="size-3.5" strokeWidth={3} />
+      </button>
     </div>
   );
 }

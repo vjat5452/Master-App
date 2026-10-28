@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { ArrowRight, Calculator, Fingerprint, Layers, Lock, MapPin, PackageOpen, Route, ShoppingBag, Sparkles, Trash2, Truck, Warehouse } from 'lucide-react';
-import { Attrs, ProductArt } from '@/components/product';
-import { Alert, Badge, Button, ErrorBox, Empty, KV, PageHeader, Panel, Segmented, Stepper, useSubmit } from '@/components/kit';
-import { Card } from '@/components/ui/card';
+import { ArrowRight, Calculator, ChevronRight, Fingerprint, Layers, Lock, MapPin, PackageOpen, ReceiptText, Route, ShoppingBag, Sparkles, Timer, Trash2, Truck, Warehouse, Zap } from 'lucide-react';
+import { primaryAttr, ProductArt, QtyStepper } from '@/components/product';
+import { Alert, Badge, Button, ErrorBox, Empty, Panel, Segmented, useSubmit } from '@/components/kit';
 import { Switch } from '@/components/ui/misc';
 import { newIdempotencyKey, post } from '@/lib/api';
 import { distance, minutes, money, title } from '@/lib/format';
@@ -46,11 +45,25 @@ export default function Cart() {
   const idem = useRef({ for: null, key: null });
   if (idem.current.for !== bodyKey) idem.current = { for: bodyKey, key: newIdempotencyKey() };
 
-  useEffect(() => setQuote(null), [bodyKey]);
+  // Signed-in shoppers get a live bill: re-quote (debounced) whenever the cart or preferences change,
+  // and drop any response that arrives for a cart that has since changed.
+  const latest = useRef(bodyKey);
+  latest.current = bodyKey;
+  const quoting = useSubmit(async () => {
+    const forKey = bodyKey;
+    const q = await post('/checkout/quote', body);
+    if (latest.current === forKey) setQuote(q);
+  });
+  useEffect(() => {
+    setQuote(null);
+    if (!user || cart.items.length === 0) return undefined;
+    const t = setTimeout(() => quoting.run(), 400);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bodyKey, user]);
 
   const names = Object.fromEntries(cart.items.map((i) => [i.variantId, i]));
 
-  const quoting = useSubmit(async () => setQuote(await post('/checkout/quote', body)));
   const placing = useSubmit(async () => {
     const order = await post('/orders', body, { headers: { 'Idempotency-Key': idem.current.key } });
     const replayed = order.__headers['idempotent-replayed'] === 'true';
@@ -61,21 +74,21 @@ export default function Cart() {
 
   if (cart.items.length === 0) {
     return (
-      <Card className="mx-auto max-w-xl">
+      <div className="mx-auto max-w-md rounded-3xl border bg-card shadow-soft">
         <Empty
           icon={ShoppingBag}
           title="Your cart is empty"
           action={
-            <Button asChild>
+            <Button asChild size="lg" className="rounded-xl">
               <Link to="/">
-                Browse products <ArrowRight />
+                Start shopping <ArrowRight />
               </Link>
             </Button>
           }
         >
           Add something from a nearby seller and we'll plan the fastest, cheapest way to deliver it.
         </Empty>
-      </Card>
+      </div>
     );
   }
 
@@ -83,25 +96,37 @@ export default function Cart() {
   const ok = quote?.status === 'OK';
 
   return (
-    <>
-      <PageHeader
-        eyebrow="Checkout"
-        title="Your cart"
-        description={
-          <span className="inline-flex flex-wrap items-center gap-1.5">
-            <MapPin className="size-4 text-primary" /> Delivering to <strong className="text-foreground">{location.label}</strong> · {cart.count} item{cart.count === 1 ? '' : 's'}
-          </span>
-        }
-        actions={
-          <Button variant="ghost" onClick={cart.clear}>
-            <Trash2 /> Clear cart
-          </Button>
-        }
-      />
+    <div className="mx-auto max-w-6xl">
+      <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">My cart</h1>
+          <p className="mt-1 flex flex-wrap items-center gap-1.5 text-sm text-muted-foreground">
+            <MapPin className="size-4 text-primary" /> Delivering to <strong className="text-foreground">{location.label}</strong>
+          </p>
+        </div>
+        <Button variant="ghost" size="sm" onClick={cart.clear}>
+          <Trash2 /> Clear cart
+        </Button>
+      </div>
 
-      <div className="grid items-start gap-8 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
         <div className="space-y-6">
-          <Card className="divide-y overflow-hidden">
+          <div className="overflow-hidden rounded-2xl border bg-card shadow-soft">
+            <div className="flex items-center gap-3 border-b bg-accent/40 px-4 py-3.5">
+              <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-gold text-gold-foreground shadow-sm">
+                <Timer className="size-5" />
+              </span>
+              <div>
+                <div className="font-extrabold">
+                  {ok ? `Delivery in ${minutes(quote.best.maxEtaMinutes)}` : quoting.busy ? 'Planning your delivery…' : 'Delivery time at checkout'}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {ok
+                    ? `${quote.best.shipmentCount} shipment${quote.best.shipmentCount > 1 ? 's' : ''} · ${cart.count} item${cart.count === 1 ? '' : 's'}`
+                    : `${cart.count} item${cart.count === 1 ? '' : 's'}`}
+                </div>
+              </div>
+            </div>
             <AnimatePresence initial={false}>
               {cart.items.map((i) => (
                 <motion.div
@@ -110,28 +135,26 @@ export default function Cart() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="flex flex-wrap items-center gap-4 p-4 sm:flex-nowrap sm:p-5"
+                  className="flex items-center gap-3 border-b px-4 py-3 last:border-b-0"
                 >
-                  <ProductArt names={[i.group, i.name]} src={i.imageUrl} size="md" />
+                  <Link to={`/product/${i.variantId}`} className="shrink-0">
+                    <ProductArt names={[i.group, i.name]} src={i.imageUrl} size="md" />
+                  </Link>
                   <div className="min-w-0 flex-1">
-                    {i.brand && <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{i.brand}</div>}
-                    <Link to={`/product/${i.variantId}`} className="font-bold hover:text-primary">
-                      {i.name}
+                    <Link to={`/product/${i.variantId}`} className="line-clamp-2 text-sm font-bold leading-snug hover:text-primary">
+                      {i.brand ? `${i.brand} ${i.name}` : i.name}
                     </Link>
-                    <Attrs attributes={i.attributes} className="mt-1.5" />
+                    <div className="mt-0.5 text-xs text-muted-foreground">{primaryAttr(i.attributes) ?? i.group}</div>
+                    <div className="num mt-1 text-sm font-extrabold">{i.priceHintMinor != null ? money(i.priceHintMinor) : '—'}</div>
                   </div>
-                  <div className="text-right">
-                    <div className="num font-extrabold">{i.priceHintMinor != null ? money(i.priceHintMinor * i.quantity) : '—'}</div>
-                    {i.priceHintMinor != null && <div className="text-[11px] text-muted-foreground">from {money(i.priceHintMinor)} each</div>}
-                  </div>
-                  <Stepper value={i.quantity} onChange={(q) => cart.setQuantity(i.variantId, q)} />
+                  <QtyStepper value={i.quantity} onChange={(q) => cart.setQuantity(i.variantId, q)} />
                 </motion.div>
               ))}
             </AnimatePresence>
-          </Card>
+          </div>
 
-          <Panel icon={Route} title="How should we fulfil it?" description="The allocation engine plans warehouses and couriers around these preferences">
-            <div className="space-y-5">
+          <Panel icon={Route} title="Delivery preferences" description="The allocation engine plans warehouses and couriers around these">
+            <div className="space-y-4">
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <span className="text-sm font-semibold">Optimise for</span>
                 <Segmented value={prefs.sort} onChange={(sort) => setPrefs((p) => ({ ...p, sort }))} options={OPTIMISE} />
@@ -154,59 +177,81 @@ export default function Cart() {
           <AnimatePresence>{quote && <QuoteResult quote={quote} names={names} />}</AnimatePresence>
         </div>
 
-        <div className="lg:sticky lg:top-24">
-          <Card className="overflow-hidden">
-            <div className="border-b bg-muted/30 px-6 py-4">
-              <h3 className="font-bold">Order summary</h3>
-              <p className="text-xs text-muted-foreground">{ok ? 'Live quote from the allocation engine' : 'Get a quote to see delivery fees and arrival time'}</p>
-            </div>
-            <div className="space-y-5 p-6">
-              {ok ? (
-                <KV
-                  rows={[
-                    ['Items', money(quote.best.itemsCostMinor)],
-                    [`Delivery · ${quote.best.shipmentCount} shipment${quote.best.shipmentCount > 1 ? 's' : ''}`, money(quote.best.deliveryFeeMinor)],
-                    ['Arrives in', `~${minutes(quote.best.maxEtaMinutes)}`],
-                    ['Total', money(quote.best.totalLandedCostMinor), true],
-                  ]}
-                />
-              ) : (
-                <KV rows={[['Estimated items', money(estimate)], ['Delivery', <span className="text-muted-foreground">calculated at quote</span>]]} />
-              )}
-              <ErrorBox error={quoting.error} />
-              <ErrorBox error={placing.error} />
-              {!user ? (
-                <Button asChild size="lg" block>
-                  <Link to="/login?next=/cart">
-                    <Lock /> Sign in to check out
-                  </Link>
-                </Button>
-              ) : (
-                <div className="space-y-2.5">
-                  <Button variant={ok ? 'secondary' : 'primary'} block busy={quoting.busy} onClick={() => quoting.run()}>
-                    <Calculator /> {quote ? 'Refresh quote' : 'Get delivery quote'}
-                  </Button>
-                  <Button size="lg" variant="gold" block busy={placing.busy} disabled={!ok} onClick={() => placing.run()}>
-                    Place order{ok ? ` · ${money(quote.best.totalLandedCostMinor)}` : ''}
-                  </Button>
-                </div>
-              )}
-              <div className="space-y-2 rounded-xl bg-muted/40 p-3 text-xs text-muted-foreground">
-                <div className="flex gap-2">
-                  <Lock className="size-3.5 shrink-0 text-primary" /> A quote reserves nothing. Placing the order holds stock for a limited time.
-                </div>
-                <div className="flex gap-2">
-                  <Fingerprint className="size-3.5 shrink-0 text-primary" />
-                  <span>
-                    Protected by <span className="font-mono text-foreground/80">Idempotency-Key {idem.current.key.slice(0, 13)}…</span>: a double-click can never create a second order.
-                  </span>
-                </div>
+        <div className="space-y-4 lg:sticky lg:top-28">
+          <div className="rounded-2xl border bg-card p-4 shadow-soft">
+            <h2 className="mb-3 flex items-center gap-1.5 font-extrabold">
+              <ReceiptText className="size-4 text-primary" /> Bill details
+            </h2>
+            <dl className="space-y-2 text-sm">
+              <BillRow label="Items total" value={money(ok ? quote.best.itemsCostMinor : estimate)} note={ok ? null : 'est.'} />
+              <BillRow
+                label={ok ? `Delivery · ${quote.best.shipmentCount} shipment${quote.best.shipmentCount > 1 ? 's' : ''}` : 'Delivery charge'}
+                value={ok ? (quote.best.deliveryFeeMinor ? money(quote.best.deliveryFeeMinor) : <span className="font-extrabold text-primary">FREE</span>) : '—'}
+              />
+              {ok && <BillRow label="Arrives in" value={`~${minutes(quote.best.maxEtaMinutes)}`} />}
+              <div className="flex items-center justify-between border-t pt-3 text-base font-black">
+                <dt>Grand total</dt>
+                <dd className="num">{ok ? money(quote.best.totalLandedCostMinor) : '—'}</dd>
               </div>
+            </dl>
+            {!user && <p className="mt-3 text-xs text-muted-foreground">Sign in to see delivery charges and arrival time.</p>}
+          </div>
+
+          <ErrorBox error={quoting.error} onRetry={() => quoting.run()} />
+          <ErrorBox error={placing.error} />
+
+          {!user ? (
+            <Button asChild size="lg" block className="h-14 rounded-xl">
+              <Link to="/login?next=/cart">
+                <Lock /> Sign in to check out
+              </Link>
+            </Button>
+          ) : (
+            <button
+              type="button"
+              disabled={!ok || placing.busy}
+              onClick={() => placing.run()}
+              className="flex h-14 w-full items-center justify-between rounded-xl bg-primary px-4 text-primary-foreground shadow-glow transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              <span className="text-left leading-tight">
+                <span className="num block text-base font-black">{ok ? money(quote.best.totalLandedCostMinor) : '…'}</span>
+                <span className="text-[10px] font-bold uppercase tracking-wide opacity-80">Total</span>
+              </span>
+              <span className="flex items-center gap-1 text-base font-extrabold">
+                {placing.busy ? 'Placing…' : quoting.busy && !ok ? 'Getting quote…' : 'Place order'} <ChevronRight className="size-5" />
+              </span>
+            </button>
+          )}
+
+          <div className="space-y-2 rounded-2xl border bg-card p-3 text-xs text-muted-foreground">
+            <div className="flex gap-2">
+              <Zap className="size-3.5 shrink-0 text-primary" /> Prices update live from nearby sellers; the bill reflects the plan above.
             </div>
-          </Card>
+            <div className="flex gap-2">
+              <Lock className="size-3.5 shrink-0 text-primary" /> A quote reserves nothing. Placing the order holds stock for a limited time.
+            </div>
+            <div className="flex gap-2">
+              <Fingerprint className="size-3.5 shrink-0 text-primary" />
+              <span>
+                Protected by <span className="font-mono text-foreground/80">Idempotency-Key {idem.current.key.slice(0, 13)}…</span>: a double-click can never create a second order.
+              </span>
+            </div>
+          </div>
         </div>
       </div>
-    </>
+    </div>
+  );
+}
+
+function BillRow({ label, value, note }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <dt className="text-muted-foreground">
+        {label}
+        {note && <span className="ml-1 text-[10px] uppercase">({note})</span>}
+      </dt>
+      <dd className="num font-semibold">{value}</dd>
+    </div>
   );
 }
 
