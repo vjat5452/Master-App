@@ -9,6 +9,8 @@
   },
   "scripts": {
     "migrate": "node src/cli/migrate.js",
+    "migrate:down": "node src/cli/migrate.js down",
+    "backfill:pack-size": "node src/cli/backfill-pack-size.js",
     "test": "node --test",
     "test:db": "node --test --test-concurrency=1"
   },

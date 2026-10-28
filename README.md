@@ -18,6 +18,7 @@ packages/
   allocation-engine/  pure warehouse + delivery allocation (no Express, no DB)
   logger/     structured JSON logger
 docs/ABOUT.md tech stack, required software and how to deploy online
+docs/DATA_DICTIONARY.md  external-platform tables, vendor extensions and data ownership rules
 docs/adr/     architecture decision records
 scripts/      demo walkthrough (PowerShell), k6 load test
 ```

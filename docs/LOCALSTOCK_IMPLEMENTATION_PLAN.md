@@ -28,6 +28,12 @@ File-level plan for the unified first-party + external quick-commerce discovery 
 
 Not in this milestone: any fetching, API or UI.
 
+**Done.** Differences from the table above:
+- The CLI takes `down [steps]` (`npm run db:migrate:down`) and always reverts the newest migrations first, instead of a migration name.
+- `external_listings` is unique per (platform, listing id), not per source, so two sources reporting on one platform share a listing.
+- `warehouses.contact_phone` and `warehouses.opening_hours` were also added (Phase 5 asks for store contact and hours).
+- The backfill logic lives in `src/domain/pack-size-backfill.js`, and `npm run db:seed` runs it.
+
 ## Milestone 3: Traditional vendor regression verification
 
 | File | Change |
