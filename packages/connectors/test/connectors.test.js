@@ -12,6 +12,7 @@ import {
   loadConnectorConfig,
   loadDemoFixture,
   PLATFORMS,
+  platformSearchLinks,
 } from '../src/index.js';
 
 const INDIA_GATE = { lat: 28.6129, lng: 77.2295 }; // cell ttnfv2, serviceable in the fixture
@@ -59,6 +60,15 @@ test('an incomplete licensed provider is listed as not configured, with what is 
   const provider = registry.get('licensed-provider');
   assert.equal(provider.describe().configured, false);
   assert.deepEqual(provider.describe().missing, ['LICENSED_PROVIDER_BASE_URL', 'LICENSED_PROVIDER_API_KEY', 'LICENSED_PROVIDER_MAPPING_FILE', 'LICENSED_PROVIDER_PLATFORMS']);
+});
+
+test('platform search links point at each platform own search page, encoded', () => {
+  const links = platformSearchLinks('Maggi  Masala Noodles 70 g & more');
+  assert.deepEqual(links.map((l) => l.platformCode), ['blinkit', 'zepto', 'instamart', 'bigbasket', 'amazon', 'flipkart']);
+  assert.equal(links.find((l) => l.platformCode === 'amazon').url, 'https://www.amazon.in/s?k=Maggi%20Masala%20Noodles%2070%20g%20%26%20more');
+  assert.equal(links.find((l) => l.platformCode === 'zepto').url, 'https://www.zeptonow.com/search?query=Maggi%20Masala%20Noodles%2070%20g%20%26%20more');
+  assert.ok(links.every((l) => l.url.startsWith('https://')));
+  assert.deepEqual(links.filter((l) => !l.verified).map((l) => l.platformCode), ['blinkit', 'instamart']);
 });
 
 // ---------------------------------------------------------------- demo fixture

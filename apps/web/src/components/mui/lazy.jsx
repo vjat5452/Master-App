@@ -7,6 +7,7 @@ const pick = (name) => lazy(() => load().then((m) => ({ default: m[name] })));
 const LazyStackedBars = pick('StackedBars');
 const LazyDonut = pick('Donut');
 const LazyAreaLine = pick('AreaLine');
+const LazyPriceLines = pick('PriceLines');
 const LazyProgressStepper = pick('ProgressStepper');
 const LazyRangeSlider = pick('RangeSlider');
 
@@ -22,5 +23,6 @@ const wrap = (Comp, fallbackHeight) =>
 export const StackedBars = wrap(LazyStackedBars, 260);
 export const Donut = wrap(LazyDonut, 230);
 export const AreaLine = wrap(LazyAreaLine, 220);
+export const PriceLines = wrap(LazyPriceLines, 240);
 export const ProgressStepper = wrap(LazyProgressStepper, 72);
 export const RangeSlider = wrap(LazyRangeSlider, 40);

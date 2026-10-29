@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BadgeIndianRupee, ChevronRight, Layers, MapPin, ShieldCheck, Store, Timer, Trophy, Truck, Zap } from 'lucide-react';
 import { CompareSection } from '@/components/compare';
+import { PlatformLinks, PriceHistory } from '@/components/price-history';
 import { BlurFade } from '@/components/fx';
 import { AddButton, primaryAttr, ProductArt } from '@/components/product';
 import { CopyId, Empty, ErrorBox, Spinner } from '@/components/kit';
@@ -124,7 +125,10 @@ export default function Product() {
                 {from != null && top !== from ? `Lowest of ${list.length} sellers · up to ${money(top)}` : 'Inclusive of all taxes'}
               </div>
             </div>
-            <AddButton item={item} size="lg" />
+            <div className="flex flex-col items-end gap-2">
+              <AddButton item={item} size="lg" />
+              <PlatformLinks variantId={v.id} />
+            </div>
           </div>
 
           <div className="rounded-2xl border bg-card shadow-soft">
@@ -205,6 +209,8 @@ export default function Product() {
           </div>
 
           <CompareSection variant={v} location={location} query={[v.brand, v.name, pack].filter(Boolean).join(' ')} />
+
+          <PriceHistory variantId={v.id} location={location} />
 
           <div className="grid gap-3 sm:grid-cols-3">
             {PROMISES.map(({ icon: Icon, title, body }) => (

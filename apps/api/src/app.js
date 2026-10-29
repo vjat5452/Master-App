@@ -11,6 +11,7 @@ import { createCheckoutRouter } from './modules/checkout/checkout.routes.js';
 import { createDeliveryRouter } from './modules/delivery/delivery.routes.js';
 import { createCompareRouter } from './modules/discovery/compare.routes.js';
 import { createDiscoveryRouter } from './modules/discovery/discovery.routes.js';
+import { createPriceHistoryRouter } from './modules/discovery/price-history.routes.js';
 import { createHealthRouter } from './modules/health/health.routes.js';
 import { createInventoryRouter } from './modules/inventory/inventory.routes.js';
 import { createOffersRouter } from './modules/offers/offers.routes.js';
@@ -59,6 +60,7 @@ export function createApp(inputDeps) {
     createInventoryRouter,
     createDiscoveryRouter,
     createCompareRouter,
+    createPriceHistoryRouter,
     createStreamRouter,
     createCheckoutRouter,
     createOrdersRouter,

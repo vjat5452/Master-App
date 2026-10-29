@@ -241,6 +241,15 @@ await check('GET /catalog/variants/:variantId/offers', 'offers for one product',
   (r) => must(r.data.offers.length === 1, 'expected 1 offer'),
 );
 
+await check('GET /catalog/variants/:variantId/price-history', 'price graph data', 200, () =>
+  call('GET', `/catalog/variants/${milk.data.variant.id}/price-history?days=7&lat=${LOC.lat}&lng=${LOC.lng}`),
+  (r) => must(r.data.series.find((s) => s.key === 'localstock')?.points.at(-1).priceMinor === 5100, 'today should show the current price'),
+);
+await check('GET /catalog/variants/:variantId/platform-links', 'links to each platform search page', 200, () =>
+  call('GET', `/catalog/variants/${milk.data.variant.id}/platform-links`),
+  (r) => must(r.data.links.length === 6 && r.data.links.every((l) => l.url.startsWith('https://')), 'expected 6 https links'),
+);
+
 const compare = (query, extra = {}) =>
   call('POST', '/discovery/compare', { body: { query, location: { latitude: LOC.lat, longitude: LOC.lng }, refreshPolicy: 'refresh_supported', ...extra } });
 const cmp = await check('POST /discovery/compare', 'compare local seller and sources', 200, () => compare('Amul taaza toned milk 1 litre'), (r) => {
@@ -251,11 +260,11 @@ const cmp = await check('POST /discovery/compare', 'compare local seller and sou
     must(local?.distance.status === 'VERIFIED', 'local result missing') === true &&
     must(demo?.matchStatus === 'MATCHED' && demo.canonicalProductId === milk.data.variant.id, 'demo listing not matched by GTIN') === true &&
     must(demo.distance.km === null && demo.freshness.status === 'UNVERIFIED', 'demo shown as verified') === true &&
-    must(notConfigured === 4, `expected 4 not-configured platforms, got ${notConfigured}`) === true &&
+    must(notConfigured === 6, `expected 6 not-configured platforms, got ${notConfigured}`) === true &&
     must(r.data.results[0].rank === 1 && Array.isArray(r.data.results[0].ranking.reasons), 'no ranking')
   );
 });
-await check('POST /discovery/compare', 'unknown platform rejected', 400, () => compare('milk', { platforms: ['amazon'] }));
+await check('POST /discovery/compare', 'unknown platform rejected', 400, () => compare('milk', { platforms: ['myntra'] }));
 
 // Listings for review: "Cheese Slices Classic" (ours) vs "Cheese Slices" (demo) -> needs review.
 await compare('amul cheese slices');
@@ -327,7 +336,7 @@ await check('PATCH /admin/warehouses/:warehouseId/status', 'enable store', 200, 
 
 await check('GET /admin/external-platforms', 'platforms and sources', 200, () => call('GET', '/admin/external-platforms', { token: ADMIN }), (r) => {
   const all = r.data.items.flatMap((p) => p.sources);
-  return must(all.filter((s) => !s.configured).length === 4 && all.some((s) => s.code === 'demo-quick-commerce-fixture' && s.configured), 'unexpected source states');
+  return must(all.filter((s) => !s.configured).length === 6 && all.some((s) => s.code === 'demo-quick-commerce-fixture' && s.configured), 'unexpected source states');
 });
 await check('GET /admin/external-sources/:code/runs', 'collection runs', 200, () => call('GET', '/admin/external-sources/blinkit-official/runs', { token: ADMIN }));
 await check('POST /admin/external-sources/:code/test-connection', 'health check of a disabled platform', 200, () =>
@@ -375,6 +384,7 @@ const ROUTES = [
   'POST /companies/:companyId/offers', 'GET /companies/:companyId/offers', 'PATCH /companies/:companyId/offers/:offerId',
   'POST /companies/:companyId/inventory/adjustments', 'GET /companies/:companyId/inventory', 'POST /companies/:companyId/catalogue-imports',
   'GET /catalog/search', 'GET /catalog/variants/:variantId/offers', 'POST /discovery/compare', 'GET /discovery/stream',
+  'GET /catalog/variants/:variantId/price-history', 'GET /catalog/variants/:variantId/platform-links',
   'POST /checkout/quote', 'POST /orders', 'GET /orders', 'GET /orders/:orderId', 'POST /orders/:orderId/cancel',
   'POST /payments/sandbox/:providerPaymentId/simulate', 'POST /payments/webhooks/sandbox',
   'GET /admin/companies', 'PATCH /admin/companies/:companyId/status', 'GET /admin/companies/:companyId/warehouses', 'PATCH /admin/warehouses/:warehouseId/status',

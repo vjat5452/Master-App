@@ -134,7 +134,7 @@ test('unexpected errors are not leaked to clients', async () => {
 test('disabled platforms are counted as not configured and never called', async () => {
   const registry = buildConnectorRegistry({ env: {} });
   const out = await createCompareService({ pool: null, redis: memoryRedis(), logger, connectors: registry, config, localSource: emptyLocal }).compare(request_());
-  assert.deepEqual(out.sourceSummary, { requested: 5, responded: 1, failed: 0, notConfigured: 4, unsupported: 0, notCached: 0 });
+  assert.deepEqual(out.sourceSummary, { requested: 7, responded: 1, failed: 0, notConfigured: 6, unsupported: 0, notCached: 0 });
   assert.ok(out.sources.filter((s) => s.status === 'NOT_CONFIGURED').every((s) => /docs\/platforms/.test(s.message)));
   assert.deepEqual(out.results, []);
 });
@@ -279,7 +279,7 @@ test('POST /discovery/compare validates the request', async () => {
   const missing = await request(app).post('/api/v1/discovery/compare').send({ query: 'milk' });
   assert.equal(missing.status, 400);
   assert.equal(missing.body.error.code, 'VALIDATION_FAILED');
-  const badPlatform = await request(app).post('/api/v1/discovery/compare').send({ query: 'milk', location: LOCATION, platforms: ['amazon'] });
+  const badPlatform = await request(app).post('/api/v1/discovery/compare').send({ query: 'milk', location: LOCATION, platforms: ['myntra'] });
   assert.equal(badPlatform.status, 400);
   assert.equal(badPlatform.body.error.code, 'UNKNOWN_PLATFORM');
   const badPolicy = await request(app).post('/api/v1/discovery/compare').send({ query: 'milk', location: LOCATION, refreshPolicy: 'always' });

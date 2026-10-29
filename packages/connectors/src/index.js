@@ -17,7 +17,7 @@ export {
 } from './contract.js';
 export { BaseConnector } from './base-connector.js';
 export { NotConfiguredConnector } from './not-configured.js';
-export { PLATFORMS, createPlatformConnector } from './platforms.js';
+export { PLATFORMS, createPlatformConnector, platformSearchLinks } from './platforms.js';
 export { LicensedProviderConnector, licensedProviderConfig, mappingSchema } from './licensed-provider.js';
 export { DemoFixtureConnector, DEMO_FIXTURE_PATH, loadDemoFixture } from './demo-fixture.js';
 export { buildConnectorRegistry, loadConnectorConfig } from './registry.js';

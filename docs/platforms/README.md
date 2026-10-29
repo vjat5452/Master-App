@@ -12,7 +12,11 @@ Last verified: **2026-10-29**. Every platform below is `RESEARCH_REQUIRED`: Loca
 | Zepto | [zepto.md](zepto.md) |
 | Swiggy Instamart | [swiggy-instamart.md](swiggy-instamart.md) |
 | BigBasket | [bigbasket.md](bigbasket.md) |
+| Amazon India | [amazon-india.md](amazon-india.md) (official Creators API exists; needs Associates approval) |
+| Flipkart | [flipkart.md](flipkart.md) (official Affiliate API exists; needs affiliate approval) |
 | Licensed data providers and ONDC | [providers-and-ondc.md](providers-and-ondc.md) |
+
+**Links without data.** For every platform, LocalStock shows a "Search on …" link to the platform's own public search page, which the shopper opens in their browser. LocalStock never fetches those pages, and it collects no data from platforms without authorized access.
 
 ## Comparison
 

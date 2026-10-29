@@ -37,7 +37,7 @@ test('every platform and source is listed with its real access state', { skip },
   const res = await asAdmin(http().get('/api/v1/admin/external-platforms'));
   assert.equal(res.status, 200, JSON.stringify(res.body));
   const by = Object.fromEntries(res.body.items.map((p) => [p.platform.code, p]));
-  assert.deepEqual(Object.keys(by).sort(), ['bigbasket', 'blinkit', 'demo-quick-commerce', 'instamart', 'zepto']);
+  assert.deepEqual(Object.keys(by).sort(), ['amazon', 'bigbasket', 'blinkit', 'demo-quick-commerce', 'flipkart', 'instamart', 'zepto']);
 
   const blinkit = by.blinkit.sources[0];
   assert.equal(blinkit.code, 'blinkit-official');

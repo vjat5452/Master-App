@@ -19,7 +19,7 @@ export function createSourceRegistry({ pool }) {
       // Real platforms are seeded by migration 002; only a new (e.g. demo) platform is created here.
       `INSERT INTO external_platforms (code, name, is_demo, status) VALUES ($1, $2, $3, 'ACTIVE')
        ON CONFLICT (code) DO UPDATE SET updated_at = now() RETURNING id`,
-      [connector.platformCode, connector.isDemo ? connector.name : connector.platformCode, connector.isDemo],
+      [connector.platformCode, connector.isDemo ? connector.name : connector.platformName ?? connector.platformCode, connector.isDemo],
     );
     const configured = connector.validateConfiguration().ok;
     const capabilities = Object.entries(connector.capabilities ?? {})

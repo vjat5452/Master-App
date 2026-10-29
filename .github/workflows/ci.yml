@@ -50,10 +50,10 @@ jobs:
           node-version: 20
           cache: npm
       - run: npm ci
-      - name: Migrations apply, roll back and re-apply
+      - name: Migrations apply, roll back (all but 001) and re-apply
         run: |
           npm run db:migrate
-          npm run db:migrate:down -- 4
+          npm run db:migrate:down -- 5
           npm run db:migrate
       - run: npm run test:db
 
