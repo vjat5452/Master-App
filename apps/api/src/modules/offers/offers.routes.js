@@ -3,21 +3,31 @@ import { z } from 'zod';
 import { enqueueEvent, withTransaction } from '@localstock/database';
 import { authenticate, COMPANY_MANAGERS, requireCompanyRole } from '../../middleware/auth.js';
 import { writeAudit } from '../../shared/audit.js';
-import { conflict, notFound } from '../../shared/errors.js';
+import { AppError, conflict, notFound } from '../../shared/errors.js';
 import { idParams, validate } from '../../shared/validate.js';
 import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
 
-const createBody = z.object({
-  variantId: z.string().uuid(),
-  sellerSku: z.string().trim().min(1).max(100),
-  priceMinor: z.number().int().min(0),
-});
+const MRP_BELOW_PRICE = 'MRP must be greater than or equal to the selling price';
+
+const createBody = z
+  .object({
+    variantId: z.string().uuid(),
+    sellerSku: z.string().trim().min(1).max(100),
+    priceMinor: z.number().int().min(0),
+    mrpMinor: z.number().int().min(0).optional(),
+  })
+  .refine((b) => b.mrpMinor === undefined || b.mrpMinor >= b.priceMinor, { message: MRP_BELOW_PRICE, path: ['mrpMinor'] });
+// mrpMinor: null clears the MRP.
 const updateBody = z
-  .object({ priceMinor: z.number().int().min(0), status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED']) })
+  .object({
+    priceMinor: z.number().int().min(0),
+    mrpMinor: z.number().int().min(0).nullable(),
+    status: z.enum(['ACTIVE', 'PAUSED', 'ARCHIVED']),
+  })
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Provide at least one field');
 
-const COLUMNS = `o.id, o.variant_id, o.seller_sku, o.price_minor, o.status, v.name AS variant_name, v.brand, ${VARIANT_IMAGE_SQL} AS image_url`;
+const COLUMNS = `o.id, o.variant_id, o.seller_sku, o.price_minor, o.mrp_minor, o.status, v.name AS variant_name, v.brand, ${VARIANT_IMAGE_SQL} AS image_url`;
 const toOffer = (r) => ({
   id: r.id,
   variantId: r.variant_id,
@@ -26,6 +36,7 @@ const toOffer = (r) => ({
   imageUrl: r.image_url ?? null,
   sellerSku: r.seller_sku,
   priceMinor: r.price_minor,
+  mrpMinor: r.mrp_minor ?? null,
   status: r.status,
 });
 
@@ -48,7 +59,7 @@ export function createOffersRouter({ pool, config }) {
     requireCompanyRole(pool, COMPANY_MANAGERS),
     validate({ body: createBody }),
     async (req, res) => {
-      const { variantId, sellerSku, priceMinor } = req.valid.body;
+      const { variantId, sellerSku, priceMinor, mrpMinor } = req.valid.body;
       const { companyId } = req.membership;
       const offer = await withTransaction(pool, async (client) => {
         const { rows: variants } = await client.query('SELECT status FROM product_variants WHERE id = $1', [variantId]);
@@ -56,12 +67,12 @@ export function createOffersRouter({ pool, config }) {
         if (variants[0].status !== 'ACTIVE') throw conflict('VARIANT_NOT_ACTIVE', 'Offers can only be created for active variants');
 
         const { rows } = await client.query(
-          'INSERT INTO seller_offers (company_id, variant_id, seller_sku, price_minor) VALUES ($1, $2, $3, $4) RETURNING id',
-          [companyId, variantId, sellerSku, priceMinor],
+          'INSERT INTO seller_offers (company_id, variant_id, seller_sku, price_minor, mrp_minor) VALUES ($1, $2, $3, $4, $5) RETURNING id',
+          [companyId, variantId, sellerSku, priceMinor, mrpMinor ?? null],
         );
         const created = await findOffer(client, rows[0].id, companyId);
         await writeAudit(client, { actorUserId: req.user.id, companyId, action: 'offer.created', entityType: 'seller_offer', entityId: created.id, after: created });
-        await enqueueEvent(client, { eventType: 'OfferCreated', aggregateType: 'offer', aggregateId: created.id, payload: { offerId: created.id, variantId, companyId, priceMinor } });
+        await enqueueEvent(client, { eventType: 'OfferCreated', aggregateType: 'offer', aggregateId: created.id, payload: { offerId: created.id, variantId, companyId, priceMinor, mrpMinor: mrpMinor ?? null } });
         return created;
       });
       res.status(201).json(toOffer(offer));
@@ -84,19 +95,24 @@ export function createOffersRouter({ pool, config }) {
     validate({ params: idParams('companyId', 'offerId'), body: updateBody }),
     async (req, res) => {
       const { offerId } = req.valid.params;
-      const { priceMinor, status } = req.valid.body;
+      const { priceMinor, mrpMinor, status } = req.valid.body;
       const { companyId } = req.membership;
       const offer = await withTransaction(pool, async (client) => {
         const before = await findOffer(client, offerId, companyId, true);
         if (!before) throw notFound('OFFER_NOT_FOUND', 'Offer not found');
+        const nextPrice = priceMinor ?? before.price_minor;
+        const nextMrp = mrpMinor === undefined ? before.mrp_minor : mrpMinor;
+        if (nextMrp !== null && nextMrp < nextPrice) {
+          throw new AppError(422, 'MRP_BELOW_PRICE', MRP_BELOW_PRICE, { priceMinor: nextPrice, mrpMinor: nextMrp });
+        }
         await client.query(
-          `UPDATE seller_offers SET price_minor = COALESCE($2, price_minor), status = COALESCE($3, status), updated_at = now()
+          `UPDATE seller_offers SET price_minor = $2, mrp_minor = $3, status = COALESCE($4, status), updated_at = now()
             WHERE id = $1`,
-          [offerId, priceMinor ?? null, status ?? null],
+          [offerId, nextPrice, nextMrp, status ?? null],
         );
         const after = await findOffer(client, offerId, companyId);
         await writeAudit(client, { actorUserId: req.user.id, companyId, action: 'offer.updated', entityType: 'seller_offer', entityId: offerId, before, after });
-        await enqueueEvent(client, { eventType: 'OfferUpdated', aggregateType: 'offer', aggregateId: offerId, payload: { offerId, priceMinor: after.price_minor, status: after.status } });
+        await enqueueEvent(client, { eventType: 'OfferUpdated', aggregateType: 'offer', aggregateId: offerId, payload: { offerId, priceMinor: after.price_minor, mrpMinor: after.mrp_minor, status: after.status } });
         return after;
       });
       res.json(toOffer(offer));

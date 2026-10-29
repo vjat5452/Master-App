@@ -9,16 +9,14 @@ const CUSTOMER_TEMPLATES = {
   PaymentRefundRequested: 'refund-initiated',
 };
 
-// Notifications are simulated: log what would be sent. Swap in an email/SMS provider here.
+// Notifications are simulated: log what would be sent. Swap in an email/SMS provider here;
+// the provider gets the address, the log only gets the customer id.
 export async function handleNotification(event, { client, logger }) {
   const template = CUSTOMER_TEMPLATES[event.type];
   if (!template) return;
-  const { rows } = await client.query(
-    'SELECT u.email FROM orders o JOIN users u ON u.id = o.customer_id WHERE o.id = $1',
-    [event.aggregateId],
-  );
+  const { rows } = await client.query('SELECT customer_id FROM orders WHERE id = $1', [event.aggregateId]);
   if (!rows[0]) return;
-  logger.info('notification sent (simulated)', { to: rows[0].email, template, orderId: event.aggregateId });
+  logger.info('notification sent (simulated)', { customerId: rows[0].customer_id, template, orderId: event.aggregateId });
 }
 
 // Invalidate cached search results by bumping the version embedded in every cache key.

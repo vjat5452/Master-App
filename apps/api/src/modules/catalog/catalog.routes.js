@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { withTransaction } from '@localstock/database';
+import { packSizeFromAttributes, withTransaction } from '@localstock/database';
 import { authenticate, requirePlatformAdmin } from '../../middleware/auth.js';
 import { writeAudit } from '../../shared/audit.js';
 import { conflict, notFound } from '../../shared/errors.js';
@@ -29,7 +29,8 @@ const variantStatusBody = z.object({ status: z.enum(['ACTIVE', 'ARCHIVED']) });
 // First image of a variant (alias `v`), or null.
 export const VARIANT_IMAGE_SQL = '(SELECT pi.image_url FROM product_images pi WHERE pi.variant_id = v.id ORDER BY pi.image_url LIMIT 1)';
 
-const VARIANT_COLUMNS = `v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url`;
+const VARIANT_COLUMNS = `v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, v.pack_quantity, v.pack_unit, v.pack_count,
+  g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url`;
 
 export const toVariant = (r) => ({
   id: r.id,
@@ -41,6 +42,8 @@ export const toVariant = (r) => ({
   barcode: r.barcode,
   status: r.status,
   imageUrl: r.image_url ?? null,
+  // Parsed size in base units (g, ml or pcs per item, times count); null when unknown.
+  packSize: r.pack_unit ? { quantity: Number(r.pack_quantity), unit: r.pack_unit, count: r.pack_count } : null,
 });
 
 async function findVariant(db, where, params) {
@@ -132,10 +135,11 @@ export function createCatalogRouter({ pool, config }) {
         .map((s) => ({ id: s.id, name: s.name, brand: s.brand, score: Number(Number(s.score).toFixed(3)) }));
       const status = possibleDuplicates.length > 0 ? 'PENDING_REVIEW' : 'ACTIVE';
 
+      const pack = packSizeFromAttributes(input.attributes);
       const { rows } = await client.query(
-        `INSERT INTO product_variants (group_id, brand, name, attributes, barcode, normalized_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [input.groupId, input.brand ?? null, input.name, JSON.stringify(input.attributes), input.barcode ?? null, key, status],
+        `INSERT INTO product_variants (group_id, brand, name, attributes, barcode, normalized_key, status, pack_quantity, pack_unit, pack_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [input.groupId, input.brand ?? null, input.name, JSON.stringify(input.attributes), input.barcode ?? null, key, status, pack?.quantity ?? null, pack?.unit ?? null, pack?.count ?? null],
       );
       await writeAudit(client, { actorUserId: req.user.id, action: 'variant.created', entityType: 'product_variant', entityId: rows[0].id, after: { ...input, status } });
       const variant = await findVariant(client, 'v.id = $1', [rows[0].id]);

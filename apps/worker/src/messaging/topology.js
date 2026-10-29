@@ -5,7 +5,7 @@ export const DEAD_LETTER_QUEUE = 'localstock.dead-letter';
 // Routing key is `<aggregateType>.<EventType>`, e.g. `order.OrderConfirmed`.
 export const QUEUES = Object.freeze({
   notifications: { name: 'localstock.notifications', bindings: ['order.#'] },
-  searchProjection: { name: 'localstock.search-projection', bindings: ['inventory.#', 'offer.#'] },
+  searchProjection: { name: 'localstock.search-projection', bindings: ['inventory.#', 'offer.#', 'company.#', 'warehouse.#'] },
 });
 
 export const routingKey = (aggregateType, eventType) => `${aggregateType}.${eventType}`;

@@ -1,5 +1,7 @@
 import express, { Router } from 'express';
 import { errorHandler } from './middleware/error-handler.js';
+import { createAdminRouter } from './modules/admin/admin.routes.js';
+import { createImportsRouter } from './modules/imports/imports.routes.js';
 import { requestId, requestLogger } from './middleware/request-context.js';
 import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createCatalogRouter } from './modules/catalog/catalog.routes.js';
@@ -42,6 +44,9 @@ export function createApp(deps) {
     createCheckoutRouter,
     createOrdersRouter,
     createPaymentsRouter,
+    createImportsRouter,
+    // Last: it guards every /admin path, so earlier routers keep their own /admin routes.
+    createAdminRouter,
   ]) {
     api.use(createRouter(deps));
   }

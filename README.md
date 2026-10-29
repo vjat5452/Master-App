@@ -73,7 +73,7 @@ The RabbitMQ management UI is at http://localhost:15672 (user `localstock`, pass
 
 ```powershell
 npm test                                   # unit and HTTP tests, no infrastructure needed
-$env:RUN_DB_TESTS='1'; npm run test:db     # concurrency tests in a separate localstock_test database
+$env:RUN_DB_TESTS='1'; npm run test:db     # database and HTTP tests in a separate localstock_test database
 npm run bench -w @localstock/allocation-engine
 k6 run scripts/k6/search.js
 ```
@@ -95,6 +95,15 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Checkout | `POST /checkout/quote` (advisory, reserves nothing) |
 | Orders | `POST /orders` (requires an `Idempotency-Key` header) Â· `GET /orders` Â· `GET /orders/:id` Â· `POST /orders/:id/cancel` |
 | Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) Â· `POST /payments/sandbox/:paymentId/simulate` (outside production only) |
+| Catalogue import | `POST /companies/:id/catalogue-imports?dryRun=true\|false` (body `text/csv`, owners and admins only) |
+| Admin | `GET /admin/companies?status` Â· `PATCH /admin/companies/:id/status` Â· `GET /admin/companies/:id/warehouses` Â· `PATCH /admin/warehouses/:id/status` |
+
+**Catalogue import CSV.** Columns: `sku`, `barcode` or `variant_id`, `price`, and optionally `mrp`, `warehouse`, `quantity`.
+- `price` and `mrp` are in rupees, e.g. `45.50`. A blank `mrp` keeps the current one.
+- `warehouse` is a store name or id. `quantity` sets the on-hand count; it is not added to it.
+- Products must already be in the catalogue.
+- A dry run shows what would change. Otherwise the whole file is applied in one transaction, or nothing is applied if any row has an error.
+- Every change is audited with `source_of_change = CSV_IMPORT`.
 
 Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (PostgreSQL and Redis are reachable and the process isn't shutting down).
 

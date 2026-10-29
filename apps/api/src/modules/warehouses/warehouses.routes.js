@@ -6,6 +6,7 @@ import { writeAudit } from '../../shared/audit.js';
 import { notFound } from '../../shared/errors.js';
 import { pointSql } from '../../shared/geo.js';
 import { idParams, validate } from '../../shared/validate.js';
+import { openingHours, phone } from '../../shared/vendor-fields.js';
 
 const createBody = z.object({
   name: z.string().trim().min(1).max(200),
@@ -13,17 +14,23 @@ const createBody = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),
   serviceRadiusKm: z.number().positive().max(100).default(10),
+  contactPhone: phone.optional(),
+  openingHours: openingHours.optional(),
 });
+// contactPhone / openingHours: null clears the value.
 const updateBody = z
   .object({
     name: z.string().trim().min(1).max(200),
+    address: z.string().trim().max(500).nullable(),
     serviceRadiusKm: z.number().positive().max(100),
     status: z.enum(['ACTIVE', 'INACTIVE']),
+    contactPhone: phone.nullable(),
+    openingHours: openingHours.nullable(),
   })
   .partial()
   .refine((b) => Object.keys(b).length > 0, 'Provide at least one field');
 
-const COLUMNS = `id, name, address, status, service_radius_m,
+const COLUMNS = `id, name, address, status, service_radius_m, contact_phone, opening_hours,
   ST_Y(location::geometry) AS lat, ST_X(location::geometry) AS lng`;
 
 const toWarehouse = (r) => ({
@@ -34,7 +41,12 @@ const toWarehouse = (r) => ({
   lat: r.lat,
   lng: r.lng,
   serviceRadiusKm: r.service_radius_m / 1000,
+  contactPhone: r.contact_phone ?? null,
+  openingHours: r.opening_hours ?? null,
 });
+
+// For nullable PATCH fields: undefined keeps the current value, null clears it.
+const keepOr = (value, current) => (value === undefined ? current : value);
 
 export function createWarehousesRouter({ pool, config }) {
   const router = Router();
@@ -46,14 +58,14 @@ export function createWarehousesRouter({ pool, config }) {
     requireCompanyRole(pool, COMPANY_MANAGERS),
     validate({ body: createBody }),
     async (req, res) => {
-      const { name, address, lat, lng, serviceRadiusKm } = req.valid.body;
+      const { name, address, lat, lng, serviceRadiusKm, contactPhone, openingHours: hours } = req.valid.body;
       const { companyId } = req.membership;
       const warehouse = await withTransaction(pool, async (client) => {
         const { rows } = await client.query(
-          `INSERT INTO warehouses (company_id, name, address, location, service_radius_m)
-           VALUES ($1, $2, $3, ${pointSql('$4', '$5')}, $6)
+          `INSERT INTO warehouses (company_id, name, address, location, service_radius_m, contact_phone, opening_hours)
+           VALUES ($1, $2, $3, ${pointSql('$4', '$5')}, $6, $7, $8)
            RETURNING ${COLUMNS}`,
-          [companyId, name, address ?? null, lat, lng, Math.round(serviceRadiusKm * 1000)],
+          [companyId, name, address ?? null, lat, lng, Math.round(serviceRadiusKm * 1000), contactPhone ?? null, hours ? JSON.stringify(hours) : null],
         );
         await writeAudit(client, { actorUserId: req.user.id, companyId, action: 'warehouse.created', entityType: 'warehouse', entityId: rows[0].id, after: rows[0] });
         return rows[0];
@@ -74,7 +86,7 @@ export function createWarehousesRouter({ pool, config }) {
     validate({ params: idParams('companyId', 'warehouseId'), body: updateBody }),
     async (req, res) => {
       const { warehouseId } = req.valid.params;
-      const { name, serviceRadiusKm, status } = req.valid.body;
+      const { name, address, serviceRadiusKm, status, contactPhone, openingHours: hours } = req.valid.body;
       const { companyId } = req.membership;
       const warehouse = await withTransaction(pool, async (client) => {
         const { rows: before } = await client.query(
@@ -82,14 +94,26 @@ export function createWarehousesRouter({ pool, config }) {
           [warehouseId, companyId],
         );
         if (!before[0]) throw notFound('WAREHOUSE_NOT_FOUND', 'Warehouse not found');
+        const nextHours = keepOr(hours, before[0].opening_hours);
         const { rows } = await client.query(
           `UPDATE warehouses
               SET name = COALESCE($2, name),
                   service_radius_m = COALESCE($3, service_radius_m),
-                  status = COALESCE($4, status)
+                  status = COALESCE($4, status),
+                  address = $5,
+                  contact_phone = $6,
+                  opening_hours = $7
             WHERE id = $1
             RETURNING ${COLUMNS}`,
-          [warehouseId, name ?? null, serviceRadiusKm ? Math.round(serviceRadiusKm * 1000) : null, status ?? null],
+          [
+            warehouseId,
+            name ?? null,
+            serviceRadiusKm ? Math.round(serviceRadiusKm * 1000) : null,
+            status ?? null,
+            keepOr(address, before[0].address),
+            keepOr(contactPhone, before[0].contact_phone),
+            nextHours === null ? null : JSON.stringify(nextHours),
+          ],
         );
         await writeAudit(client, { actorUserId: req.user.id, companyId, action: 'warehouse.updated', entityType: 'warehouse', entityId: warehouseId, before: before[0], after: rows[0] });
         return rows[0];

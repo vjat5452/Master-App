@@ -45,6 +45,15 @@ Not in this milestone: any fetching, API or UI.
 | `apps/api/src/modules/imports/imports.routes.js` (new) | `POST /companies/:id/catalogue-imports` (CSV: sku, barcode, price, mrp, warehouse, quantity), validated row-by-row, dry-run mode, audited, `source_of_change = 'CSV_IMPORT'` |
 | `apps/worker/src/consumers/handlers.js`, `packages/logger/src/index.js` | Stop logging customer email; add `redact()` for known sensitive keys (authorization, cookie, token, password, email, lat/lng) |
 
+**Done.** Additions beyond the table:
+- Warehouses accept `contactPhone` and `openingHours`, and companies accept `vendorType` and `contactPhone`.
+- New variants get their pack size parsed on creation, and variant responses include `packSize`.
+- Admin status changes emit `company.CompanyStatusChanged` / `warehouse.WarehouseStatusChanged`. The worker's search-projection queue now binds `company.#` and `warehouse.#`, so the search cache is invalidated.
+- `/admin/companies` lists vendors and `/admin/companies/:id/warehouses` lists a vendor's stores.
+- The vendor-flow and ownership DB tests share `apps/api/test-support/db-app.js`. `npm run test:db` now runs the database and API suites.
+- XLSX import is not supported (it would need a new dependency); export to CSV instead.
+- "Approve" means setting a company to ACTIVE. New companies still start ACTIVE; a pending-approval state would change seller onboarding and needs a product decision.
+
 ## Milestone 4: Connector framework and platform access research
 
 | File | Change |
