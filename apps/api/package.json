@@ -15,6 +15,7 @@
     "@localstock/allocation-engine": "*",
     "@localstock/connectors": "*",
     "@localstock/database": "*",
+    "@localstock/external-data": "*",
     "@localstock/logger": "*",
     "dotenv": "^16.4.5",
     "express": "^5.1.0",

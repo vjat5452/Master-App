@@ -7,8 +7,7 @@
 // A known pack-size difference always rules a candidate out: 500 ml is not 1 l, and a
 // 6-pack is not the single item. Fuzzy similarity only ever proposes; a person decides.
 // Manufacturer part numbers are not used: no source in this project supplies them.
-import { extractPackSize, packSizeFromAttributes, samePackSize } from '@localstock/database';
-import { normalizeText } from '../catalog/product-matching.js';
+import { extractPackSize, normalizeText, packSizeFromAttributes, samePackSize } from '@localstock/database';
 
 // Packaging and filler words that do not identify a product.
 const NOISE = new Set(['the', 'and', 'with', 'of', 'a', 'pack', 'pouch', 'bottle', 'tetra', 'tetrapack', 'carton', 'box', 'jar', 'tin', 'can', 'packet', 'pkt', 'combo', 'new', 'fresh', 'x']);

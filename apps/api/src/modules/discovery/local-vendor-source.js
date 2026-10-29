@@ -4,7 +4,7 @@
 import { extractPackSize, parsePackSize } from '@localstock/database';
 import { estimateDeliveryMinutes, pointSql } from '../../shared/geo.js';
 import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
-import { assessFreshness } from './freshness.js';
+import { assessFreshness } from '@localstock/external-data';
 
 export const LOCAL_SOURCE = Object.freeze({ code: 'localstock', name: 'LocalStock sellers' });
 

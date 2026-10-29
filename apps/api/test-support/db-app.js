@@ -33,8 +33,11 @@ function memoryRedis() {
   };
 }
 
-/** @param {{ connectors?: object }} [opts] external source registry (default: all disabled) */
-export async function createTestApi({ connectors } = {}) {
+/**
+ * @param {{ connectors?: object, changeFeed?: (pool) => object }} [opts]
+ *   connectors: external source registry (default: all disabled); changeFeed: factory
+ */
+export async function createTestApi({ connectors, changeFeed } = {}) {
   const pool = await prepareTestDatabase({ max: 10 });
   const config = loadConfig({
     NODE_ENV: 'test',
@@ -44,7 +47,15 @@ export async function createTestApi({ connectors } = {}) {
     PAYMENT_WEBHOOK_SECRET: 'test-webhook-secret',
   });
   const redis = memoryRedis();
-  const app = createApp({ config, logger: createLogger({ level: 'silent' }), pool, redis, state: { shuttingDown: false }, connectors });
+  const app = createApp({
+    config,
+    logger: createLogger({ level: 'silent' }),
+    pool,
+    redis,
+    state: { shuttingDown: false },
+    connectors,
+    changeFeed: changeFeed?.(pool),
+  });
 
   const one = (sql, params) => pool.query(sql, params).then((r) => r.rows[0]);
 

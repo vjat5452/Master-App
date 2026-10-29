@@ -16,6 +16,8 @@ import { createOffersRouter } from './modules/offers/offers.routes.js';
 import { createOrdersRouter } from './modules/orders/orders.routes.js';
 import { createOrganizationsRouter } from './modules/organizations/organizations.routes.js';
 import { createPaymentsRouter } from './modules/payments/payments.routes.js';
+import { createChangeFeed } from './modules/realtime/change-feed.js';
+import { createStreamRouter } from './modules/realtime/stream.routes.js';
 import { createWarehousesRouter } from './modules/warehouses/warehouses.routes.js';
 import { AppError } from './shared/errors.js';
 
@@ -24,9 +26,15 @@ import { AppError } from './shared/errors.js';
  *   connectors: external source registry; defaults to every source disabled.
  */
 export function createApp(inputDeps) {
-  const deps = { ...inputDeps, connectors: inputDeps.connectors ?? buildConnectorRegistry({ env: { NODE_ENV: inputDeps.config.NODE_ENV } }) };
+  const deps = {
+    ...inputDeps,
+    connectors: inputDeps.connectors ?? buildConnectorRegistry({ env: { NODE_ENV: inputDeps.config.NODE_ENV } }),
+    changeFeed: inputDeps.changeFeed ?? createChangeFeed({ pool: inputDeps.pool, logger: inputDeps.logger }),
+  };
   const app = express();
   app.disable('x-powered-by');
+  // Closed on shutdown so open event streams do not hold the server open.
+  app.locals.changeFeed = deps.changeFeed;
 
   app.use(requestId());
   // Keep the raw body for webhook signature verification.
@@ -46,6 +54,7 @@ export function createApp(inputDeps) {
     createInventoryRouter,
     createDiscoveryRouter,
     createCompareRouter,
+    createStreamRouter,
     createCheckoutRouter,
     createOrdersRouter,
     createPaymentsRouter,

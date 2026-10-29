@@ -6,6 +6,11 @@ export const DEAD_LETTER_QUEUE = 'localstock.dead-letter';
 export const QUEUES = Object.freeze({
   notifications: { name: 'localstock.notifications', bindings: ['order.#'] },
   searchProjection: { name: 'localstock.search-projection', bindings: ['inventory.#', 'offer.#', 'company.#', 'warehouse.#'] },
+  // External price/availability/serviceability changes invalidate cached comparison answers.
+  externalChanges: { name: 'localstock.external-changes', bindings: ['external_price.#', 'external_availability.#', 'external_serviceability.#'] },
+  // Background collection jobs ({ jobId }), sent directly by the refresh scheduler; more
+  // demanded queries get a higher priority.
+  externalCollection: { name: 'localstock.external-collection', bindings: [], maxPriority: 9 },
 });
 
 export const routingKey = (aggregateType, eventType) => `${aggregateType}.${eventType}`;
@@ -17,7 +22,11 @@ export async function assertTopology(channel) {
   await channel.bindQueue(DEAD_LETTER_QUEUE, DEAD_LETTER_EXCHANGE, '');
 
   for (const queue of Object.values(QUEUES)) {
-    await channel.assertQueue(queue.name, { durable: true, deadLetterExchange: DEAD_LETTER_EXCHANGE });
+    await channel.assertQueue(queue.name, {
+      durable: true,
+      deadLetterExchange: DEAD_LETTER_EXCHANGE,
+      ...(queue.maxPriority ? { maxPriority: queue.maxPriority } : {}),
+    });
     for (const pattern of queue.bindings) await channel.bindQueue(queue.name, EVENTS_EXCHANGE, pattern);
   }
 }

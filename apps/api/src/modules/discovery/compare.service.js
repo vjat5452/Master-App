@@ -2,18 +2,24 @@
 // concurrently. Each source is bounded by its own connector timeout and by an overall
 // request deadline; a slow or failing source never fails the request. Results are
 // normalized into one shape but keep their provenance, freshness and certainty.
-import { createHash, randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto';
 import { ConnectorError, ERROR_CODES, locationCell, withTimeout } from '@localstock/connectors';
 import { samePackSize } from '@localstock/database';
-import { createMatchingService } from '../matching/matching.service.js';
-import { checkListingQuality, listingPackSize } from '../matching/normalize.js';
-import { assessFreshness } from './freshness.js';
+import {
+  assessFreshness,
+  checkListingQuality,
+  compareCacheKey,
+  createFreshnessPolicy,
+  createMatchingService,
+  listingPackSize,
+  readCompareCache,
+  recordDemand,
+  writeCompareCache,
+} from '@localstock/external-data';
 import { createLocalVendorSource, LOCAL_SOURCE, splitQuery } from './local-vendor-source.js';
 
-const CACHE_PREFIX = 'compare:src';
-// Cached source answers are kept until they expire under the freshness policy.
-const CACHE_TTL_SECONDS = 3600;
-// prefer_fresh reuses a cached answer younger than this instead of calling the source.
+// prefer_fresh reuses a cached answer younger than this instead of calling the source. The
+// background collector keeps popular queries within this window.
 const PREFER_FRESH_MAX_AGE_SECONDS = 120;
 
 const FEE_KEYS = ['deliveryFeeMinor', 'platformFeeMinor', 'handlingFeeMinor', 'otherFeeMinor'];
@@ -31,7 +37,7 @@ function haversineKm(a, b) {
  * @param {object} [extra.match] from the matching service; absent means unmapped
  * @param {object[]} [extra.issues] data-quality issues from checkListingQuality
  */
-export function externalResult(connector, listing, { location, now, packSize = listingPackSize(listing), match = null, issues = [] }) {
+export function externalResult(connector, listing, { location, now, packSize = listingPackSize(listing), match = null, issues = [], freshness = createFreshnessPolicy() }) {
   const price = listing.price && {
     itemPriceMinor: listing.price.itemPriceMinor,
     mrpMinor: listing.price.mrpMinor,
@@ -79,8 +85,8 @@ export function externalResult(connector, listing, { location, now, packSize = l
       : { km: null, status: 'UNKNOWN' },
     eta: listing.eta ? { ...listing.eta, status: 'SOURCE_REPORTED' } : null,
     freshness: assessFreshness(
-      { sourceType: 'EXTERNAL', isDemo: connector.isDemo, sourceObservedAt: listing.sourceObservedAt, collectedAt: listing.collectedAt },
-      { now },
+      { sourceType: 'EXTERNAL', sourceCode: connector.code, isDemo: connector.isDemo, sourceObservedAt: listing.sourceObservedAt, collectedAt: listing.collectedAt },
+      { now, policy: freshness },
     ),
     dataProvenance: { sourceType: connector.accessType, isDemo: connector.isDemo, description: connector.isDemo ? 'Demo fixture data, not real prices' : `Reported by ${connector.name}` },
     orderCapability: 'EXTERNAL_PLATFORM',
@@ -129,16 +135,13 @@ export function createCompareService({
   config,
   localSource = createLocalVendorSource({ pool }),
   matching = createMatchingService({ pool }),
+  freshness = createFreshnessPolicy(config.EXTERNAL_FRESHNESS ?? {}),
 }) {
   const deadlineMs = config.COMPARE_DEADLINE_MS;
 
-  const cacheKey = (connector, query, cell) =>
-    `${CACHE_PREFIX}:${connector.code}:${cell}:${createHash('sha1').update(query.trim().toLowerCase()).digest('hex')}`;
-
   async function readCache(key) {
     try {
-      const hit = await redis.get(key);
-      return hit ? JSON.parse(hit) : null;
+      return await readCompareCache(redis, key);
     } catch (err) {
       logger.debug('compare cache unavailable', { err: err.message });
       return null;
@@ -147,7 +150,7 @@ export function createCompareService({
 
   function writeCache(key, value) {
     Promise.resolve()
-      .then(() => redis.set(key, JSON.stringify(value), 'EX', CACHE_TTL_SECONDS))
+      .then(() => writeCompareCache(redis, key, value))
       .catch(() => {});
   }
 
@@ -157,7 +160,7 @@ export function createCompareService({
     if (!setup.ok) return { ...base, status: 'NOT_CONFIGURED', message: setup.reason, results: [] };
     if (connector.capabilities.product_search !== 'SUPPORTED') return { ...base, status: 'UNSUPPORTED', message: 'Source cannot search products', results: [] };
 
-    const key = cacheKey(connector, query, cell);
+    const key = compareCacheKey(connector.code, cell, query);
     // Quality checks, then matching against the canonical catalogue. Matching failures
     // leave results unmapped; they never fail the source.
     const toResults = async (items) => {
@@ -169,7 +172,7 @@ export function createCompareService({
         logger.warn('external listing matching failed', { source: connector.code, requestId, err: err.message });
       }
       return entries.map(({ listing, packSize, issues }) =>
-        externalResult(connector, listing, { location, now, packSize, issues, match: matches.get(listing.externalListingId) }),
+        externalResult(connector, listing, { location, now, packSize, issues, match: matches.get(listing.externalListingId), freshness }),
       );
     };
 
@@ -221,6 +224,9 @@ export function createCompareService({
       const cell = locationCell(loc);
       const wanted = new Set(platforms ?? connectors.list().map((c) => c.platformCode));
       const sources = connectors.list().filter((c) => wanted.has(c.platformCode));
+
+      // Demand drives background refresh: the query and the coarse cell only.
+      if (sources.some((c) => c.validateConfiguration().ok)) recordDemand(redis, { query, cell, now });
 
       const tasks = sources.map((c) => querySource(c, { query, location: loc, cell, refreshPolicy, limit, requestId, now }));
       if (includeLocalVendors) tasks.unshift(queryLocal({ query, location: loc, radiusKm, limit, now, requestId }));

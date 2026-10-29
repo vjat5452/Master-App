@@ -1,8 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parsePackSize } from '@localstock/database';
-import { decideMatch, gtinForms, nameTokens } from '../src/modules/matching/matcher.js';
-import { checkListingQuality, listingPackSize } from '../src/modules/matching/normalize.js';
+import { decideMatch, gtinForms, nameTokens } from '../src/matcher.js';
+import { checkListingQuality, listingPackSize } from '../src/quality.js';
 
 const size = (s) => parsePackSize(s);
 const variant = (id, overrides = {}) => ({ id, brand: 'Amul', name: 'Taaza Toned Milk', barcode: null, packSize: size('1 l'), similarity: 0.5, ...overrides });

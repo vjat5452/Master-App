@@ -11,7 +11,8 @@ apps/
               orders, seller hub, admin, API explorer; light and dark themes
   api/        Express modular monolith (auth, organizations, warehouses, catalog, offers,
               inventory, discovery, checkout, orders, payments, delivery)
-  worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers
+  worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers,
+              external refresh scheduler and collector, source health checks
 packages/
   database/   SQL migrations, migration runner, transactional domain helpers
               (reserve/release stock, order state machine, outbox)
@@ -20,6 +21,8 @@ packages/
   connectors/ external platform sources: connector contract, resilience (timeout, rate limit,
               retry, circuit breaker), disabled platform adapters, licensed-provider adapter,
               development-only demo fixture source
+  external-data/  shared by API and worker: quality checks, product matching, freshness,
+              demand, observations and change detection, collector, scheduler, health
 docs/platforms/  platform access research (all RESEARCH_REQUIRED: no authorized access yet)
 docs/ABOUT.md tech stack, required software and how to deploy online
 docs/DATA_DICTIONARY.md  external-platform tables, vendor extensions and data ownership rules
@@ -99,7 +102,7 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Checkout | `POST /checkout/quote` (advisory, reserves nothing) |
 | Orders | `POST /orders` (requires an `Idempotency-Key` header) Â· `GET /orders` Â· `GET /orders/:id` Â· `POST /orders/:id/cancel` |
 | Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) Â· `POST /payments/sandbox/:paymentId/simulate` (outside production only) |
-| Compare | `POST /discovery/compare`: LocalStock sellers and enabled external sources side by side, with partial results, freshness and provenance (contract in [docs/openapi.yaml](docs/openapi.yaml)) |
+| Compare | `POST /discovery/compare`: LocalStock sellers and enabled external sources side by side, with partial results, freshness and provenance (contract in [docs/openapi.yaml](docs/openapi.yaml)) Â· `GET /discovery/stream?variantIds&cell` (authenticated server-sent events of detected external changes) |
 | Catalogue import | `POST /companies/:id/catalogue-imports?dryRun=true\|false` (body `text/csv`, owners and admins only) |
 | Admin | `GET /admin/companies?status` Â· `PATCH /admin/companies/:id/status` Â· `GET /admin/companies/:id/warehouses` Â· `PATCH /admin/warehouses/:id/status` |
 | Product matching review (admin) | `GET /admin/product-mapping/review-queue` Â· `POST /admin/product-mapping/:mappingId/decision` (`CONFIRM` / `REJECT`) Â· `POST /admin/product-mapping/listings/:listingId/manual` Â· `GET /admin/catalog/variants/review-queue` |

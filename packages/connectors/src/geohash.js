@@ -34,6 +34,25 @@ export function encodeGeohash(lat, lng, precision = DEFAULT_CELL_PRECISION) {
   return hash;
 }
 
+/** Centre of a geohash cell: background collection queries a cell, never a person's location. */
+export function decodeGeohash(hash) {
+  if (!/^[0-9b-hjkmnp-z]{1,12}$/.test(hash)) throw new RangeError('invalid geohash');
+  const lat = [-90, 90];
+  const lng = [-180, 180];
+  let evenBit = true;
+  for (const ch of hash) {
+    const bits = BASE32.indexOf(ch);
+    for (let i = 4; i >= 0; i--) {
+      const range = evenBit ? lng : lat;
+      const mid = (range[0] + range[1]) / 2;
+      if ((bits >> i) & 1) range[0] = mid;
+      else range[1] = mid;
+      evenBit = !evenBit;
+    }
+  }
+  return { lat: (lat[0] + lat[1]) / 2, lng: (lng[0] + lng[1]) / 2 };
+}
+
 /** The coarse cell for a customer location. */
 export const locationCell = ({ lat, lng }, precision = DEFAULT_CELL_PRECISION) =>
   encodeGeohash(lat, lng, Math.min(precision, DEFAULT_CELL_PRECISION));

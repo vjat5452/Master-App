@@ -34,6 +34,7 @@ async function shutdown(signal) {
     process.exit(1);
   }, 10_000).unref();
 
+  app.locals.changeFeed.close();
   server.close(async () => {
     await Promise.allSettled([pool.end(), redis.quit()]);
     logger.info('shutdown complete');

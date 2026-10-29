@@ -22,4 +22,4 @@ export { LicensedProviderConnector, licensedProviderConfig, mappingSchema } from
 export { DemoFixtureConnector, DEMO_FIXTURE_PATH, loadDemoFixture } from './demo-fixture.js';
 export { buildConnectorRegistry, loadConnectorConfig } from './registry.js';
 export { backoffDelay, CircuitBreaker, createResiliencePolicy, retry, Semaphore, TokenBucket, withTimeout } from './resilience.js';
-export { DEFAULT_CELL_PRECISION, encodeGeohash, locationCell } from './geohash.js';
+export { DEFAULT_CELL_PRECISION, decodeGeohash, encodeGeohash, locationCell } from './geohash.js';

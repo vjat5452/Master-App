@@ -71,9 +71,9 @@ after(async () => {
 });
 
 test('migrations roll back and re-apply cleanly', { skip: !enabled && 'set RUN_DB_TESTS=1' }, async () => {
-  assert.deepEqual((await applied()).slice(0, 3), ['001_init.sql', '002_external_platforms.sql', '003_vendor_extensions.sql']);
+  assert.deepEqual((await applied()).slice(0, 4), ['001_init.sql', '002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql']);
 
-  assert.deepEqual(await rollback(pool, { steps: 2 }), ['003_vendor_extensions.sql', '002_external_platforms.sql']);
+  assert.deepEqual(await rollback(pool, { steps: 3 }), ['004_collection_jobs.sql', '003_vendor_extensions.sql', '002_external_platforms.sql']);
   const afterDown = await tables();
   for (const t of EXTERNAL_TABLES) assert.equal(afterDown.has(t), false, `${t} should be dropped`);
   assert.equal((await columns('seller_offers')).has('mrp_minor'), false);
@@ -81,7 +81,7 @@ test('migrations roll back and re-apply cleanly', { skip: !enabled && 'set RUN_D
   assert.equal((await columns('audit_logs')).has('source_of_change'), false);
   assert.deepEqual(await applied(), ['001_init.sql']);
 
-  assert.deepEqual(await migrate(pool), ['002_external_platforms.sql', '003_vendor_extensions.sql']);
+  assert.deepEqual(await migrate(pool), ['002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql']);
   const afterUp = await tables();
   for (const t of EXTERNAL_TABLES) assert.equal(afterUp.has(t), true, `${t} should exist`);
   assert.equal((await columns('seller_offers')).has('mrp_minor'), true);
@@ -90,7 +90,7 @@ test('migrations roll back and re-apply cleanly', { skip: !enabled && 'set RUN_D
 });
 
 test('the initial migration cannot be rolled back', { skip: !enabled && 'set RUN_DB_TESTS=1' }, async () => {
-  await rollback(pool, { steps: 2 });
+  await rollback(pool, { steps: 3 });
   try {
     await assert.rejects(rollback(pool, { steps: 1 }), /001_init\.sql has no 001_init\.down\.sql/);
     assert.deepEqual(await applied(), ['001_init.sql']);

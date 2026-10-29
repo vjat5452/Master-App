@@ -1,3 +1,4 @@
+import { parseFreshnessConfig } from '@localstock/external-data';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -14,6 +15,18 @@ const schema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.string().min(16),
   // Upper bound for a whole /discovery/compare request; slower sources are reported as TIMEOUT.
   COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
+  // Per-source freshness overrides (JSON); see @localstock/external-data freshness.js.
+  EXTERNAL_FRESHNESS: z
+    .string()
+    .optional()
+    .transform((text, ctx) => {
+      try {
+        return parseFreshnessConfig(text);
+      } catch (err) {
+        ctx.addIssue({ code: 'custom', message: err.message });
+        return z.NEVER;
+      }
+    }),
 });
 
 // Fail fast at startup rather than on the first request that needs a missing setting.

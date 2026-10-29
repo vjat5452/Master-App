@@ -7,7 +7,7 @@ import { createLogger } from '@localstock/logger';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config/env.js';
 import { createCompareService, externalResult } from '../src/modules/discovery/compare.service.js';
-import { assessFreshness, fieldFreshness } from '../src/modules/discovery/freshness.js';
+import { assessFreshness, fieldFreshness } from '@localstock/external-data';
 import { splitQuery } from '../src/modules/discovery/local-vendor-source.js';
 
 const config = loadConfig({

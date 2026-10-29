@@ -132,6 +132,21 @@ Not in this milestone: any fetching, API or UI.
 | `apps/api/src/modules/realtime/stream.routes.js` | `GET /discovery/stream` (SSE, authenticated), pushes persisted change events for subscribed product/cell |
 | Tests | Consumer idempotency for new handlers, change detection, freshness policy |
 
+**Done.** Differences from the table above:
+- **New shared package.** Matching, quality, freshness and listing storage moved from the API into `packages/external-data`, so the worker can use them. It also holds the collector, scheduler, health job, demand tracker, observation store and compare cache; the worker only wires it to RabbitMQ and timers. `normalizeText` moved to `@localstock/database`.
+- **Migration `004_collection_jobs.sql`** (reversible): adds a `SEARCH` job type (one query in one location cell from one source) and indexes for the cadence check and stuck-job recovery.
+- **Duplicate work** is prevented by the existing partial unique index on open jobs, not a Redis `SET NX` lock. A job's database row is its state: claiming it is atomic, so a redelivered message is a no-op.
+- **Retryable failures** are rescheduled with backoff (up to 3 attempts). Jobs stuck in RUNNING for over 10 minutes are re-queued.
+- **Demand** is hourly Redis sorted sets of { normalized query, location cell }, recorded by `/discovery/compare` only when a configured external source exists. No customer identifier or exact location is stored.
+- **Background collection queries the centre of the cell**, never a customer's coordinates.
+- **Change events:**
+  - Price and availability changes (compared with the previous observation for the same listing and cell), serviceability flips and source-health changes become `external_change_events` rows, plus outbox events (`external_price.PriceChanged`, `external_availability.AvailabilityChanged`, `external_serviceability.ServiceabilityChanged`, `external_source.HealthChanged`, `external_collection.CollectionFailed`), all with `schemaVersion: 1`.
+  - "Observed" events are not published, to avoid noise.
+  - Change events invalidate the source's cached comparison answers for that cell, via the `localstock.external-changes` queue.
+- **Source registration.** Unconfigured sources are registered as RESEARCH_REQUIRED, configured ones as SANDBOX; nothing is set to ACTIVE automatically.
+- **Freshness** is configurable per source with `EXTERNAL_FRESHNESS`, which also sets each source's minimum refresh interval.
+- **SSE** polls stored change events (only while someone is subscribed) instead of consuming RabbitMQ in the API. It supports `Last-Event-ID` resume, a per-user stream limit, and a heartbeat, and streams are closed on shutdown.
+
 ## Milestone 9: Ranking and frontend
 
 | File | Change |

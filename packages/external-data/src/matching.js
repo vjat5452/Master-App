@@ -5,47 +5,16 @@
 // - an accepted mapping (AUTO_CONFIRMED / CONFIRMED) links it to a canonical product;
 // - open NEEDS_REVIEW candidates wait for an admin and are not shown as a match;
 // - with no mapping (or only rejected ones) the matcher runs again, skipping rejected products.
-// Only listings are stored here; price and availability observations are stored by the
-// collector (Milestone 8).
+// Listings are stored here; their price and availability observations are stored by
+// observations.js.
 import { decideMatch, findCandidates } from './matcher.js';
+import { createSourceRegistry } from './sources.js';
 
-const CONFIG_REFERENCE = {
-  DEMO_FIXTURE: 'DEMO_EXTERNAL_FIXTURES',
-  LICENSED_PROVIDER: 'LICENSED_PROVIDER_*',
-};
-
-export function createMatchingService({ pool }) {
-  const sources = new Map(); // connector code -> Promise<{ sourceId, platformId }>
-
-  /** Makes sure the connector's platform and source rows exist; cached per process. */
-  function ensureSource(connector) {
-    if (!sources.has(connector.code)) {
-      const pending = (async () => {
-        const { rows: platform } = await pool.query(
-          `INSERT INTO external_platforms (code, name, is_demo, status) VALUES ($1, $2, $3, 'ACTIVE')
-           ON CONFLICT (code) DO UPDATE SET updated_at = now() RETURNING id`,
-          // Real platforms are seeded by the migration; only a new (e.g. demo) platform is created here.
-          [connector.platformCode, connector.isDemo ? connector.name : connector.platformCode, connector.isDemo],
-        );
-        const capabilities = Object.entries(connector.capabilities ?? {})
-          .filter(([, state]) => state === 'SUPPORTED')
-          .map(([name]) => name);
-        // A newly seen configured source starts in SANDBOX: it is never marked ACTIVE here.
-        const { rows: source } = await pool.query(
-          `INSERT INTO external_sources (platform_id, code, name, access_type, integration_status, config_reference, capabilities)
-           VALUES ($1, $2, $3, $4, 'SANDBOX', $5, $6)
-           ON CONFLICT (code) DO UPDATE SET name = EXCLUDED.name, capabilities = EXCLUDED.capabilities, updated_at = now()
-           RETURNING id, platform_id`,
-          [platform[0].id, connector.code, connector.name, connector.accessType, CONFIG_REFERENCE[connector.accessType] ?? null, capabilities],
-        );
-        return { sourceId: source[0].id, platformId: source[0].platform_id };
-      })();
-      pending.catch(() => sources.delete(connector.code)); // retry on the next call
-      sources.set(connector.code, pending);
-    }
-    return sources.get(connector.code);
-  }
-
+/**
+ * @param {{ pool, sources?: ReturnType<typeof createSourceRegistry> }} deps
+ *   `pool` may also be a transaction client.
+ */
+export function createMatchingService({ pool, sources = createSourceRegistry({ pool }) }) {
   async function upsertListings({ sourceId, platformId }, entries) {
     const unique = [...new Map(entries.map((e) => [e.listing.externalListingId, e])).values()];
     const col = (fn) => unique.map(fn);
@@ -92,7 +61,8 @@ export function createMatchingService({ pool }) {
   const unmapped = (listingRecordId) => ({ listingRecordId, matchStatus: 'UNMAPPED', canonicalProductId: null, match: null });
 
   return {
-    ensureSource,
+    ensureSource: (connector) => sources.ensure(connector),
+    upsertListings,
 
     /**
      * @param {object} connector
@@ -102,7 +72,7 @@ export function createMatchingService({ pool }) {
     async resolve(connector, entries) {
       const out = new Map();
       if (entries.length === 0) return out;
-      const source = await ensureSource(connector);
+      const source = await sources.ensure(connector);
       const ids = await upsertListings(source, entries);
 
       const { rows: mappings } = await pool.query(

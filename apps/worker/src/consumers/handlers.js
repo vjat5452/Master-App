@@ -1,3 +1,5 @@
+import { invalidateCompareCache } from '@localstock/external-data';
+
 const SEARCH_VERSION_KEY = 'search:version';
 
 const CUSTOMER_TEMPLATES = {
@@ -17,6 +19,17 @@ export async function handleNotification(event, { client, logger }) {
   const { rows } = await client.query('SELECT customer_id FROM orders WHERE id = $1', [event.aggregateId]);
   if (!rows[0]) return;
   logger.info('notification sent (simulated)', { customerId: rows[0].customer_id, template, orderId: event.aggregateId });
+}
+
+// A changed external price, availability or serviceability makes cached comparison answers
+// of that source in that cell out of date; drop them so the next comparison asks again.
+export function createExternalChangeHandler(redis) {
+  return async function handleExternalChange(event, { logger }) {
+    const { sourceCode, cell } = event.payload ?? {};
+    if (!sourceCode || !cell) return;
+    const removed = await invalidateCompareCache(redis, sourceCode, cell);
+    logger.debug('comparison cache invalidated', { source: sourceCode, entityType: event.payload.entityType, removed });
+  };
 }
 
 // Invalidate cached search results by bumping the version embedded in every cache key.

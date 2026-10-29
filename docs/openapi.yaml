@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: LocalStock API
-  version: 0.7.0
+  version: 0.8.0
   description: |
     LocalStock API contracts. This file currently covers the unified comparison endpoint; the
     other endpoints are listed in README.md and will be added here (Milestone 11).
@@ -64,7 +64,42 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+  /discovery/stream:
+    get:
+      operationId: streamExternalChanges
+      summary: Live feed of external changes LocalStock has detected and stored
+      description: |
+        Server-sent events. An event is pushed after the background collector detects and
+        persists a change (price, availability, serviceability, source health). This is not
+        a promise that platforms change in real time; collection cadence is per source.
+        Authenticated; at most 3 streams per user. A `: ping` comment is sent every 25 s.
+        Reconnect with `Last-Event-ID` to receive events missed since that id.
+      tags: [Discovery]
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: variantIds
+          in: query
+          description: Comma-separated LocalStock product variant ids (up to 50); only changes of listings matched to them
+          schema: { type: string }
+        - name: cell
+          in: query
+          description: Geohash cell prefix (1-6 characters), e.g. `location.cell` from /discovery/compare
+          schema: { type: string, pattern: '^[0-9b-hjkmnp-z]{1,6}$' }
+        - name: Last-Event-ID
+          in: header
+          schema: { type: string, format: uuid }
+      responses:
+        '200':
+          description: 'Event stream. Each event: `event: change`, `id: <eventId>`, `data: <ChangeEvent JSON>`'
+          content:
+            text/event-stream:
+              schema: { $ref: '#/components/schemas/ChangeEvent' }
+        '400': { description: Neither variantIds nor cell given, or invalid values }
+        '401': { description: Not authenticated }
+        '429': { description: Too many open streams for this user }
 components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }
   parameters:
     RequestId:
       name: x-request-id
@@ -261,6 +296,21 @@ components:
           properties:
             code: { type: string, enum: [SOURCE_NOT_CONFIGURED, UNSUPPORTED, TIMEOUT, RATE_LIMITED, UPSTREAM_ERROR, INVALID_RESPONSE, CIRCUIT_OPEN] }
             message: { type: string }
+    ChangeEvent:
+      type: object
+      properties:
+        eventId: { type: string, format: uuid }
+        type: { type: string, enum: [PRICE, AVAILABILITY, SERVICEABILITY, SOURCE_HEALTH] }
+        sourceId: { type: string }
+        sourceName: { type: string }
+        platformCode: { type: string }
+        isDemo: { type: boolean }
+        listingId: { type: [string, 'null'] }
+        canonicalProductId: { type: [string, 'null'] }
+        cell: { type: [string, 'null'] }
+        oldValue: {}
+        newValue: {}
+        detectedAt: { type: string, format: date-time }
     PackSize:
       type: object
       properties:

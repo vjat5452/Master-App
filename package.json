@@ -20,6 +20,6 @@
     "dev:web": "npm run dev -w @localstock/web",
     "build:web": "npm run build -w @localstock/web",
     "test": "npm test --workspaces --if-present",
-    "test:db": "npm run test:db -w @localstock/database && npm run test:db -w @localstock/api"
+    "test:db": "npm run test:db -w @localstock/database && npm run test:db -w @localstock/external-data && npm run test:db -w @localstock/api"
   }
 }
