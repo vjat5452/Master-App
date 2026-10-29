@@ -105,6 +105,7 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Compare | `POST /discovery/compare`: LocalStock sellers and enabled external sources side by side, with partial results, freshness and provenance (contract in [docs/openapi.yaml](docs/openapi.yaml)) Â· `GET /discovery/stream?variantIds&cell` (authenticated server-sent events of detected external changes) |
 | Catalogue import | `POST /companies/:id/catalogue-imports?dryRun=true\|false` (body `text/csv`, owners and admins only) |
 | Admin | `GET /admin/companies?status` Â· `PATCH /admin/companies/:id/status` Â· `GET /admin/companies/:id/warehouses` Â· `PATCH /admin/warehouses/:id/status` |
+| External sources (admin) | `GET /admin/external-platforms` Â· `GET /admin/external-sources/:code/runs` Â· `POST /admin/external-sources/:code/test-connection` Â· `PATCH /admin/external-sources/:code/status` (ACTIVE needs a configured non-demo source and an evidence note) |
 | Product matching review (admin) | `GET /admin/product-mapping/review-queue` Â· `POST /admin/product-mapping/:mappingId/decision` (`CONFIRM` / `REJECT`) Â· `POST /admin/product-mapping/listings/:listingId/manual` Â· `GET /admin/catalog/variants/review-queue` |
 
 **Catalogue import CSV.** Columns: `sku`, `barcode` or `variant_id`, `price`, and optionally `mrp`, `warehouse`, `quantity`.

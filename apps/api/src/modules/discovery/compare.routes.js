@@ -4,6 +4,7 @@ import { rateLimit } from '../../middleware/rate-limit.js';
 import { AppError } from '../../shared/errors.js';
 import { validate } from '../../shared/validate.js';
 import { createCompareService } from './compare.service.js';
+import { POLICIES } from './ranking.js';
 
 const compareBody = z.object({
   query: z.string().trim().min(1).max(200),
@@ -16,6 +17,8 @@ const compareBody = z.object({
   // refresh_supported: call every enabled source (still within its rate limit).
   refreshPolicy: z.enum(['cache_only', 'prefer_fresh', 'refresh_supported']).default('prefer_fresh'),
   limit: z.number().int().min(1).max(50).default(20),
+  // Weighted ordering after the hard rules (size, availability); see ranking.js.
+  rankingPolicy: z.enum(POLICIES).default('best_value'),
 });
 
 // POST /discovery/compare: public, like catalog search. Only public offer data is returned.

@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: LocalStock API
-  version: 0.8.0
+  version: 0.9.0
   description: |
     LocalStock API contracts. This file currently covers the unified comparison endpoint; the
     other endpoints are listed in README.md and will be added here (Milestone 11).
@@ -136,6 +136,15 @@ components:
             `prefer_fresh` reuses an answer younger than 2 minutes, else calls the source;
             `refresh_supported` calls every enabled source, within its rate limit.
         limit: { type: integer, minimum: 1, maximum: 50, default: 20, description: Maximum products per source }
+        rankingPolicy:
+          type: string
+          enum: [best_value, lowest_price, fastest, nearest]
+          default: best_value
+          description: |
+            Weighted ordering applied after the hard rules (requested pack size first, unknown
+            size next, different size last; available before unavailable). Weights per policy
+            are configurable with COMPARE_RANKING_WEIGHTS; the defaults are placeholders pending
+            a product decision.
     CompareResponse:
       type: object
       required: [requestId, query, location, refreshPolicy, generatedAt, results, sources, sourceSummary, notices]
@@ -149,6 +158,12 @@ components:
             cell: { type: string, description: Geohash cell (precision 6) of the query location }
             radiusKm: { type: number }
         refreshPolicy: { type: string }
+        ranking:
+          type: object
+          properties:
+            policy: { type: string }
+            weights: { type: object, additionalProperties: { type: number } }
+            rules: { type: string }
         generatedAt: { type: string, format: date-time }
         results: { type: array, items: { $ref: '#/components/schemas/CompareResult' } }
         sources: { type: array, items: { $ref: '#/components/schemas/SourceStatus' } }
@@ -202,6 +217,22 @@ components:
                   field: { type: string }
                   message: { type: string }
         sizeMatch: { type: string, enum: [EXACT, DIFFERENT, UNKNOWN, NOT_REQUESTED] }
+        rank: { type: integer, minimum: 1 }
+        ranking:
+          type: object
+          properties:
+            score: { type: number, description: Weighted score within the result's group; lower is better }
+            factors: { type: object, description: 'Per factor 0 (best) to 1 (worst or unknown): price, eta, distance, freshness, match' }
+            reasons:
+              type: array
+              items:
+                type: string
+                enum:
+                  [BEST_AVAILABLE_VALUE, LOWEST_ITEM_PRICE, LOWEST_KNOWN_TOTAL, NEAREST_VERIFIED_STORE, FASTEST_KNOWN_ETA, FRESHNESS_PENALTY,
+                   VARIANT_MISMATCH, UNAVAILABLE, INCOMPLETE_TOTAL, UNKNOWN_DISTANCE, UNCONFIRMED_PRODUCT]
+              description: |
+                "Lowest/nearest/fastest" reasons are only given among available results of the
+                requested size. LOWEST_KNOWN_TOTAL needs a COMPLETE total.
         product:
           type: object
           properties:

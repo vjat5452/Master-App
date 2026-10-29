@@ -6,6 +6,7 @@ import { writeAudit } from '../../shared/audit.js';
 import { notFound } from '../../shared/errors.js';
 import { idParams, validate } from '../../shared/validate.js';
 import { registerMappingReviewRoutes } from './mapping-review.routes.js';
+import { registerSourceRoutes } from './sources.routes.js';
 
 // Platform admins approve (ACTIVE) or disable vendors and stores. A suspended company drops
 // out of search and checkout, and its members lose access to its seller routes; an inactive
@@ -49,7 +50,7 @@ const toWarehouse = (r) => ({
   contactPhone: r.contact_phone ?? null,
 });
 
-export function createAdminRouter({ pool, config }) {
+export function createAdminRouter({ pool, config, connectors }) {
   const router = Router();
   router.use('/admin', authenticate(config), requirePlatformAdmin);
 
@@ -133,6 +134,7 @@ export function createAdminRouter({ pool, config }) {
   );
 
   registerMappingReviewRoutes(router, { pool });
+  registerSourceRoutes(router, { pool, connectors });
 
   return router;
 }

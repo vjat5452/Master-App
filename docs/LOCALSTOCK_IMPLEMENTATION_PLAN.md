@@ -157,6 +157,21 @@ Not in this milestone: any fetching, API or UI.
 | `apps/web/src/pages/seller/Import.jsx` | CSV import with dry-run preview |
 | `apps/web/src/App.jsx` | Non-production "demo data" notice |
 
+**Done.** Differences from the table above:
+- **Ranking hard rules** come before any weighting: the requested pack size first, an unreadable size next, a different size last; within each, available before unavailable. Weights apply after that.
+- **Weights** (price, ETA, distance, freshness, match) are configurable per policy with `COMPARE_RANKING_WEIGHTS`. The defaults are placeholders pending a product decision.
+- **Reason codes:** extra codes were added: `UNAVAILABLE`, `INCOMPLETE_TOTAL`, `UNKNOWN_DISTANCE`, `UNCONFIRMED_PRODUCT`.
+  - "Lowest", "nearest" and "fastest" reasons are only given among available results of the requested size.
+  - `LOWEST_KNOWN_TOTAL` needs a COMPLETE total.
+- **Admin source endpoints** were added (from blueprint Part E): `GET /admin/external-platforms`, `/admin/external-sources/:code/runs`, `test-connection` and `status`. ACTIVE is refused for unconfigured and demo sources and needs an evidence note.
+- **Frontend:**
+  - The compare section is `components/compare.jsx`, used on the product page. It shows LocalStock sellers of this product plus external results, ranked by the API, with labels for every uncertainty.
+  - Live updates come from `/discovery/stream`, for signed-in users, read with `fetch` because `EventSource` cannot send an Authorization header.
+  - The admin Sources and Match review tabs are in `pages/admin/`. The variant moderation queue now uses the server-side review queue instead of browser storage.
+  - The seller Import tab is new, and MRP was added to the Offers screen.
+  - A demo notice is shown outside production builds; `VITE_DEMO_NOTICE=on|off` overrides it.
+- **Not built:** an admin screen for vendor and store suspension (the Milestone 3 API exists). It is a small follow-up.
+
 ## Milestone 10: Remaining platform connectors
 
 Only for platforms whose access is approved; each follows the Milestone 5 acceptance steps.

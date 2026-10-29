@@ -12,6 +12,16 @@ export const minutes = (n) => (n == null ? '—' : n < 60 ? `${n} min` : `${Math
 export const dateTime = (iso) =>
   iso ? new Date(iso).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : '—';
 
+/** "just now", "4 min ago", "2 h ago", "3 d ago". */
+export function ago(iso, now = Date.now()) {
+  if (!iso) return '—';
+  const s = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (s < 45) return 'just now';
+  if (s < 3600) return `${Math.round(s / 60)} min ago`;
+  if (s < 86400) return `${Math.round(s / 3600)} h ago`;
+  return `${Math.round(s / 86400)} d ago`;
+}
+
 export const attrs = (a) => Object.entries(a ?? {}).map(([k, v]) => `${k}: ${v}`);
 
 export const shortId = (id) => (id ? id.slice(0, 8) : '');

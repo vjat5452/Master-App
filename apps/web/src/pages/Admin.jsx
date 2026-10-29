@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Archive, Check, FolderTree, Layers, Plus, ScanSearch, ShieldCheck, Truck } from 'lucide-react';
+import { Archive, Check, FolderTree, Globe, Layers, Plus, ScanSearch, SearchCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Attrs, ProductArt } from '@/components/product';
 import { ProposeVariantModal } from '@/components/VariantPicker';
 import { Badge, Button, CopyId, Empty, ErrorBox, Field, PageHeader, Panel, SkeletonRows, Tabs, useSubmit } from '@/components/kit';
@@ -8,14 +8,18 @@ import { Input, NativeSelect } from '@/components/ui/input';
 import { Separator } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { get, patch, post } from '@/lib/api';
-import { loadKnownGroups, rememberGroup, reviewQueue, searchVariants, setReviewQueue } from '@/lib/catalog';
+import { loadKnownGroups, rememberGroup, searchVariants } from '@/lib/catalog';
 import { useAsync, useToast } from '@/lib/store';
 import { cn } from '@/lib/utils';
+import MappingReview from './admin/MappingReview.jsx';
+import Sources from './admin/Sources.jsx';
 import { ProviderModal, ProviderTable } from './seller/Delivery.jsx';
 
 const TABS = [
   { id: 'catalog', label: 'Catalog structure', icon: FolderTree },
   { id: 'moderation', label: 'Variant moderation', icon: ScanSearch },
+  { id: 'sources', label: 'External sources', icon: Globe },
+  { id: 'matching', label: 'Match review', icon: SearchCheck },
   { id: 'delivery', label: 'Platform couriers', icon: Truck },
 ];
 
@@ -36,6 +40,8 @@ export default function Admin() {
       <Tabs tabs={TABS} value={tab} onChange={(t) => setParams({ tab: t })} className="mb-8" />
       {tab === 'catalog' && <CatalogAdmin />}
       {tab === 'moderation' && <Moderation />}
+      {tab === 'sources' && <Sources />}
+      {tab === 'matching' && <MappingReview />}
       {tab === 'delivery' && <PlatformDelivery />}
     </>
   );
@@ -212,10 +218,9 @@ function CatalogAdmin() {
 function Moderation() {
   const toast = useToast();
   const [lookup, setLookup] = useState('');
-  const [queue, setQueue] = useState(reviewQueue);
   const pending = useAsync(
-    () => Promise.all(queue.map((id) => get(`/catalog/variants/${id}`, { auth: false }).catch(() => null))).then((l) => l.filter(Boolean)),
-    [queue.join(',')],
+    () => get('/admin/catalog/variants/review-queue?limit=50').then((r) => r.items.map((v) => ({ ...v, status: 'PENDING_REVIEW' }))),
+    [],
   );
   const looked = useAsync(() => (/^[0-9a-f-]{36}$/i.test(lookup) ? get(`/catalog/variants/${lookup}`, { auth: false }) : Promise.resolve(null)), [lookup]);
   const active = useAsync(() => searchVariants(''), []);
@@ -223,11 +228,7 @@ function Moderation() {
   const setStatus = useSubmit(async (v, status) => {
     await patch(`/catalog/variants/${v.id}/status`, { status });
     toast(`${v.name} is now ${status.toLowerCase()}`);
-    if (status !== 'PENDING_REVIEW') {
-      const next = queue.filter((id) => id !== v.id);
-      setReviewQueue(next);
-      setQueue(next);
-    }
+    pending.reload();
     looked.reload();
     active.reload();
   });
@@ -292,7 +293,7 @@ function Moderation() {
         {pending.loading && !pending.data && <SkeletonRows rows={2} />}
         {pending.data?.length === 0 && (
           <Empty icon={Check} title="Nothing waiting for review">
-            Proposals flagged as possible duplicates from this browser show up here. To review any other variant, look it up by id below.
+            Seller proposals flagged as possible duplicates show up here. To review any other variant, look it up by id below.
           </Empty>
         )}
         {pending.data?.length > 0 && table(pending.data)}

@@ -1,4 +1,5 @@
 import { parseFreshnessConfig } from '@localstock/external-data';
+import { parseRankingWeights } from '../modules/discovery/ranking.js';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -15,6 +16,18 @@ const schema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.string().min(16),
   // Upper bound for a whole /discovery/compare request; slower sources are reported as TIMEOUT.
   COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
+  // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
+  COMPARE_RANKING_WEIGHTS: z
+    .string()
+    .optional()
+    .transform((text, ctx) => {
+      try {
+        return parseRankingWeights(text);
+      } catch (err) {
+        ctx.addIssue({ code: 'custom', message: err.message });
+        return z.NEVER;
+      }
+    }),
   // Per-source freshness overrides (JSON); see @localstock/external-data freshness.js.
   EXTERNAL_FRESHNESS: z
     .string()

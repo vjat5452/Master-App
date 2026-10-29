@@ -16,6 +16,7 @@ import {
   Rocket,
   Store,
   Tag,
+  Upload,
   Users,
   Warehouse,
 } from 'lucide-react';
@@ -29,6 +30,7 @@ import { money } from '@/lib/format';
 import { useAsync, useAuth, useToast } from '@/lib/store';
 import { cn } from '@/lib/utils';
 import Delivery from './seller/Delivery.jsx';
+import Import from './seller/Import.jsx';
 import Inventory from './seller/Inventory.jsx';
 import Members from './seller/Members.jsx';
 import Offers from './seller/Offers.jsx';
@@ -137,6 +139,7 @@ const TABS = [
   { id: 'warehouses', label: 'Warehouses', icon: Warehouse },
   { id: 'delivery', label: 'Delivery fleet', icon: Bike },
   { id: 'members', label: 'Team', icon: Users },
+  { id: 'import', label: 'Import', icon: Upload },
 ];
 
 function Dashboard({ company, companies }) {
@@ -184,6 +187,7 @@ function Dashboard({ company, companies }) {
       {tab === 'warehouses' && <Warehouses {...ctx} />}
       {tab === 'delivery' && <Delivery {...ctx} />}
       {tab === 'members' && <Members {...ctx} />}
+      {tab === 'import' && <Import {...ctx} />}
     </>
   );
 }

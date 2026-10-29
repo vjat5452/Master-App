@@ -17,6 +17,7 @@ import {
   writeCompareCache,
 } from '@localstock/external-data';
 import { createLocalVendorSource, LOCAL_SOURCE, splitQuery } from './local-vendor-source.js';
+import { DEFAULT_WEIGHTS, rankResults } from './ranking.js';
 
 // prefer_fresh reuses a cached answer younger than this instead of calling the source. The
 // background collector keeps popular queries within this window.
@@ -104,19 +105,6 @@ export function sizeMatch(requested, actual) {
   return samePackSize(requested, actual) ? 'EXACT' : 'DIFFERENT';
 }
 
-// Deterministic order until the ranking engine (Milestone 9): the requested size first,
-// then available, then lowest item price, then source name. Unknown prices sort last.
-const SIZE_ORDER = { EXACT: 0, NOT_REQUESTED: 0, UNKNOWN: 1, DIFFERENT: 2 };
-const AVAILABILITY_ORDER = { IN_STOCK: 0, UNKNOWN: 1, OUT_OF_STOCK: 2, NOT_SERVICEABLE: 3, FETCH_FAILED: 4 };
-function compareResults(a, b) {
-  return (
-    SIZE_ORDER[a.sizeMatch] - SIZE_ORDER[b.sizeMatch] ||
-    AVAILABILITY_ORDER[a.availability] - AVAILABILITY_ORDER[b.availability] ||
-    (a.price?.itemPriceMinor ?? Infinity) - (b.price?.itemPriceMinor ?? Infinity) ||
-    a.sourceName.localeCompare(b.sourceName) ||
-    String(a.listingId).localeCompare(String(b.listingId))
-  );
-}
 
 const safeError = (err) =>
   err instanceof ConnectorError
@@ -138,6 +126,7 @@ export function createCompareService({
   freshness = createFreshnessPolicy(config.EXTERNAL_FRESHNESS ?? {}),
 }) {
   const deadlineMs = config.COMPARE_DEADLINE_MS;
+  const rankingWeights = config.COMPARE_RANKING_WEIGHTS ?? DEFAULT_WEIGHTS;
 
   async function readCache(key) {
     try {
@@ -218,7 +207,7 @@ export function createCompareService({
     /** Platform codes callers may ask for. */
     platformCodes: () => [...new Set(connectors.list().map((c) => c.platformCode))],
 
-    async compare({ query, location, radiusKm, includeLocalVendors, platforms, refreshPolicy, limit }, { requestId = randomUUID() } = {}) {
+    async compare({ query, location, radiusKm, includeLocalVendors, platforms, refreshPolicy, limit, rankingPolicy = 'best_value' }, { requestId = randomUUID() } = {}) {
       const now = Date.now();
       const loc = { lat: location.latitude, lng: location.longitude };
       const cell = locationCell(loc);
@@ -233,10 +222,10 @@ export function createCompareService({
       const answers = await Promise.all(tasks);
 
       const { packSize: requestedSize } = splitQuery(query);
-      const results = answers
-        .flatMap((a) => a.results)
-        .map((r) => ({ ...r, sizeMatch: sizeMatch(requestedSize, r.product.packSize) }))
-        .sort(compareResults);
+      const results = rankResults(
+        answers.flatMap((a) => a.results).map((r) => ({ ...r, sizeMatch: sizeMatch(requestedSize, r.product.packSize) })),
+        { policy: rankingPolicy, weights: rankingWeights },
+      );
       const sourceList = answers.map(({ results: r, ...meta }) => ({ ...meta, resultCount: r.length }));
       const count = (...statuses) => sourceList.filter((s) => statuses.includes(s.status)).length;
       const notices = [];
@@ -259,6 +248,11 @@ export function createCompareService({
         // The coarse cell only; exact coordinates are not echoed back or stored.
         location: { cell, radiusKm },
         refreshPolicy,
+        ranking: {
+          policy: rankingPolicy,
+          weights: rankingWeights[rankingPolicy],
+          rules: 'Requested pack size first, then available before unavailable, then lowest weighted score. Unknown distance or ETA never counts as best.',
+        },
         generatedAt: new Date(now).toISOString(),
         results,
         sources: sourceList,

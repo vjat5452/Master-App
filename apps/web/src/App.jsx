@@ -6,6 +6,7 @@ import {
   ChevronRight,
   Code2,
   Crosshair,
+  FlaskConical,
   LayoutDashboard,
   LogOut,
   MapPin,
@@ -71,6 +72,7 @@ export default function App() {
   }, [pathname]);
   return (
     <div className="flex min-h-screen flex-col">
+      <DemoNotice />
       <TopBar />
       <main className="flex-1">
         <Routes>
@@ -92,6 +94,47 @@ export default function App() {
       </main>
       {pathname !== '/login' && <Footer />}
       <CartBar />
+    </div>
+  );
+}
+
+// Outside production builds (or when VITE_DEMO_NOTICE=on), say plainly that the data is not
+// real. VITE_DEMO_NOTICE=off hides it, e.g. for a production deployment with real sellers.
+const SHOW_DEMO_NOTICE =
+  import.meta.env.VITE_DEMO_NOTICE === 'on' || (import.meta.env.VITE_DEMO_NOTICE !== 'off' && import.meta.env.MODE !== 'production');
+const DEMO_NOTICE_KEY = 'localstock.demoNoticeDismissed';
+
+function DemoNotice() {
+  const [hidden, setHidden] = useState(() => {
+    try {
+      return sessionStorage.getItem(DEMO_NOTICE_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  if (!SHOW_DEMO_NOTICE || hidden) return null;
+  return (
+    <div role="note" className="bg-gold/15 text-[12px] text-amber-900 dark:text-gold">
+      <div className="container flex items-center gap-2 py-1.5">
+        <FlaskConical className="size-3.5 shrink-0" />
+        <span className="min-w-0 flex-1">
+          <strong>Demo environment.</strong> Sellers, prices and stock are generated test data, and "Demo Quick-Commerce" results are fixture data. Nothing here is a real offer.
+        </span>
+        <button
+          className="shrink-0 rounded p-0.5 hover:bg-gold/20"
+          aria-label="Hide demo notice"
+          onClick={() => {
+            try {
+              sessionStorage.setItem(DEMO_NOTICE_KEY, '1');
+            } catch {
+              // storage unavailable: hidden for this page view only
+            }
+            setHidden(true);
+          }}
+        >
+          <X className="size-3.5" />
+        </button>
+      </div>
     </div>
   );
 }

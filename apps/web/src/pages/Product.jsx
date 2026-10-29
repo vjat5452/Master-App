@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { BadgeIndianRupee, ChevronRight, Layers, MapPin, ShieldCheck, Store, Timer, Trophy, Truck, Zap } from 'lucide-react';
+import { CompareSection } from '@/components/compare';
 import { BlurFade } from '@/components/fx';
 import { AddButton, primaryAttr, ProductArt } from '@/components/product';
 import { CopyId, Empty, ErrorBox, Spinner } from '@/components/kit';
@@ -202,6 +203,8 @@ export default function Product() {
               </p>
             )}
           </div>
+
+          <CompareSection variant={v} location={location} query={[v.brand, v.name, pack].filter(Boolean).join(' ')} />
 
           <div className="grid gap-3 sm:grid-cols-3">
             {PROMISES.map(({ icon: Icon, title, body }) => (
