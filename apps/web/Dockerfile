@@ -23,7 +23,9 @@ ENV VITE_DEMO_NOTICE=${VITE_DEMO_NOTICE}
 RUN npm run build -w @localstock/web
 
 FROM nginx:1.27-alpine
-ENV API_UPSTREAM=http://api:5000
+# PORT: hosts such as Railway set it; nginx listens there. Local resolvers let nginx
+# re-resolve the API's address (see nginx.conf.template).
+ENV API_UPSTREAM=http://api:5000 PORT=8080 NGINX_ENTRYPOINT_LOCAL_RESOLVERS=1
 COPY apps/web/nginx.conf.template /etc/nginx/templates/default.conf.template
 COPY --from=build /app/apps/web/dist /usr/share/nginx/html
 EXPOSE 8080

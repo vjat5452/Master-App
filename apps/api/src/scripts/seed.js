@@ -16,7 +16,8 @@ try {
     console.log('seed data already present; nothing to do');
   } else {
     await withTransaction(pool, seed, { retries: 0 });
-    console.log(`seeded. Users (password "${PASSWORD}"):`);
+    // The password is printed only when it is the public development default.
+    console.log(`seeded. Users (password ${process.env.SEED_PASSWORD ? 'from SEED_PASSWORD' : `"${PASSWORD}"`}):`);
     console.log('  admin@localstock.dev    platform admin');
     console.log('  seller.a@localstock.dev owner of FreshMart Noida');
     console.log('  seller.b@localstock.dev owner of Daily Needs Delhi');

@@ -64,6 +64,10 @@ Use a hosted service for each piece, so nothing needs Docker:
 | Worker | Always-on background process: `npm start -w @localstock/worker` | Render Background Worker, Railway, Fly.io |
 | Website | Static site: `npm run build:web`, publish `apps/web/dist` | Vercel, Netlify, Cloudflare Pages, Render Static Site |
 
+### Railway (the live demo)
+
+Step-by-step guide: [DEPLOY_RAILWAY.md](DEPLOY_RAILWAY.md).
+
 ### Option B: one server with Docker Compose
 
 Rent one VM (DigitalOcean, AWS EC2, Hetzner, …), install Docker, copy `.env` with production secrets, and run:

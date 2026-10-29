@@ -18,6 +18,9 @@ const schema = z.object({
   COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
   // Bearer token for GET /metrics. Without it, /metrics only answers outside production.
   METRICS_TOKEN: z.string().min(16).optional(),
+  // Sandbox "pay" button for a public demo running with NODE_ENV=production. Off by default;
+  // outside production the sandbox is always available.
+  ENABLE_SANDBOX_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
   // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
   COMPARE_RANKING_WEIGHTS: z
     .string()
@@ -46,7 +49,8 @@ const schema = z.object({
 
 // Fail fast at startup rather than on the first request that needs a missing setting.
 export function loadConfig(env = process.env) {
-  const result = schema.safeParse(env);
+  // Hosting platforms (Railway, Render, Fly) assign the port through PORT.
+  const result = schema.safeParse(env.API_PORT === undefined && env.PORT !== undefined ? { ...env, API_PORT: env.PORT } : env);
   if (!result.success) {
     const problems = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${problems}`);
