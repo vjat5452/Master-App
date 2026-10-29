@@ -5,6 +5,7 @@ import { authenticate, requirePlatformAdmin } from '../../middleware/auth.js';
 import { writeAudit } from '../../shared/audit.js';
 import { notFound } from '../../shared/errors.js';
 import { idParams, validate } from '../../shared/validate.js';
+import { registerMappingReviewRoutes } from './mapping-review.routes.js';
 
 // Platform admins approve (ACTIVE) or disable vendors and stores. A suspended company drops
 // out of search and checkout, and its members lose access to its seller routes; an inactive
@@ -130,6 +131,8 @@ export function createAdminRouter({ pool, config }) {
       res.json(toWarehouse(warehouse));
     },
   );
+
+  registerMappingReviewRoutes(router, { pool });
 
   return router;
 }

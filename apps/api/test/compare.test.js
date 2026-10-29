@@ -184,7 +184,7 @@ test('the requested pack size ranks first, and other sizes are labelled DIFFEREN
   const items = [
     listing({ externalListingId: 'half', variantText: '500 ml', price: { ...listing().price, itemPriceMinor: 2700 } }),
     listing({ externalListingId: 'litre', variantText: '1 l' }),
-    listing({ externalListingId: 'odd', variantText: 'family pack', price: { ...listing().price, itemPriceMinor: 100 } }),
+    listing({ externalListingId: 'odd', variantText: 'family pack', price: { ...listing().price, itemPriceMinor: 2000, mrpMinor: null } }),
     listing({ externalListingId: 'ml1000', variantText: '1000 ml', price: { ...listing().price, itemPriceMinor: 5500 } }),
   ];
   const out = await service({ sources: [stubSource('s', async () => ({ items, queryCell: 'ttnfv2' }))] }).compare(

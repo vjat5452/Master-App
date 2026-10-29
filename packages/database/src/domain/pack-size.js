@@ -75,6 +75,26 @@ export function packSizeFromAttributes(attributes) {
   return null;
 }
 
+// A size with a unit wins over "pack of N", wherever each appears.
+const SIZES_IN_TEXT = [
+  /(?:\b\d{1,4}\s*[x×]\s*)?\b\d+(?:[.,]\d+)?\s*(?:kgs?|kilos?|kilograms?|grams?|gms?|gm|g|mg|mls?|millilitres?|milliliters?|cl|litres?|liters?|ltrs?|lt|l|pcs?|pieces?)\b(?:\s*[x×]\s*\d{1,4}\b)?/i,
+  /\bpack\s+of\s+\d{1,4}\b/i,
+];
+
+/**
+ * Finds a pack size inside free text: "Amul Taaza Toned Milk 1 L" -> 1000 ml, with the
+ * matched phrase so callers can remove it. Returns { packSize: null } when none parses.
+ */
+export function extractPackSize(text) {
+  if (typeof text !== 'string') return { packSize: null, phrase: null };
+  for (const pattern of SIZES_IN_TEXT) {
+    const match = text.match(pattern);
+    const packSize = match ? parsePackSize(match[0]) : null;
+    if (packSize) return { packSize, phrase: match[0] };
+  }
+  return { packSize: null, phrase: null };
+}
+
 /**
  * True only when both sizes are known and identical. Unknown sizes are never "the same";
  * callers must treat that as needing review, not as a match.

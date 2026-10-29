@@ -110,6 +110,16 @@ Not in this milestone: any fetching, API or UI.
 | `apps/api/src/modules/admin/mapping-review.routes.js` | `GET /admin/product-mapping/review-queue`, `POST …/:mappingId/decision` (also lists `PENDING_REVIEW` variants, closing README gap 1) |
 | Tests | 500 ml vs 1 l rejected, multipack vs single rejected, flavour mismatch rejected, GTIN auto-confirmed |
 
+**Done.** Differences from the table above:
+- `MANUFACTURER_ID` matching is not used: no source supplies manufacturer part numbers.
+- GTINs are compared across leading-zero spellings (EAN-8, UPC-12, EAN-13, GTIN-14).
+- Within one brand, names that each have words the other lacks ("Kool Kesar" vs "Kool Elaichi") are treated as different variants and never proposed.
+- Matching and listing storage happen in `matching.service.js` during comparison, and the stored decision is reused. Sources are registered in `external_sources` on first use as `SANDBOX`, never `ACTIVE`. Price and availability observations are still stored only from Milestone 8.
+- Reviewers can CONFIRM a candidate, REJECT any mapping (which also unlinks a wrong automatic match), or link a listing manually. Linking two known, different pack sizes is refused (422 `PACK_SIZE_MISMATCH`).
+- `GET /admin/catalog/variants/review-queue` closes README gap 1.
+- `extractPackSize()` in `@localstock/database` is shared by query parsing, the matcher and the quality checks.
+- Results now carry `match` and `dataQuality`. Implausible prices (above MRP, a discount over 90%, unknown currency) are dropped, and future timestamps are ignored.
+
 ## Milestone 8: Background refresh, Redis, RabbitMQ and real-time feed
 
 | File | Change |

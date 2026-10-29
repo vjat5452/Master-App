@@ -4,7 +4,7 @@ import pg from 'pg';
 pg.types.setTypeParser(pg.types.builtins.INT8, (value) => Number(value));
 
 export { migrate, rollback } from './migrate.js';
-export { parsePackSize, packSizeFromAttributes, samePackSize } from './domain/pack-size.js';
+export { extractPackSize, parsePackSize, packSizeFromAttributes, samePackSize } from './domain/pack-size.js';
 export { backfillPackSizes } from './domain/pack-size-backfill.js';
 export { reserveInventory, releaseReservations, recordMovement, InsufficientStockError } from './domain/inventory.js';
 export { ORDER_TRANSITIONS, transitionOrder, IllegalTransitionError } from './domain/orders.js';

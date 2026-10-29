@@ -1,23 +1,20 @@
 // LocalStock's own sellers as a comparison source. Prices and stock come straight from
 // seller_offers and warehouse_inventory (authoritative, not observations); distance is
 // measured to the nearest qualifying warehouse's verified coordinates.
-import { parsePackSize } from '@localstock/database';
+import { extractPackSize, parsePackSize } from '@localstock/database';
 import { estimateDeliveryMinutes, pointSql } from '../../shared/geo.js';
 import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
 import { assessFreshness } from './freshness.js';
 
 export const LOCAL_SOURCE = Object.freeze({ code: 'localstock', name: 'LocalStock sellers' });
 
-const SIZE_IN_QUERY = /(?:\d{1,4}\s*[x×]\s*)?\d+(?:[.,]\d+)?\s*(?:kgs?|kilos?|grams?|gms?|gm|g|mls?|millilitres?|milliliters?|litres?|liters?|ltrs?|lt|l|pcs?|pieces?)\b/i;
-
 /**
  * Splits a customer query into search text and an optional pack size:
  * "Amul toned milk 1 litre" -> { text: "Amul toned milk", packSize: 1000 ml }.
  */
 export function splitQuery(query) {
-  const match = query.match(SIZE_IN_QUERY);
-  const packSize = match ? parsePackSize(match[0]) : null;
-  const text = packSize ? query.replace(match[0], ' ').replace(/\s+/g, ' ').trim() : query.trim();
+  const { packSize, phrase } = extractPackSize(query);
+  const text = packSize ? query.replace(phrase, ' ').replace(/\s+/g, ' ').trim() : query.trim();
   return { text: text || query.trim(), packSize };
 }
 

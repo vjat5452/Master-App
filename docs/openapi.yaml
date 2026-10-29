@@ -1,7 +1,7 @@
 openapi: 3.1.0
 info:
   title: LocalStock API
-  version: 0.6.0
+  version: 0.7.0
   description: |
     LocalStock API contracts. This file currently covers the unified comparison endpoint; the
     other endpoints are listed in README.md and will be added here (Milestone 11).
@@ -137,7 +137,35 @@ components:
         platformCode: { type: [string, 'null'] }
         listingId: { type: string, description: LocalStock offer id or the platform's listing id }
         canonicalProductId: { type: [string, 'null'], description: LocalStock product variant id when known }
-        matchStatus: { type: string, enum: [CANONICAL, UNMAPPED], description: 'External matching arrives in Milestone 7' }
+        matchStatus:
+          type: string
+          enum: [CANONICAL, MATCHED, NEEDS_REVIEW, UNMAPPED]
+          description: |
+            CANONICAL: a LocalStock seller's own offer. MATCHED: an external listing linked to a
+            LocalStock product by GTIN, by brand + pack size + name, or by an admin.
+            NEEDS_REVIEW: candidates await an admin; no product is claimed. UNMAPPED: no match.
+        match:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                status: { type: string, enum: [AUTO_CONFIRMED, CONFIRMED, NEEDS_REVIEW] }
+                method: { type: string, enum: [GTIN, BRAND_ATTRIBUTES, ATTRIBUTES, FUZZY_CANDIDATE, MANUAL] }
+                confidence: { type: number }
+                candidates: { type: integer, description: Open candidates (NEEDS_REVIEW only) }
+        dataQuality:
+          type: object
+          description: External results only. ERROR issues mean the value was dropped (e.g. price shown as null).
+          properties:
+            issues:
+              type: array
+              items:
+                type: object
+                properties:
+                  code: { type: string, enum: [UNKNOWN_CURRENCY, ZERO_PRICE, PRICE_ABOVE_MRP, IMPLAUSIBLE_DISCOUNT, FUTURE_TIMESTAMP, PACK_SIZE_UNKNOWN] }
+                  severity: { type: string, enum: [ERROR, WARNING, INFO] }
+                  field: { type: string }
+                  message: { type: string }
         sizeMatch: { type: string, enum: [EXACT, DIFFERENT, UNKNOWN, NOT_REQUESTED] }
         product:
           type: object

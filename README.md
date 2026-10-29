@@ -102,6 +102,7 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Compare | `POST /discovery/compare`: LocalStock sellers and enabled external sources side by side, with partial results, freshness and provenance (contract in [docs/openapi.yaml](docs/openapi.yaml)) |
 | Catalogue import | `POST /companies/:id/catalogue-imports?dryRun=true\|false` (body `text/csv`, owners and admins only) |
 | Admin | `GET /admin/companies?status` Â· `PATCH /admin/companies/:id/status` Â· `GET /admin/companies/:id/warehouses` Â· `PATCH /admin/warehouses/:id/status` |
+| Product matching review (admin) | `GET /admin/product-mapping/review-queue` Â· `POST /admin/product-mapping/:mappingId/decision` (`CONFIRM` / `REJECT`) Â· `POST /admin/product-mapping/listings/:listingId/manual` Â· `GET /admin/catalog/variants/review-queue` |
 
 **Catalogue import CSV.** Columns: `sku`, `barcode` or `variant_id`, `price`, and optionally `mrp`, `warehouse`, `quantity`.
 - `price` and `mrp` are in rupees, e.g. `45.50`. A blank `mrp` keeps the current one.
@@ -126,7 +127,7 @@ See [docs/adr/README.md](docs/adr/README.md) for the reasoning and trade-offs.
 
 ## Known gaps and next steps
 
-1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API. There is also no admin endpoint to list variants awaiting review yet.
+1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API.
 2. Shipment lifecycle after confirmation: pickup, tracking webhooks, `CONSUMED` reservations and `DISPATCH` movements.
 3. Refund execution (the `PaymentRefundRequested` event is emitted, but nothing processes it yet), and re-reserving stock for late payments.
 4. Prometheus metrics and Grafana dashboards, AWS deployment, and runbooks.

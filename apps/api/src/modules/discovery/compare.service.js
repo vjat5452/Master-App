@@ -4,7 +4,9 @@
 // normalized into one shape but keep their provenance, freshness and certainty.
 import { createHash, randomUUID } from 'node:crypto';
 import { ConnectorError, ERROR_CODES, locationCell, withTimeout } from '@localstock/connectors';
-import { parsePackSize, samePackSize } from '@localstock/database';
+import { samePackSize } from '@localstock/database';
+import { createMatchingService } from '../matching/matching.service.js';
+import { checkListingQuality, listingPackSize } from '../matching/normalize.js';
 import { assessFreshness } from './freshness.js';
 import { createLocalVendorSource, LOCAL_SOURCE, splitQuery } from './local-vendor-source.js';
 
@@ -24,8 +26,12 @@ function haversineKm(a, b) {
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
-/** Contract listing from a connector -> unified comparison result. */
-export function externalResult(connector, listing, { location, now }) {
+/**
+ * Contract listing from a connector -> unified comparison result.
+ * @param {object} [extra.match] from the matching service; absent means unmapped
+ * @param {object[]} [extra.issues] data-quality issues from checkListingQuality
+ */
+export function externalResult(connector, listing, { location, now, packSize = listingPackSize(listing), match = null, issues = [] }) {
   const price = listing.price && {
     itemPriceMinor: listing.price.itemPriceMinor,
     mrpMinor: listing.price.mrpMinor,
@@ -48,17 +54,20 @@ export function externalResult(connector, listing, { location, now }) {
     sourceName: connector.name,
     platformCode: connector.platformCode,
     listingId: listing.externalListingId,
-    // Matching against the canonical catalogue arrives with the matcher (Milestone 7).
-    canonicalProductId: null,
-    matchStatus: 'UNMAPPED',
+    // Set only for an accepted mapping (rules or a reviewer); candidates awaiting review
+    // are not presented as the product.
+    canonicalProductId: match?.matchStatus === 'MATCHED' ? match.canonicalProductId : null,
+    matchStatus: match?.matchStatus ?? 'UNMAPPED',
+    match: match?.match ?? null,
     product: {
       title: listing.title,
       brand: listing.brand,
       variant: listing.variantText,
       gtin: listing.gtin,
       imageUrl: listing.imageUrl,
-      packSize: parsePackSize(listing.variantText),
+      packSize,
     },
+    dataQuality: { issues },
     price,
     availability: listing.availability,
     availableUnits: null,
@@ -112,7 +121,15 @@ const safeError = (err) =>
  * @param {{ pool, redis, logger, connectors, config }} deps
  *   connectors: registry from @localstock/connectors
  */
-export function createCompareService({ pool, redis, logger, connectors, config, localSource = createLocalVendorSource({ pool }) }) {
+export function createCompareService({
+  pool,
+  redis,
+  logger,
+  connectors,
+  config,
+  localSource = createLocalVendorSource({ pool }),
+  matching = createMatchingService({ pool }),
+}) {
   const deadlineMs = config.COMPARE_DEADLINE_MS;
 
   const cacheKey = (connector, query, cell) =>
@@ -141,13 +158,26 @@ export function createCompareService({ pool, redis, logger, connectors, config, 
     if (connector.capabilities.product_search !== 'SUPPORTED') return { ...base, status: 'UNSUPPORTED', message: 'Source cannot search products', results: [] };
 
     const key = cacheKey(connector, query, cell);
-    const toResults = (items) => items.map((listing) => externalResult(connector, listing, { location, now }));
+    // Quality checks, then matching against the canonical catalogue. Matching failures
+    // leave results unmapped; they never fail the source.
+    const toResults = async (items) => {
+      const entries = items.map((listing) => ({ ...checkListingQuality(listing, { now }) }));
+      let matches = new Map();
+      try {
+        matches = await matching.resolve(connector, entries);
+      } catch (err) {
+        logger.warn('external listing matching failed', { source: connector.code, requestId, err: err.message });
+      }
+      return entries.map(({ listing, packSize, issues }) =>
+        externalResult(connector, listing, { location, now, packSize, issues, match: matches.get(listing.externalListingId) }),
+      );
+    };
 
     if (refreshPolicy !== 'refresh_supported') {
       const cached = await readCache(key);
       const ageSeconds = cached ? (now - Date.parse(cached.collectedAt)) / 1000 : Infinity;
       if (cached && (refreshPolicy === 'cache_only' || ageSeconds < PREFER_FRESH_MAX_AGE_SECONDS)) {
-        return { ...base, status: 'RESPONDED', fromCache: true, results: toResults(cached.items) };
+        return { ...base, status: 'RESPONDED', fromCache: true, results: await toResults(cached.items) };
       }
       if (refreshPolicy === 'cache_only') return { ...base, status: 'NOT_CACHED', message: 'No cached answer for this query and area', results: [] };
     }
@@ -158,13 +188,15 @@ export function createCompareService({ pool, redis, logger, connectors, config, 
       writeCache(key, { collectedAt: new Date().toISOString(), items: result.items });
       return result;
     });
+    let result;
     try {
-      const result = await withTimeout(() => call, deadlineMs, { source: connector.code });
-      return { ...base, status: 'RESPONDED', fromCache: false, durationMs: Date.now() - started, results: toResults(result.items) };
+      result = await withTimeout(() => call, deadlineMs, { source: connector.code });
     } catch (err) {
       call.catch(() => {}); // already reported; avoid an unhandled rejection from the late call
       return { ...base, status: 'FAILED', error: safeError(err), durationMs: Date.now() - started, results: [] };
     }
+    const durationMs = Date.now() - started;
+    return { ...base, status: 'RESPONDED', fromCache: false, durationMs, results: await toResults(result.items) };
   }
 
   async function queryLocal({ query, location, radiusKm, limit, now, requestId }) {
@@ -203,8 +235,11 @@ export function createCompareService({ pool, redis, logger, connectors, config, 
       const count = (...statuses) => sourceList.filter((s) => statuses.includes(s.status)).length;
       const notices = [];
       if (results.some((r) => r.dataProvenance.isDemo)) notices.push('Includes demo fixture data. These are not real prices or stock.');
-      if (results.some((r) => r.sourceType === 'EXTERNAL_PLATFORM' && r.matchStatus === 'UNMAPPED')) {
-        notices.push('External listings are not yet matched to LocalStock products; compare sizes before choosing.');
+      if (results.some((r) => r.sourceType === 'EXTERNAL_PLATFORM' && r.matchStatus !== 'MATCHED')) {
+        notices.push('Some external listings are not yet confirmed as the same product as a LocalStock product; compare them carefully.');
+      }
+      if (results.some((r) => r.dataQuality?.issues.some((i) => i.severity === 'ERROR'))) {
+        notices.push('Some source values failed data-quality checks and are shown as unknown.');
       }
 
       if (requestedSize && results.some((r) => r.sizeMatch === 'DIFFERENT')) {

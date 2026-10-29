@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { packSizeFromAttributes, parsePackSize, samePackSize } from '../src/domain/pack-size.js';
+import { extractPackSize, packSizeFromAttributes, parsePackSize, samePackSize } from '../src/domain/pack-size.js';
 
 test('parses single sizes into base units', () => {
   assert.deepEqual(parsePackSize('500 g'), { quantity: 500, unit: 'g', count: 1 });
@@ -42,6 +42,15 @@ test('500 ml is not 1 l, 1 l is 1000 ml, and a multipack is not a single item', 
 test('unknown sizes never count as the same size', () => {
   assert.equal(samePackSize(null, null), false);
   assert.equal(samePackSize(parsePackSize('500 g'), null), false);
+});
+
+test('finds a size inside free text', () => {
+  assert.deepEqual(extractPackSize('Amul Taaza Toned Milk 1 L'), { packSize: { quantity: 1000, unit: 'ml', count: 1 }, phrase: '1 L' });
+  assert.deepEqual(extractPackSize('Maggi Noodles 6 x 70 g').packSize, { quantity: 70, unit: 'g', count: 6 });
+  assert.deepEqual(extractPackSize('Pack of 6 x 200 ml').packSize, { quantity: 200, unit: 'ml', count: 6 });
+  assert.deepEqual(extractPackSize('Eggs pack of 12').packSize, { quantity: 12, unit: 'pcs', count: 1 });
+  assert.deepEqual(extractPackSize('7up and 100 Pipers'), { packSize: null, phrase: null });
+  assert.deepEqual(extractPackSize(null), { packSize: null, phrase: null });
 });
 
 test('reads the size from variant attributes', () => {
