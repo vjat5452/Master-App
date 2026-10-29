@@ -216,6 +216,32 @@ A change detected between two persisted observations.
 | `old_value`, `new_value` | JSONB |
 | `outbox_event_id` | The outbox row that publishes the change (Milestone 8) |
 
+## Later additions
+
+### `seller_offer_price_history` (migration 006)
+
+One row per change of a seller offer's price, MRP or status, written by a trigger on `seller_offers`.
+
+| Column | Notes |
+|---|---|
+| `offer_id` | The offer |
+| `price_minor`, `mrp_minor`, `status` | Values from that moment on |
+| `valid_from` | When the change happened |
+
+Existing offers were backfilled at their `created_at`. Feeds the product price graph.
+
+### Products discovered on other platforms (migration 007)
+
+| Column | Notes |
+|---|---|
+| `product_variants.origin` | `LOCALSTOCK` (catalogue) or `EXTERNAL` (created from an external listing that matched no product) |
+| `product_variants.created_from_listing_id` | The listing it was created from |
+| `product_variants.group_id` | May be NULL only for EXTERNAL products; an ACTIVE product always has a group |
+
+EXTERNAL products start as `PENDING_REVIEW`. They are searchable and comparable, but sellers cannot list them until an admin classifies and approves them.
+
+The mapping from such a listing uses `match_method = 'NEW_CANONICAL'`. No seller, warehouse or stock row is ever created for them.
+
 ## Retention
 
 Retention jobs are planned for Milestone 11. Observations and change events are indexed on `collected_at`/`detected_at` so old rows can be deleted in ranges.

@@ -1,9 +1,9 @@
 import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Archive, Check, FolderTree, Globe, Layers, Plus, ScanSearch, SearchCheck, ShieldCheck, Truck } from 'lucide-react';
+import { Archive, Check, FolderTree, Globe, Layers, Pencil, Plus, ScanSearch, SearchCheck, ShieldCheck, Truck } from 'lucide-react';
 import { Attrs, ProductArt } from '@/components/product';
 import { ProposeVariantModal } from '@/components/VariantPicker';
-import { Badge, Button, CopyId, Empty, ErrorBox, Field, PageHeader, Panel, SkeletonRows, Tabs, useSubmit } from '@/components/kit';
+import { Badge, Button, CopyId, Empty, ErrorBox, Field, Modal, PageHeader, Panel, SkeletonRows, Tabs, useSubmit } from '@/components/kit';
 import { Input, NativeSelect } from '@/components/ui/input';
 import { Separator } from '@/components/ui/misc';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -224,6 +224,7 @@ function Moderation() {
   );
   const looked = useAsync(() => (/^[0-9a-f-]{36}$/i.test(lookup) ? get(`/catalog/variants/${lookup}`, { auth: false }) : Promise.resolve(null)), [lookup]);
   const active = useAsync(() => searchVariants(''), []);
+  const [classifying, setClassifying] = useState(null);
 
   const setStatus = useSubmit(async (v, status) => {
     await patch(`/catalog/variants/${v.id}/status`, { status });
@@ -257,10 +258,18 @@ function Moderation() {
                     <div className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{v.brand}</div>
                     <div className="font-bold">{v.name}</div>
                     <Attrs attributes={v.attributes} className="mt-1" />
+                    {v.origin === 'EXTERNAL' && (
+                      <div className="mt-1">
+                        <Badge kind="info">
+                          Found on {v.discoveredOn?.platform ?? 'another platform'}
+                          {v.discoveredOn?.isDemo ? ' (demo)' : ''}
+                        </Badge>
+                      </div>
+                    )}
                   </div>
                 </div>
               </TableCell>
-              <TableCell className="text-muted-foreground">{v.groupName ?? v.group}</TableCell>
+              <TableCell className="text-muted-foreground">{v.groupName ?? v.group ?? <span className="text-amber-700 dark:text-gold">Unclassified</span>}</TableCell>
               <TableCell>
                 <Badge status={status} dot />
               </TableCell>
@@ -268,7 +277,12 @@ function Moderation() {
                 <CopyId id={id} />
               </TableCell>
               <TableCell className="whitespace-nowrap text-right">
-                {status !== 'ACTIVE' && (
+                {v.origin === 'EXTERNAL' && status !== 'ACTIVE' && (
+                  <Button size="sm" variant="secondary" onClick={() => setClassifying({ ...v, id })}>
+                    <Pencil /> Classify
+                  </Button>
+                )}{' '}
+                {status !== 'ACTIVE' && (v.origin !== 'EXTERNAL' || v.group) && (
                   <Button size="sm" busy={setStatus.busy} onClick={() => setStatus.run({ ...v, id }, 'ACTIVE')}>
                     <Check /> Approve
                   </Button>
@@ -289,15 +303,25 @@ function Moderation() {
   return (
     <div className="space-y-6">
       <ErrorBox error={setStatus.error} />
-      <Panel icon={ScanSearch} title="Review queue" description="Proposals flagged as possible duplicates" pad={false}>
+      <Panel icon={ScanSearch} title="Review queue" description="Possible duplicates proposed by sellers, and products found on other platforms" pad={false}>
         {pending.loading && !pending.data && <SkeletonRows rows={2} />}
         {pending.data?.length === 0 && (
           <Empty icon={Check} title="Nothing waiting for review">
-            Seller proposals flagged as possible duplicates show up here. To review any other variant, look it up by id below.
+            Seller proposals flagged as possible duplicates, and products discovered on other platforms, show up here. To review any other variant, look it up by id below.
           </Empty>
         )}
         {pending.data?.length > 0 && table(pending.data)}
       </Panel>
+      {classifying && (
+        <ClassifyModal
+          variant={classifying}
+          onClose={() => setClassifying(null)}
+          onDone={() => {
+            setClassifying(null);
+            pending.reload();
+          }}
+        />
+      )}
       <Panel icon={ScanSearch} title="Look up a variant">
         <Field label="Variant id">
           <Input className="font-mono" value={lookup} onChange={(e) => setLookup(e.target.value.trim())} placeholder="uuid" />
@@ -311,6 +335,69 @@ function Moderation() {
         {active.data && table(active.data)}
       </Panel>
     </div>
+  );
+}
+
+/** Enrich a product discovered on another platform: fix its details, give it a group, approve it. */
+function ClassifyModal({ variant, onClose, onDone }) {
+  const toast = useToast();
+  const groups = useAsync(loadKnownGroups, []);
+  const [form, setForm] = useState({ groupId: '', brand: variant.brand ?? '', name: variant.name, barcode: variant.barcode ?? '' });
+  const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
+  const submit = useSubmit(async (approve) => {
+    await patch(`/catalog/variants/${variant.id}`, {
+      groupId: form.groupId,
+      brand: form.brand.trim() || null,
+      name: form.name.trim(),
+      barcode: form.barcode.trim() || null,
+    });
+    if (approve) await patch(`/catalog/variants/${variant.id}/status`, { status: 'ACTIVE' });
+    toast(approve ? `${form.name} approved: sellers can now list it` : `${form.name} classified`);
+    onDone();
+  });
+  return (
+    <Modal
+      title="Classify product"
+      description={`Found on ${variant.discoveredOn?.platform ?? 'another platform'}. Give it a group and check its details. Approving lets LocalStock sellers list it.`}
+      onClose={onClose}
+      footer={
+        <>
+          <Button variant="ghost" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button variant="secondary" busy={submit.busy} disabled={!form.groupId} onClick={() => submit.run(false)}>
+            Save
+          </Button>
+          <Button busy={submit.busy} disabled={!form.groupId} onClick={() => submit.run(true)}>
+            <Check /> Save and approve
+          </Button>
+        </>
+      }
+    >
+      <Field label="Group">
+        <NativeSelect value={form.groupId} onChange={set('groupId')}>
+          <option value="">Choose…</option>
+          {groups.data?.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </NativeSelect>
+      </Field>
+      <div className="grid gap-4 sm:grid-cols-2">
+        <Field label="Brand">
+          <Input value={form.brand} onChange={set('brand')} maxLength={100} />
+        </Field>
+        <Field label="Barcode (GTIN)" hint="8-14 digits, optional">
+          <Input value={form.barcode} onChange={set('barcode')} inputMode="numeric" pattern="\d{8,14}" />
+        </Field>
+      </div>
+      <Field label="Name">
+        <Input value={form.name} onChange={set('name')} required maxLength={200} />
+      </Field>
+      <Attrs attributes={variant.attributes} />
+      <ErrorBox error={submit.error} />
+    </Modal>
   );
 }
 

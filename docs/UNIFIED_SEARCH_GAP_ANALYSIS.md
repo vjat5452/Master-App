@@ -110,7 +110,7 @@ The brief's milestones, adjusted to what exists. Each ends with the same report:
 | # | Milestone | Main changes |
 |---|---|---|
 | 1 | Inspection and gap analysis | This document **(done)** |
-| 2 | Canonical catalogue extension | Migration 006 (reversible): `product_variants.origin` (`LOCALSTOCK` / `EXTERNAL`) and `created_from_listing_id`, plus a system "Unclassified" group. External listings with no match create a canonical product as `PENDING_REVIEW` (discoverable and comparable, never sellable, no vendor offers). Admin metadata edit endpoint. Tests for scenarios B and D. |
+| 2 | Canonical catalogue extension | **Done** (migration 007; 006 went to the price history). See §8. |
 | 3 | Connector framework additions | Amazon India Creators API adapter, built from its documentation and disabled until credentials exist. Admin enable/disable stored in `external_sources` (it can switch off any source, and can switch on only one that is configured). Status vocabulary: Live / Degraded / Disabled / Authorization required / Not configured. |
 | 4 | First verified live connector | **Blocked** on Amazon Associates India access. Acceptance follows the existing Milestone 5 steps: sandbox test, redacted fixture, field validation, persistence, status ACTIVE with evidence. |
 | 5 | Unified search API | `POST /discovery/search` with the brief's request shape, over the existing compare service. It adds external-only products, ₹ per 100 g / 100 ml / unit when units are compatible, per-result comparability explanations, and the last successful availability check. |
@@ -133,7 +133,36 @@ The brief's milestones, adjusted to what exists. Each ends with the same report:
 | G: platform needs authorization | Partial | Shown as "Not configured / Research required"; needs the brief's "Authorization required" label (Milestone 3) |
 | H: admin sees all platforms and health | Pass | Admin → External sources |
 
+## 8. Done since this analysis
+
+**Price graph and platform links** (requested 2026-10-29)
+- Migration `006_offer_price_history.sql`: a trigger records every seller price, MRP and status change.
+- `GET /catalog/variants/:id/price-history`: daily LocalStock lowest price, plus one line per authorized source; days without data stay empty.
+- `GET /catalog/variants/:id/platform-links`: each platform's own public search page, opened in the shopper's browser. Nothing is fetched from the platforms.
+- Amazon India and Flipkart are added as disabled platforms, each with a research record.
+
+**Milestone 2: canonical catalogue extension**
+- **Migration** `007_external_canonical_products.sql` (reversible):
+  - `product_variants.origin` (`LOCALSTOCK` / `EXTERNAL`) and `created_from_listing_id`;
+  - `group_id` may be NULL only for EXTERNAL products, and an ACTIVE product always has a group;
+  - new mapping method `NEW_CANONICAL`.
+  - Used instead of a system "Unclassified" group, because that group would have shown in the storefront category list.
+- **Creating products:** an external listing that matches no product, and whose pack size is known, creates a canonical product: EXTERNAL, `PENDING_REVIEW`, no group.
+  - Later listings of the same product, from any platform, match it instead of creating another.
+  - The identity key is built from the matcher's identifying words and the pack size, so two platforms answering at the same moment create one product, not two.
+- **Behaviour:**
+  - These products appear in `/catalog/search` with `origin: EXTERNAL` and no offers.
+  - Their product page shows the comparison, price history and platform links.
+  - No seller, warehouse or stock row is ever created for them.
+  - Sellers cannot list them (offers need ACTIVE). Approving needs a group (`422 GROUP_REQUIRED`).
+- **Admin:**
+  - `PATCH /catalog/variants/:id` enriches a product (name, brand, attributes, barcode, group; audited). Its identity key is recomputed so later seller proposals match it.
+  - The review queue lists discovered products with the platform they were found on (`?origin=EXTERNAL`), and the moderation tab has a **Classify** dialog.
+- **Tests:** scenarios B and D (two test sources, failing third source), duplicate prevention, the approve flow; the smoke test now has 89 checks over 58 routes.
+
 ## 7. Decisions needed before Milestone 2
+
+Taken with the recommended defaults on 2026-10-29: (1) yes, as built in §8; (2) Amazon and Flipkart stay disabled until accounts exist; (3) no extra demo sources, since tests use their own test sources; (4) text badges.
 
 1. **Canonical products from external listings.** Approve creating them as `product_variants` with `origin = EXTERNAL`, status `PENDING_REVIEW`, in an "Unclassified" group: discoverable and comparable, never sellable until an admin approves and classifies them.
 2. **Amazon India.** Will you apply for (or do you have) Amazon Associates India with Creators API access? Without it, the Amazon connector stays disabled and Milestone 4 stays blocked.

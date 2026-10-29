@@ -361,6 +361,23 @@ const { rows: [multipack] } = await db.query(`SELECT id FROM external_listings W
 await check('POST /admin/product-mapping/listings/:listingId/manual', 'different pack size refused', 422, () =>
   call('POST', `/admin/product-mapping/listings/${multipack.id}/manual`, { token: ADMIN, body: { variantId: halfLitre.id } }),
 );
+// The 6-pack matched no catalogue product, so a product was created from it.
+const { rows: [created] } = await db.query(
+  `SELECT m.id, m.variant_id FROM external_product_mappings m WHERE m.listing_id = $1 AND m.match_method = 'NEW_CANONICAL'`,
+  [multipack.id],
+);
+await check('GET /catalog/search', 'product found only on another platform is searchable', 200, () => call('GET', `/catalog/search?q=buttermilk`), (r) => {
+  const item = r.data.items.find((i) => i.variantId === created?.variant_id);
+  return must(item?.origin === 'EXTERNAL' && item.offers.length === 0, 'discovered product missing or has offers');
+});
+await check('PATCH /catalog/variants/:variantId', 'admin enriches and classifies it', 200, () =>
+  call('PATCH', `/catalog/variants/${created.variant_id}`, { token: ADMIN, body: { groupId: group.data.id, name: 'Masti Spiced Buttermilk Multipack' } }),
+  (r) => must(r.data.groupId === group.data.id && r.data.origin === 'EXTERNAL', 'not classified'),
+);
+await check('POST /admin/product-mapping/listings/:listingId/manual', 'already linked: reject first', 409, () =>
+  call('POST', `/admin/product-mapping/listings/${multipack.id}/manual`, { token: ADMIN, body: { variantId: buttermilk.id } }),
+);
+await call('POST', `/admin/product-mapping/${created.id}/decision`, { token: ADMIN, body: { decision: 'REJECT' } });
 await check('POST /admin/product-mapping/listings/:listingId/manual', 'manual link (size unknown on one side)', 201, () =>
   call('POST', `/admin/product-mapping/listings/${multipack.id}/manual`, { token: ADMIN, body: { variantId: buttermilk.id, note: 'smoke test' } }),
 );
@@ -380,7 +397,7 @@ const ROUTES = [
   'POST /companies/:companyId/warehouses', 'GET /companies/:companyId/warehouses', 'PATCH /companies/:companyId/warehouses/:warehouseId',
   'POST /companies/:companyId/delivery-providers', 'GET /companies/:companyId/delivery-providers', 'POST /admin/delivery-providers', 'GET /delivery/providers',
   'GET /catalog/categories', 'POST /catalog/categories', 'POST /catalog/groups', 'GET /catalog/groups/:groupId', 'POST /catalog/variants',
-  'GET /catalog/variants/:variantId', 'PATCH /catalog/variants/:variantId/status',
+  'GET /catalog/variants/:variantId', 'PATCH /catalog/variants/:variantId/status', 'PATCH /catalog/variants/:variantId',
   'POST /companies/:companyId/offers', 'GET /companies/:companyId/offers', 'PATCH /companies/:companyId/offers/:offerId',
   'POST /companies/:companyId/inventory/adjustments', 'GET /companies/:companyId/inventory', 'POST /companies/:companyId/catalogue-imports',
   'GET /catalog/search', 'GET /catalog/variants/:variantId/offers', 'POST /discovery/compare', 'GET /discovery/stream',

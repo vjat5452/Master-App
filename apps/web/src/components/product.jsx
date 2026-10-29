@@ -192,6 +192,8 @@ export function QtyStepper({ value, onChange, max = 100, big = false, className 
 export function QuickCard({ item, className }) {
   const { from, eta } = summarize(item);
   const pack = primaryAttr(item.attributes);
+  // Found only on other platforms: no LocalStock seller, so nothing to add to the cart.
+  const external = item.origin === 'EXTERNAL';
   return (
     <article className={cn('group relative flex flex-col rounded-2xl border bg-card p-2.5 transition-all duration-300 hover:-translate-y-0.5 hover:border-primary/25 hover:shadow-lift', className)}>
       <Link to={`/product/${item.variantId}`} className="relative block">
@@ -202,8 +204,15 @@ export function QuickCard({ item, className }) {
           </span>
         )}
       </Link>
-      <div className={cn('mt-2 inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wide', eta != null ? 'bg-muted text-foreground/80' : 'bg-destructive/10 text-destructive')}>
-        {eta != null ? (
+      <div
+        className={cn(
+          'mt-2 inline-flex w-fit items-center gap-1 rounded-md px-1.5 py-0.5 text-[9.5px] font-extrabold uppercase tracking-wide',
+          external ? 'bg-info/10 text-info' : eta != null ? 'bg-muted text-foreground/80' : 'bg-destructive/10 text-destructive',
+        )}
+      >
+        {external ? (
+          'Found on other apps'
+        ) : eta != null ? (
           <>
             <Zap className="size-3 fill-gold text-gold" /> {eta} mins
           </>
@@ -217,10 +226,19 @@ export function QuickCard({ item, className }) {
       <div className="mt-0.5 truncate text-xs text-muted-foreground">{pack ?? item.group}</div>
       <div className="mt-auto flex items-end justify-between gap-2 pt-3">
         <div className="min-w-0">
-          <div className="num text-[15px] font-extrabold leading-none">{from != null ? price(from) : '—'}</div>
+          <div className="num text-[15px] font-extrabold leading-none">{external ? <span className="text-xs font-bold text-muted-foreground">Not on LocalStock</span> : from != null ? price(from) : '—'}</div>
           {item.offers.length > 1 && <div className="mt-1 text-[10px] font-semibold text-muted-foreground">lowest of {item.offers.length}</div>}
         </div>
-        <AddButton item={item} />
+        {external ? (
+          <Link
+            to={`/product/${item.variantId}`}
+            className="grid h-9 place-items-center rounded-lg border-[1.5px] border-info px-2.5 text-[12px] font-extrabold uppercase tracking-wide text-info transition hover:bg-info/10"
+          >
+            Compare
+          </Link>
+        ) : (
+          <AddButton item={item} />
+        )}
       </div>
     </article>
   );

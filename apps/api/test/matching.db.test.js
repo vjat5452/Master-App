@@ -95,8 +95,14 @@ test('listings are matched by GTIN, by brand + size + name, or left for review o
   assert.equal(r.brand.canonicalProductId, variants.milk500.id, '500 ml goes to the 500 ml product, not the 1 l one');
   assert.equal(r.brand.match.method, 'BRAND_ATTRIBUTES');
 
-  assert.equal(r.multipack.matchStatus, 'UNMAPPED', 'a 6-pack is not the single bottle');
-  assert.equal(r.flavour.matchStatus, 'UNMAPPED', 'Kesar is not Elaichi');
+  // No catalogue product fits these, so each becomes a product of its own, never merged
+  // into the wrong one.
+  assert.equal(r.multipack.match.method, 'NEW_CANONICAL');
+  assert.notEqual(r.multipack.canonicalProductId, variants.buttermilk.id, 'a 6-pack is not the single bottle');
+  assert.equal(r.flavour.match.method, 'NEW_CANONICAL');
+  assert.notEqual(r.flavour.canonicalProductId, variants.elaichi.id, 'Kesar is not Elaichi');
+  const created = await api.one('SELECT origin, status, group_id, pack_quantity, pack_count FROM product_variants WHERE id = $1', [r.multipack.canonicalProductId]);
+  assert.deepEqual(created, { origin: 'EXTERNAL', status: 'PENDING_REVIEW', group_id: null, pack_quantity: '200.000', pack_count: 6 });
 
   assert.equal(r.review.matchStatus, 'NEEDS_REVIEW');
   assert.equal(r.review.canonicalProductId, null, 'a candidate is not presented as the product');
@@ -156,7 +162,13 @@ test('no one can link listings of different pack sizes', { skip }, async () => {
 
 test('a manual link works when sizes agree; rejecting an automatic match unlinks it', { skip }, async () => {
   const flavour = await api.one('SELECT id FROM external_listings WHERE external_listing_id = $1', [`${tag}-flavour`]);
-  // The reviewer knows better (e.g. the listing title is wrong): sizes agree, so it is allowed.
+  // The reviewer knows better (e.g. the listing title is wrong): sizes agree, so it is
+  // allowed, after unlinking the product created from the listing.
+  const created = await api.one(`SELECT id FROM external_product_mappings WHERE listing_id = $1 AND match_method = 'NEW_CANONICAL'`, [flavour.id]);
+  const blocked = await asAdmin(http().post(`/api/v1/admin/product-mapping/listings/${flavour.id}/manual`)).send({ variantId: variants.elaichi.id });
+  assert.equal(blocked.status, 409);
+  assert.equal(blocked.body.error.code, 'LISTING_ALREADY_MAPPED');
+  await asAdmin(http().post(`/api/v1/admin/product-mapping/${created.id}/decision`)).send({ decision: 'REJECT' });
   const manual = await asAdmin(http().post(`/api/v1/admin/product-mapping/listings/${flavour.id}/manual`)).send({ variantId: variants.elaichi.id, note: 'title typo on source' });
   assert.equal(manual.status, 201, JSON.stringify(manual.body));
   assert.equal((await compare()).flavour.matchStatus, 'MATCHED');
@@ -168,7 +180,7 @@ test('a manual link works when sizes agree; rejecting an automatic match unlinks
   const rejected = await asAdmin(http().post(`/api/v1/admin/product-mapping/${auto.id}/decision`)).send({ decision: 'REJECT', note: 'source reused a barcode' });
   assert.equal(rejected.status, 200);
   const r = await compare();
-  assert.notEqual(r.gtin.matchStatus, 'MATCHED', 'a rejected product is not proposed again');
+  assert.notEqual(r.gtin.canonicalProductId, variants.milk1l.id, 'a rejected product is not proposed again');
 });
 
 test('seller-proposed variants awaiting review are listed for admins', { skip }, async () => {

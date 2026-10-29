@@ -25,7 +25,8 @@ export async function loadKnownGroups() {
   const byName = new Map();
   for (let page = 1; page <= 5; page++) {
     const res = await get(`/catalog/search${qs({ q: '', page, limit: 50 })}`, { auth: false });
-    for (const item of res.items) if (!byName.has(item.group)) byName.set(item.group, item.variantId);
+    // Products discovered on other platforms have no group yet.
+    for (const item of res.items) if (item.group && !byName.has(item.group)) byName.set(item.group, item.variantId);
     if (page * res.limit >= res.total) break;
   }
   const fromCatalog = await Promise.all(
@@ -55,4 +56,7 @@ export function setReviewQueue(ids) {
   }
 }
 
-export const searchVariants = (q) => get(`/catalog/search${qs({ q, limit: 20 })}`, { auth: false }).then((r) => r.items);
+// Catalogue products a seller can list: products discovered on other platforms are excluded
+// until an admin approves them.
+export const searchVariants = (q) =>
+  get(`/catalog/search${qs({ q, limit: 20 })}`, { auth: false }).then((r) => r.items.filter((i) => i.origin !== 'EXTERNAL'));

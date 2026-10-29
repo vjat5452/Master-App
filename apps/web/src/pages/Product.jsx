@@ -29,7 +29,8 @@ export default function Product() {
 
   const variant = useAsync(async () => {
     const v = await get(`/catalog/variants/${variantId}`, { auth: false });
-    const group = await get(`/catalog/groups/${v.groupId}`, { auth: false }).catch(() => null);
+    // Products discovered on other platforms have no group until an admin classifies them.
+    const group = v.groupId ? await get(`/catalog/groups/${v.groupId}`, { auth: false }).catch(() => null) : null;
     return { ...v, group };
   }, [variantId]);
   const offers = useAsync(
@@ -56,7 +57,9 @@ export default function Product() {
   const top = list.length ? Math.max(...list.map((o) => o.priceMinor)) : null;
   const fastest = list.reduce((m, o) => (o.estimatedDeliveryMinutes != null && (m == null || o.estimatedDeliveryMinutes < m) ? o.estimatedDeliveryMinutes : m), null);
   const pack = primaryAttr(v.attributes);
-  const item = { variantId: v.id, name: v.name, brand: v.brand, group: v.groupName, attributes: v.attributes, imageUrl: v.imageUrl, offers: list };
+  // Found only on other platforms: no LocalStock sellers, delivery or cart for it.
+  const external = v.origin === 'EXTERNAL';
+  const item ={ variantId: v.id, name: v.name, brand: v.brand, group: v.groupName, attributes: v.attributes, imageUrl: v.imageUrl, offers: list };
   const details = [
     ['Brand', v.brand],
     ...Object.entries(v.attributes ?? {}).map(([k, val]) => [k[0].toUpperCase() + k.slice(1), val]),
@@ -99,8 +102,15 @@ export default function Product() {
 
           <div>
             <h1 className="text-2xl font-black leading-tight tracking-tight sm:text-3xl">{v.brand ? `${v.brand} ${v.name}` : v.name}</h1>
-            <div className={cn('mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide', fastest != null ? 'bg-muted text-foreground/80' : 'bg-destructive/10 text-destructive')}>
-              {fastest != null ? (
+            <div
+              className={cn(
+                'mt-3 inline-flex items-center gap-1 rounded-md px-2 py-1 text-[11px] font-extrabold uppercase tracking-wide',
+                external ? 'bg-info/10 text-info' : fastest != null ? 'bg-muted text-foreground/80' : 'bg-destructive/10 text-destructive',
+              )}
+            >
+              {external ? (
+                'Found on other apps'
+              ) : fastest != null ? (
                 <>
                   <Zap className="size-3.5 fill-gold text-gold" /> {fastest} mins
                 </>
@@ -117,6 +127,19 @@ export default function Product() {
             )}
           </div>
 
+          {external && (
+            <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-info/25 bg-info/[0.06] p-4 text-sm">
+              <div className="min-w-0 flex-1">
+                <div className="font-bold">Not sold by LocalStock sellers yet{pack ? ` · ${pack}` : ''}</div>
+                <p className="mt-1 text-muted-foreground">
+                  This product was found on other platforms. Compare their listings below, or open them with "Check on other apps". Its details are awaiting review by our team.
+                </p>
+              </div>
+              <PlatformLinks variantId={v.id} />
+            </div>
+          )}
+
+          {!external && (
           <div className="flex flex-wrap items-end justify-between gap-4 rounded-2xl border bg-card p-4 shadow-soft">
             <div>
               {pack && <div className="text-sm font-semibold text-muted-foreground">{pack}</div>}
@@ -130,7 +153,9 @@ export default function Product() {
               <PlatformLinks variantId={v.id} />
             </div>
           </div>
+          )}
 
+          {!external && (
           <div className="rounded-2xl border bg-card shadow-soft">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b px-4 py-3">
               <h2 className="flex items-center gap-1.5 font-extrabold">
@@ -207,6 +232,7 @@ export default function Product() {
               </p>
             )}
           </div>
+          )}
 
           <CompareSection variant={v} location={location} query={[v.brand, v.name, pack].filter(Boolean).join(' ')} />
 

@@ -118,7 +118,9 @@ export async function findCandidates(db, listing) {
     `SELECT v.id, v.brand, v.name, v.barcode, v.attributes, v.pack_quantity, v.pack_unit, v.pack_count,
             similarity(coalesce(v.brand, '') || ' ' || v.name, $3) AS similarity
        FROM product_variants v
-      WHERE v.status = 'ACTIVE'
+      -- Externally discovered products awaiting review are candidates too, so the same
+      -- product found on a second platform links to them instead of being created twice.
+      WHERE (v.status = 'ACTIVE' OR (v.origin = 'EXTERNAL' AND v.status = 'PENDING_REVIEW'))
         AND (v.barcode = ANY($1::text[])
              OR ($2::text IS NOT NULL AND lower(v.brand) = lower($2))
              OR (coalesce(v.brand, '') || ' ' || v.name) % $3)

@@ -7,14 +7,16 @@
 // - with no mapping (or only rejected ones) the matcher runs again, skipping rejected products.
 // Listings are stored here; their price and availability observations are stored by
 // observations.js.
-import { decideMatch, findCandidates } from './matcher.js';
+import { normalizeText } from '@localstock/database';
+import { decideMatch, findCandidates, nameTokens } from './matcher.js';
 import { createSourceRegistry } from './sources.js';
 
 /**
- * @param {{ pool, sources?: ReturnType<typeof createSourceRegistry> }} deps
- *   `pool` may also be a transaction client.
+ * @param {{ pool, sources?: ReturnType<typeof createSourceRegistry>, createCanonicalProducts?: boolean }} deps
+ *   `pool` may also be a transaction client. createCanonicalProducts (default true): give
+ *   unmatched listings with a known pack size a canonical product of their own.
  */
-export function createMatchingService({ pool, sources = createSourceRegistry({ pool }) }) {
+export function createMatchingService({ pool, sources = createSourceRegistry({ pool }), createCanonicalProducts = true }) {
   async function upsertListings({ sourceId, platformId }, entries) {
     const unique = [...new Map(entries.map((e) => [e.listing.externalListingId, e])).values()];
     const col = (fn) => unique.map(fn);
@@ -46,6 +48,46 @@ export function createMatchingService({ pool, sources = createSourceRegistry({ p
       ],
     );
     return new Map(rows.map((r) => [r.external_listing_id, r.id]));
+  }
+
+  /**
+   * A listing that matches no catalogue product becomes a canonical product of its own
+   * (origin EXTERNAL, PENDING_REVIEW, no group), so it can be found and compared. Only
+   * when its pack size is known: without it, different sizes could not be kept apart.
+   * Returns the new (or concurrently created) product id, or null.
+   */
+  async function createCanonical(listingId, listing, packSize) {
+    if (!packSize || !listing.title) return null;
+    const brand = listing.brand?.trim() || null;
+    const name = (brand && listing.title.toLowerCase().startsWith(`${brand.toLowerCase()} `) ? listing.title.slice(brand.length + 1) : listing.title).trim();
+    const sizeKey = `${packSize.count > 1 ? `${packSize.count}x` : ''}${packSize.quantity}${packSize.unit}`;
+    // Built from the matcher's identifying words (no brand, size or packaging words), so two
+    // platforms creating the same product at the same moment land on one row.
+    const words = [...nameTokens(listing.title, brand)].sort().join(' ') || normalizeText(name);
+    const key = `ext|${normalizeText(brand ?? '')}|${words}|${sizeKey}`;
+    const attributes = listing.variantText ? { size: listing.variantText } : {};
+    try {
+      const { rows } = await pool.query(
+        `INSERT INTO product_variants (group_id, brand, name, attributes, barcode, normalized_key, status, origin, created_from_listing_id, pack_quantity, pack_unit, pack_count)
+         VALUES (NULL, $1, $2, $3, $4, $5, 'PENDING_REVIEW', 'EXTERNAL', $6, $7, $8, $9)
+         ON CONFLICT (normalized_key) DO UPDATE SET normalized_key = EXCLUDED.normalized_key
+         RETURNING id`,
+        [brand, name, JSON.stringify(attributes), listing.gtin, key, listingId, packSize.quantity, packSize.unit, packSize.count],
+      );
+      return rows[0].id;
+    } catch (err) {
+      if (err.code !== '23505') throw err;
+      // Another product already carries this barcode, e.g. created a moment ago from the
+      // same product on another platform. Reuse it if it is usable and the sizes agree;
+      // otherwise (archived, or a size conflict) leave the listing unmapped.
+      const { rows } = await pool.query(
+        `SELECT id FROM product_variants
+          WHERE barcode = $1 AND (status = 'ACTIVE' OR (origin = 'EXTERNAL' AND status = 'PENDING_REVIEW'))
+            AND (pack_unit IS NULL OR (pack_unit = $2 AND pack_quantity = $3 AND pack_count = $4))`,
+        [listing.gtin, packSize.unit, packSize.quantity, packSize.count],
+      );
+      return rows[0]?.id ?? null;
+    }
   }
 
   async function storeDecision(listingId, decision) {
@@ -96,6 +138,13 @@ export function createMatchingService({ pool, sources = createSourceRegistry({ p
           const rejected = new Set(rows.filter((m) => m.match_status === 'REJECTED').map((m) => m.variant_id));
           const candidates = await findCandidates(pool, { gtin: listing.gtin, brand: listing.brand, title: listing.title });
           const decision = decideMatch({ gtin: listing.gtin, brand: listing.brand, title: listing.title, packSize }, candidates, { excludeVariantIds: rejected });
+          if (decision.status === 'UNMATCHED' && createCanonicalProducts) {
+            const variantId = await createCanonical(listingId, listing, packSize);
+            if (variantId) {
+              decision.status = 'AUTO_CONFIRMED';
+              decision.proposals = [{ variantId, method: 'NEW_CANONICAL', confidence: 1, evidence: { reason: 'no matching catalogue product; created from this listing' } }];
+            }
+          }
           if (decision.status !== 'UNMATCHED') {
             await storeDecision(listingId, decision);
             rows = (await pool.query(

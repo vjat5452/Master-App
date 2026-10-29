@@ -17,6 +17,7 @@ import { idParams, pagination, validate } from '../../shared/validate.js';
 const decisionBody = z.object({ decision: z.enum(['CONFIRM', 'REJECT']), note: z.string().trim().max(500).optional() });
 const manualBody = z.object({ variantId: z.string().uuid(), note: z.string().trim().max(500).optional() });
 const queueQuery = z.object(pagination);
+const variantQueueQuery = z.object({ ...pagination, origin: z.enum(['LOCALSTOCK', 'EXTERNAL']).optional() });
 
 const ACCEPTED = ['AUTO_CONFIRMED', 'CONFIRMED'];
 
@@ -43,7 +44,7 @@ async function lockListing(client, listingId) {
 
 async function variantPack(client, variantId) {
   const { rows } = await client.query(
-    `SELECT id, status, attributes, pack_quantity, pack_unit, pack_count FROM product_variants WHERE id = $1`,
+    `SELECT id, status, origin, attributes, pack_quantity, pack_unit, pack_count FROM product_variants WHERE id = $1`,
     [variantId],
   );
   if (!rows[0]) throw notFound('VARIANT_NOT_FOUND', 'Product variant not found');
@@ -185,13 +186,16 @@ export function registerMappingReviewRoutes(router, { pool }) {
       const result = await withTransaction(pool, async (client) => {
         const listing = await lockListing(client, listingId);
         const variant = await variantPack(client, variantId);
-        if (variant.status !== 'ACTIVE') throw conflict('VARIANT_NOT_ACTIVE', 'Only active products can be linked');
+        // Active catalogue products, or products discovered elsewhere that await review.
+        if (variant.status !== 'ACTIVE' && !(variant.origin === 'EXTERNAL' && variant.status === 'PENDING_REVIEW')) {
+          throw conflict('VARIANT_NOT_ACTIVE', 'Only active products, or discovered products awaiting review, can be linked');
+        }
+        assertSameSizeOrUnknown(packOf(listing), variant.pack);
         const { rows: accepted } = await client.query(
           `SELECT id FROM external_product_mappings WHERE listing_id = $1 AND match_status = ANY($2::text[])`,
           [listingId, ACCEPTED],
         );
         if (accepted[0]) throw conflict('LISTING_ALREADY_MAPPED', 'This listing is already linked to a product; reject that mapping first', { mappingId: accepted[0].id });
-        assertSameSizeOrUnknown(packOf(listing), variant.pack);
 
         const { rows } = await client.query(
           `INSERT INTO external_product_mappings (listing_id, variant_id, match_method, match_confidence, match_status, evidence, reviewed_by, reviewed_at)
@@ -217,21 +221,37 @@ export function registerMappingReviewRoutes(router, { pool }) {
     },
   );
 
-  router.get('/admin/catalog/variants/review-queue', validate({ query: queueQuery }), async (req, res) => {
-    const { page, limit } = req.valid.query;
+  // Products awaiting review: seller proposals that may duplicate a product (LOCALSTOCK), and
+  // products discovered on other platforms (EXTERNAL) that need enriching and a group.
+  router.get('/admin/catalog/variants/review-queue', validate({ query: variantQueueQuery }), async (req, res) => {
+    const { page, limit, origin } = req.valid.query;
     const { rows } = await pool.query(
-      `SELECT v.id, v.brand, v.name, v.attributes, v.barcode, v.created_at, g.name AS group_name, count(*) OVER ()::int AS total
-         FROM product_variants v JOIN product_groups g ON g.id = v.group_id
-        WHERE v.status = 'PENDING_REVIEW'
+      `SELECT v.id, v.brand, v.name, v.attributes, v.barcode, v.origin, v.created_at, g.name AS group_name,
+              p.name AS platform_name, p.is_demo, count(*) OVER ()::int AS total
+         FROM product_variants v
+         LEFT JOIN product_groups g ON g.id = v.group_id
+         LEFT JOIN external_listings l ON l.id = v.created_from_listing_id
+         LEFT JOIN external_platforms p ON p.id = l.platform_id
+        WHERE v.status = 'PENDING_REVIEW' AND ($3::text IS NULL OR v.origin = $3)
         ORDER BY v.created_at, v.id
         LIMIT $1 OFFSET $2`,
-      [limit, (page - 1) * limit],
+      [limit, (page - 1) * limit, origin ?? null],
     );
     res.json({
       page,
       limit,
       total: rows[0]?.total ?? 0,
-      items: rows.map((r) => ({ id: r.id, brand: r.brand, name: r.name, group: r.group_name, attributes: r.attributes, barcode: r.barcode, createdAt: r.created_at })),
+      items: rows.map((r) => ({
+        id: r.id,
+        brand: r.brand,
+        name: r.name,
+        group: r.group_name,
+        attributes: r.attributes,
+        barcode: r.barcode,
+        origin: r.origin,
+        discoveredOn: r.platform_name ? { platform: r.platform_name, isDemo: r.is_demo } : null,
+        createdAt: r.created_at,
+      })),
     });
   });
 }
