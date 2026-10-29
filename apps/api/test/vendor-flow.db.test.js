@@ -201,6 +201,32 @@ test('CSV import: dry run writes nothing, errors write nothing, a valid file app
   assert.equal(forbidden.status, 403);
 });
 
+test('the comparison API returns local sellers with verified distance, only inside the service area', { skip }, async () => {
+  const compare = (at) =>
+    http()
+      .post('/api/v1/discovery/compare')
+      .send({ query: 'Zorblat toned milk 1 litre', location: { latitude: at.lat, longitude: at.lng }, radiusKm: 10, platforms: ['blinkit'] });
+
+  const near = await compare(NEAR);
+  assert.equal(near.status, 200, JSON.stringify(near.body));
+  const local = near.body.results.filter((r) => r.sourceType === 'LOCAL_VENDOR');
+  const offer = local.find((r) => r.listingId === ctx.offerId);
+  assert.ok(offer, JSON.stringify(local));
+  assert.equal(offer.canonicalProductId, ctx.variant.id);
+  assert.equal(offer.price.itemPriceMinor, 6400);
+  assert.equal(offer.price.mrpMinor, 6800);
+  assert.equal(offer.availableUnits, 23, '25 on hand minus 2 reserved');
+  assert.equal(offer.distance.status, 'VERIFIED');
+  assert.ok(offer.distance.km > 0 && offer.distance.km < 2);
+  assert.equal(offer.fulfillmentNode.id, ctx.warehouseId);
+  assert.equal(offer.orderCapability, 'LOCALSTOCK_CHECKOUT');
+  assert.deepEqual(offer.product.packSize, { quantity: 1000, unit: 'ml', count: 1 });
+  assert.equal(near.body.sources.find((s) => s.sourceId === 'blinkit-official').status, 'NOT_CONFIGURED');
+
+  const far = await compare(FAR);
+  assert.equal(far.body.results.length, 0);
+});
+
 test('admin suspends and restores a vendor and a store, audited', { skip }, async () => {
   const denied = await http().patch(`/api/v1/admin/companies/${ctx.companyId}/status`).set(as(seller)).send({ status: 'SUSPENDED' });
   assert.equal(denied.status, 403);

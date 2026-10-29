@@ -1,4 +1,5 @@
 import express, { Router } from 'express';
+import { buildConnectorRegistry } from '@localstock/connectors';
 import { errorHandler } from './middleware/error-handler.js';
 import { createAdminRouter } from './modules/admin/admin.routes.js';
 import { createImportsRouter } from './modules/imports/imports.routes.js';
@@ -7,6 +8,7 @@ import { createAuthRouter } from './modules/auth/auth.routes.js';
 import { createCatalogRouter } from './modules/catalog/catalog.routes.js';
 import { createCheckoutRouter } from './modules/checkout/checkout.routes.js';
 import { createDeliveryRouter } from './modules/delivery/delivery.routes.js';
+import { createCompareRouter } from './modules/discovery/compare.routes.js';
 import { createDiscoveryRouter } from './modules/discovery/discovery.routes.js';
 import { createHealthRouter } from './modules/health/health.routes.js';
 import { createInventoryRouter } from './modules/inventory/inventory.routes.js';
@@ -18,9 +20,11 @@ import { createWarehousesRouter } from './modules/warehouses/warehouses.routes.j
 import { AppError } from './shared/errors.js';
 
 /**
- * @param {{config, logger, pool, redis, state: {shuttingDown: boolean}}} deps
+ * @param {{config, logger, pool, redis, state: {shuttingDown: boolean}, connectors?}} deps
+ *   connectors: external source registry; defaults to every source disabled.
  */
-export function createApp(deps) {
+export function createApp(inputDeps) {
+  const deps = { ...inputDeps, connectors: inputDeps.connectors ?? buildConnectorRegistry({ env: { NODE_ENV: inputDeps.config.NODE_ENV } }) };
   const app = express();
   app.disable('x-powered-by');
 
@@ -41,6 +45,7 @@ export function createApp(deps) {
     createOffersRouter,
     createInventoryRouter,
     createDiscoveryRouter,
+    createCompareRouter,
     createCheckoutRouter,
     createOrdersRouter,
     createPaymentsRouter,

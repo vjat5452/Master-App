@@ -32,6 +32,8 @@ const fixtureSchema = z.object({
   ),
 });
 
+const SIZE_TOKEN = /^(\d+([.,]\d+)?[a-z]*|x|kgs?|g|gms?|grams?|mls?|l|ltrs?|litres?|liters?|pcs?|pack|of)$/;
+
 // Real platform names may never appear as the demo platform.
 const REAL_PLATFORMS = /blinkit|zepto|instamart|swiggy|bigbasket|amazon|flipkart|jiomart|dunzo/i;
 
@@ -128,9 +130,14 @@ export class DemoFixtureConnector extends BaseConnector {
   }
 
   async doSearchProducts(query, location, { limit = 20 } = {}) {
-    const tokens = query.toLowerCase().split(/\s+/).filter(Boolean);
+    // Sizes ("1 litre", "500g") are not words to match: every size of the product is
+    // returned and labelled, and the caller decides which size was asked for.
+    const tokens = query
+      .toLowerCase()
+      .split(/\s+/)
+      .filter((t) => t && !SIZE_TOKEN.test(t));
     const items = this.fixture.listings
-      .filter((l) => l.gtin === query || tokens.every((t) => `${l.brand ?? ''} ${l.title} ${l.variantText ?? ''}`.toLowerCase().includes(t)))
+      .filter((l) => l.gtin === query || (tokens.length > 0 && tokens.every((t) => `${l.brand ?? ''} ${l.title} ${l.variantText ?? ''}`.toLowerCase().includes(t))))
       .slice(0, limit)
       .map((l) => this.normalizeResponse(l, location.cell));
     return { items, queryCell: location.cell };

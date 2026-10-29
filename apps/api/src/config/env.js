@@ -12,6 +12,8 @@ const schema = z.object({
   RESERVATION_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   MAX_CANDIDATE_RADIUS_KM: z.coerce.number().positive().default(50),
   PAYMENT_WEBHOOK_SECRET: z.string().min(16),
+  // Upper bound for a whole /discovery/compare request; slower sources are reported as TIMEOUT.
+  COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
 });
 
 // Fail fast at startup rather than on the first request that needs a missing setting.

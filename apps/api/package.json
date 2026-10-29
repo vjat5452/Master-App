@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@localstock/allocation-engine": "*",
+    "@localstock/connectors": "*",
     "@localstock/database": "*",
     "@localstock/logger": "*",
     "dotenv": "^16.4.5",

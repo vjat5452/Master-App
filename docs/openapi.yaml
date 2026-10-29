@@ -1,0 +1,252 @@
+openapi: 3.1.0
+info:
+  title: LocalStock API
+  version: 0.6.0
+  description: |
+    LocalStock API contracts. This file currently covers the unified comparison endpoint; the
+    other endpoints are listed in README.md and will be added here (Milestone 11).
+
+    Money is integer minor units (paise). Times are ISO 8601. Errors always have the shape
+    `{ "error": { "code", "message", "details", "requestId" } }`.
+servers:
+  - url: /api/v1
+paths:
+  /discovery/compare:
+    post:
+      operationId: compareOffers
+      summary: Compare a product across LocalStock sellers and external sources near a location
+      description: |
+        Queries LocalStock's own sellers and every enabled external source concurrently. Each
+        source has its own timeout, and the whole request has a deadline
+        (`COMPARE_DEADLINE_MS`, default 5 s): a slow or failing source is reported in
+        `sources` and never fails the request.
+
+        Honesty rules applied to every result:
+        - external prices and availability are observations, with their freshness;
+        - distance is computed only from verified (LocalStock) or source-provided coordinates,
+          otherwise `distance.km` is null with status `UNKNOWN`, never 0;
+        - `totalKnownCostMinor` adds only fees that are known, and is null when nothing about
+          fees is known; `totalCostCompleteness` says how complete it is;
+        - `FETCH_FAILED` is never reported as `OUT_OF_STOCK`;
+        - demo fixture data is labelled (`dataProvenance.isDemo`, freshness `UNVERIFIED`, a
+          notice) and only exists outside production.
+
+        The exact customer coordinates are not echoed, logged or stored; only the coarse
+        geohash cell (6 characters) is returned and used for caching.
+      tags: [Discovery]
+      parameters:
+        - $ref: '#/components/parameters/RequestId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/CompareRequest' }
+            example:
+              query: Amul toned milk 1 litre
+              location: { latitude: 28.6139, longitude: 77.209 }
+              radiusKm: 5
+              includeLocalVendors: true
+              platforms: [blinkit, zepto, instamart, bigbasket]
+              refreshPolicy: prefer_fresh
+      responses:
+        '200':
+          description: Comparison results, including partial results when some sources failed
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/CompareResponse' }
+        '400':
+          description: Invalid request (`VALIDATION_FAILED`) or unknown platform (`UNKNOWN_PLATFORM`)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429':
+          description: Rate limited (60 requests per minute per client)
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+components:
+  parameters:
+    RequestId:
+      name: x-request-id
+      in: header
+      required: false
+      description: Correlation id, echoed in the response and logs; generated when absent
+      schema: { type: string, maxLength: 128 }
+  schemas:
+    CompareRequest:
+      type: object
+      required: [query, location]
+      additionalProperties: false
+      properties:
+        query: { type: string, minLength: 1, maxLength: 200, description: 'Free text; a size in it ("1 litre") ranks that pack size first' }
+        location:
+          type: object
+          required: [latitude, longitude]
+          properties:
+            latitude: { type: number, minimum: -90, maximum: 90 }
+            longitude: { type: number, minimum: -180, maximum: 180 }
+        radiusKm: { type: number, exclusiveMinimum: 0, maximum: 50, default: 5, description: Search radius for LocalStock sellers }
+        includeLocalVendors: { type: boolean, default: true }
+        platforms:
+          type: array
+          maxItems: 10
+          items: { type: string, pattern: '^[a-z0-9-]{2,50}$' }
+          description: Platform codes to include. Omitted means every known platform. Unknown codes are rejected.
+        refreshPolicy:
+          type: string
+          enum: [cache_only, prefer_fresh, refresh_supported]
+          default: prefer_fresh
+          description: |
+            `cache_only` never calls sources (status `NOT_CACHED` when nothing is cached);
+            `prefer_fresh` reuses an answer younger than 2 minutes, else calls the source;
+            `refresh_supported` calls every enabled source, within its rate limit.
+        limit: { type: integer, minimum: 1, maximum: 50, default: 20, description: Maximum products per source }
+    CompareResponse:
+      type: object
+      required: [requestId, query, location, refreshPolicy, generatedAt, results, sources, sourceSummary, notices]
+      properties:
+        requestId: { type: string }
+        query: { type: string }
+        requestedPackSize: { oneOf: [{ $ref: '#/components/schemas/PackSize' }, { type: 'null' }] }
+        location:
+          type: object
+          properties:
+            cell: { type: string, description: Geohash cell (precision 6) of the query location }
+            radiusKm: { type: number }
+        refreshPolicy: { type: string }
+        generatedAt: { type: string, format: date-time }
+        results: { type: array, items: { $ref: '#/components/schemas/CompareResult' } }
+        sources: { type: array, items: { $ref: '#/components/schemas/SourceStatus' } }
+        sourceSummary:
+          type: object
+          properties:
+            requested: { type: integer }
+            responded: { type: integer }
+            failed: { type: integer }
+            notConfigured: { type: integer }
+            unsupported: { type: integer }
+            notCached: { type: integer }
+        notices: { type: array, items: { type: string }, description: Human-readable caveats (demo data, unmapped listings, size differences) }
+    CompareResult:
+      type: object
+      properties:
+        sourceType: { type: string, enum: [LOCAL_VENDOR, EXTERNAL_PLATFORM] }
+        sourceId: { type: string, description: '"localstock" or the external source code' }
+        sourceName: { type: string, description: Seller name (local) or source display name }
+        sellerId: { type: [string, 'null'], description: LocalStock company id (local results only) }
+        platformCode: { type: [string, 'null'] }
+        listingId: { type: string, description: LocalStock offer id or the platform's listing id }
+        canonicalProductId: { type: [string, 'null'], description: LocalStock product variant id when known }
+        matchStatus: { type: string, enum: [CANONICAL, UNMAPPED], description: 'External matching arrives in Milestone 7' }
+        sizeMatch: { type: string, enum: [EXACT, DIFFERENT, UNKNOWN, NOT_REQUESTED] }
+        product:
+          type: object
+          properties:
+            title: { type: string }
+            brand: { type: [string, 'null'] }
+            variant: { type: [string, 'null'] }
+            gtin: { type: [string, 'null'] }
+            imageUrl: { type: [string, 'null'] }
+            packSize: { oneOf: [{ $ref: '#/components/schemas/PackSize' }, { type: 'null' }] }
+        price:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                itemPriceMinor: { type: integer, minimum: 0 }
+                mrpMinor: { type: [integer, 'null'] }
+                currency: { type: string, example: INR }
+                taxInclusive: { type: [boolean, 'null'] }
+                fees:
+                  type: object
+                  description: Each mandatory fee, null when unknown
+                  properties:
+                    deliveryFeeMinor: { type: [integer, 'null'] }
+                    platformFeeMinor: { type: [integer, 'null'] }
+                    handlingFeeMinor: { type: [integer, 'null'] }
+                    otherFeeMinor: { type: [integer, 'null'] }
+                feesNote: { type: string }
+                totalKnownCostMinor: { type: [integer, 'null'], description: Item price plus known fees; null when no fee information exists }
+                totalCostCompleteness: { type: string, enum: [COMPLETE, PARTIAL, UNKNOWN] }
+        availability: { type: string, enum: [IN_STOCK, OUT_OF_STOCK, NOT_SERVICEABLE, UNKNOWN, FETCH_FAILED] }
+        availableUnits: { type: [integer, 'null'], description: Sellable units (LocalStock sellers only) }
+        serviceability: { type: string, enum: [SERVICEABLE, NOT_SERVICEABLE, UNKNOWN] }
+        fulfillmentNode:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                type: { type: string, enum: [LOCALSTOCK_WAREHOUSE, EXTERNAL_NODE] }
+                id: { type: string }
+                name: { type: [string, 'null'] }
+                verification: { type: string, enum: [VERIFIED, SOURCE_PROVIDED, UNVERIFIED] }
+        distance:
+          type: object
+          properties:
+            km: { type: [number, 'null'] }
+            status: { type: string, enum: [VERIFIED, SOURCE_PROVIDED, UNKNOWN] }
+        eta:
+          oneOf:
+            - type: 'null'
+            - type: object
+              properties:
+                minMinutes: { type: [integer, 'null'] }
+                maxMinutes: { type: [integer, 'null'] }
+                status: { type: string, enum: [ESTIMATED, SOURCE_REPORTED] }
+                provenance: { type: string }
+        freshness:
+          type: object
+          properties:
+            status: { type: string, enum: [FRESH, STALE, EXPIRED, UNVERIFIED] }
+            fields:
+              type: object
+              properties:
+                price: { type: string }
+                availability: { type: string }
+            basis: { type: string, enum: [SOURCE_OBSERVED_AT, COLLECTED_AT] }
+            sourceObservedAt: { type: [string, 'null'], format: date-time }
+            collectedAt: { type: string, format: date-time }
+            ageSeconds: { type: [integer, 'null'] }
+        dataProvenance:
+          type: object
+          properties:
+            sourceType: { type: string, description: 'LOCALSTOCK_INVENTORY, OFFICIAL_API, PARTNER_API, LICENSED_PROVIDER, PERMITTED_COLLECTION or DEMO_FIXTURE' }
+            isDemo: { type: boolean }
+            description: { type: string }
+        orderCapability: { type: string, enum: [LOCALSTOCK_CHECKOUT, EXTERNAL_PLATFORM] }
+        deepLink: { type: [string, 'null'], description: Only a link the source authorizes }
+    SourceStatus:
+      type: object
+      properties:
+        sourceId: { type: string }
+        sourceName: { type: string }
+        platformCode: { type: [string, 'null'] }
+        sourceType: { type: string, enum: [LOCAL_VENDOR, EXTERNAL_PLATFORM] }
+        isDemo: { type: boolean }
+        status: { type: string, enum: [RESPONDED, FAILED, NOT_CONFIGURED, UNSUPPORTED, NOT_CACHED] }
+        fromCache: { type: boolean }
+        durationMs: { type: integer }
+        resultCount: { type: integer }
+        message: { type: string, description: Why the source was not queried }
+        error:
+          type: object
+          properties:
+            code: { type: string, enum: [SOURCE_NOT_CONFIGURED, UNSUPPORTED, TIMEOUT, RATE_LIMITED, UPSTREAM_ERROR, INVALID_RESPONSE, CIRCUIT_OPEN] }
+            message: { type: string }
+    PackSize:
+      type: object
+      properties:
+        quantity: { type: number, description: Per item, in grams, millilitres or pieces }
+        unit: { type: string, enum: [g, ml, pcs] }
+        count: { type: integer, description: Items in the pack }
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code: { type: string }
+            message: { type: string }
+            details: {}
+            requestId: { type: string }

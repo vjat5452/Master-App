@@ -93,6 +93,14 @@ Not in this milestone: any fetching, API or UI.
 | `apps/api/test/compare.test.js` | Stubbed sources: timeout doesn't fail the request, `FETCH_FAILED` stays distinct, not-configured counted, unknown distance stays null |
 | `docs/openapi.yaml` | OpenAPI 3.1 for the compare API (then extended to existing endpoints) |
 
+**Done.** Differences from the table above:
+- Geohash comes from `@localstock/connectors` (Milestone 4), not `apps/api/src/shared/geohash.js`.
+- `freshness.js` was added now in a minimal form: per source type and per field, with demo data always UNVERIFIED. Milestone 8 adds per-source configuration.
+- Results get `sizeMatch` (EXACT / DIFFERENT / UNKNOWN / NOT_REQUESTED), using the size parsed from the query. Exact sizes are listed first, and a notice flags other sizes.
+- Source answers are cached in Redis for an hour, keyed by source, geohash cell and query. `prefer_fresh` reuses answers younger than 2 minutes, and a source that misses the request deadline still fills the cache when it answers.
+- External listings stay `UNMAPPED` until the matcher (Milestone 7). Ordering is deterministic (size, availability, price) until the ranking engine (Milestone 9).
+- `docs/openapi.yaml` covers the compare endpoint; the other endpoints are added in Milestone 11.
+
 ## Milestone 7: Product matching and data quality
 
 | File | Change |
