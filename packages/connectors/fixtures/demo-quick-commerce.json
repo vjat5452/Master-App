@@ -1,0 +1,25 @@
+{
+  "_comment": "DEVELOPMENT FIXTURE. Not real data. Prices, stock, fees and ETAs are invented for building and testing the comparison UI. The platform is fictional and must never be labelled as Blinkit, Zepto, Instamart, BigBasket or any real service. Product identities (brand, title, GTIN) match LocalStock's demo catalogue so matching can be exercised.",
+  "platform": { "code": "demo-quick-commerce", "name": "Demo Quick-Commerce (fixture data)" },
+  "source": { "code": "demo-quick-commerce-fixture", "name": "Demo fixture file" },
+  "serviceableCellPrefixes": ["ttnf"],
+  "serviceability": {
+    "eta": { "minMinutes": 10, "maxMinutes": 20 },
+    "currency": "INR",
+    "deliveryFeeMinor": 2500,
+    "handlingFeeMinor": 400
+  },
+  "listings": [
+    { "id": "dqc-1001", "title": "Amul Taaza Toned Milk", "brand": "Amul", "variantText": "1 l", "gtin": "8901262150064", "priceMinor": 5400, "mrpMinor": 5400 },
+    { "id": "dqc-1002", "title": "Amul Taaza Toned Milk", "brand": "Amul", "variantText": "500 ml", "gtin": "8901262260121", "priceMinor": 2700, "mrpMinor": 2800 },
+    { "id": "dqc-1003", "title": "Amul Cheese Slices", "brand": "Amul", "variantText": "200 g", "gtin": "8901262020015", "priceMinor": 14500, "mrpMinor": 15000, "outOfStockCells": ["ttnfx9"] },
+    { "id": "dqc-1004", "title": "Amul Masti Dahi", "brand": "Amul", "variantText": "1 kg", "gtin": "8901262200677", "priceMinor": 8500, "mrpMinor": 9000 },
+    { "id": "dqc-1005", "title": "Amul Fresh Cream", "brand": "Amul", "variantText": "250 ml", "gtin": "8901262151863", "priceMinor": 6600, "mrpMinor": 6900 },
+    { "id": "dqc-1006", "title": "Amul Cow Ghee", "brand": "Amul", "variantText": "1 kg", "gtin": "8901262030601", "priceMinor": 62500, "mrpMinor": 66000 },
+    { "id": "dqc-1007", "title": "Amul Masti Spiced Buttermilk", "brand": "Amul", "variantText": "6 x 200 ml", "gtin": null, "priceMinor": 8000, "mrpMinor": 8400 },
+    { "id": "dqc-1008", "title": "Aashirvaad Whole Wheat Atta", "brand": "Aashirvaad", "variantText": "1 kg", "gtin": "8901725121143", "priceMinor": 5900, "mrpMinor": 6200 },
+    { "id": "dqc-1009", "title": "Aashirvaad Iodised Salt", "brand": "Aashirvaad", "variantText": "1 kg", "gtin": "8901725123123", "priceMinor": 2500, "mrpMinor": 2800, "outOfStockCells": ["ttnfv2"] },
+    { "id": "dqc-1010", "title": "Aashirvaad Turmeric Powder", "brand": "Aashirvaad", "variantText": "500 g", "gtin": "8901725125370", "priceMinor": 12900, "mrpMinor": 14000 },
+    { "id": "dqc-1011", "title": "Robusta Bananas", "brand": null, "variantText": "6 pcs", "gtin": null, "priceMinor": 4900, "mrpMinor": null }
+  ]
+}

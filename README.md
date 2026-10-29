@@ -16,7 +16,11 @@ packages/
   database/   SQL migrations, migration runner, transactional domain helpers
               (reserve/release stock, order state machine, outbox)
   allocation-engine/  pure warehouse + delivery allocation (no Express, no DB)
-  logger/     structured JSON logger
+  logger/     structured JSON logger (redacts credentials and personal data)
+  connectors/ external platform sources: connector contract, resilience (timeout, rate limit,
+              retry, circuit breaker), disabled platform adapters, licensed-provider adapter,
+              development-only demo fixture source
+docs/platforms/  platform access research (all RESEARCH_REQUIRED: no authorized access yet)
 docs/ABOUT.md tech stack, required software and how to deploy online
 docs/DATA_DICTIONARY.md  external-platform tables, vendor extensions and data ownership rules
 docs/adr/     architecture decision records

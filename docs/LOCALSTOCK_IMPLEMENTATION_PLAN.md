@@ -66,6 +66,18 @@ Not in this milestone: any fetching, API or UI.
 | `docs/platforms/{blinkit,zepto,swiggy-instamart,bigbasket}.md`, `docs/platforms/README.md` | Research record per platform (access method, documentation URL, authorization status, credentials, operations, fields, coverage, rate limits, storage/display rights, limitations, `last_verified_at`, `integration_status`) and a comparison matrix. Only verifiable facts with sources; unknowns stay unknown |
 | `.env.example` | Placeholder-only `*_ENABLED=false` and empty credential variables, `EXTERNAL_SOURCE_TIMEOUT_MS`, `EXTERNAL_SEARCH_MAX_CONCURRENCY`, `DEMO_EXTERNAL_FIXTURES` |
 
+**Done.** Differences from the table above:
+- The four disabled platform adapters are definitions in one file, `src/platforms.js`, instead of four files. They name no credentials, because no agreement documents any yet.
+- `src/geohash.js` lives in this package; Milestone 6 reuses it instead of adding `apps/api/src/shared/geohash.js`.
+- The demo fixture lives in `fixtures/demo-quick-commerce.json`. The connector refuses a fixture whose platform name is a real platform's.
+- Single-listing lookups return `null` for "the source does not know this listing", rather than an error.
+- Research findings are in `docs/platforms/`:
+  - Swiggy Instamart has a documented API (Builders Club MCP), but it is user-delegated and restricts "competitive intelligence or benchmarking".
+  - BigBasket's terms prohibit collecting listings and prices.
+  - Blinkit and Zepto have no public API.
+  - No licensed provider found shows upstream authorization.
+- Registering sources in `external_sources` / `external_source_health` happens in Milestone 8, with the worker.
+
 ## Milestone 5: One genuinely authorized external connector
 
 **Blocked on the project owner obtaining access** (official/partner API or a licensed data provider contract with display rights). When available: implement the adapter against the documented contract, save a redacted fixture, contract tests, persist observations, mark the source `ACTIVE` only after acceptance tests pass. Until then the milestone is recorded as blocked and later milestones proceed with the demo fixture source in development.
