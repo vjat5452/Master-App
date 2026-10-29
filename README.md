@@ -89,6 +89,16 @@ npm run bench -w @localstock/allocation-engine
 k6 run scripts/k6/search.js
 ```
 
+**Endpoint smoke test.** `scripts/smoke-endpoints.mjs` calls every backend route (84 checks across 55 routes): success paths, permission and validation failures, the full order and payment flow, CSV import, admin actions, matching review and the live stream.
+- It creates all its own data, so run it against an API connected to a throwaway database whose name ends in `_smoke`, with the demo source on.
+- Point `SMOKE_API` at that API and `SMOKE_DATABASE_URL` at that database (the script refuses any other database name).
+
+```powershell
+# create localstock_smoke, migrate it, start an API on it (port 5055, Redis db 1, DEMO_EXTERNAL_FIXTURES=true), then:
+$env:SMOKE_API='http://localhost:5055'; $env:SMOKE_DATABASE_URL='postgres://localstock:localstock_dev_password@localhost:5432/localstock_smoke'
+node scripts/smoke-endpoints.mjs
+```
+
 The database tests check the blueprint's invariants directly: 100 concurrent single-unit reservations against 5 units in stock give exactly 5 successes, and racing releases return stock exactly once.
 
 ## API (`/api/v1`)
