@@ -16,6 +16,8 @@ const schema = z.object({
   PAYMENT_WEBHOOK_SECRET: z.string().min(16),
   // Upper bound for a whole /discovery/compare request; slower sources are reported as TIMEOUT.
   COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
+  // Bearer token for GET /metrics. Without it, /metrics only answers outside production.
+  METRICS_TOKEN: z.string().min(16).optional(),
   // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
   COMPARE_RANKING_WEIGHTS: z
     .string()

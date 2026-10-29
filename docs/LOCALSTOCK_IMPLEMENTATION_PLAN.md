@@ -180,6 +180,13 @@ Only for platforms whose access is approved; each follows the Milestone 5 accept
 
 GitHub Actions CI (install, tests, DB tests against a PostGIS service container, `npm audit`), Dockerfiles for API and worker, data retention jobs (observations, serviceability cells), metrics endpoint, `docs/RUNBOOK.md`, updates to `docs/ABOUT.md`.
 
+**Done.** Differences from the plan above:
+- **CI** also runs migrations up, down 4 and up again against PostGIS before the database tests, builds the website, and builds all three images. `npm audit` fails on high or critical advisories in production dependencies. Two moderate React Router advisories concern server-side rendering, which this app does not use.
+- **A website image was added**, alongside the API and worker images: nginx serving the build and forwarding `/api` and `/health`, for same-origin hosting. `docker-compose.app.yml` runs everything from the images, with a one-shot migrate step. This was verified locally: migrations, healthy containers, search through nginx, and metrics closed in production without a token.
+- **Retention** (`packages/external-data/src/retention.js`, hourly) also covers published outbox and processed inbox rows. It deletes in batches and keeps rows still referenced. Migration `005_retention_indexes.sql` (reversible) adds the indexes it needs.
+- **Metrics** are a dependency-free package (`packages/metrics`) used by the API (`/metrics`) and the worker (optional `WORKER_METRICS_PORT`, which also serves `/health/live`). Route labels are route patterns, never raw URLs. Metrics need `METRICS_TOKEN` in production.
+- **Not done:** Grafana dashboards, alert rules as code, and a specific cloud deployment. The runbook lists the metrics and thresholds to alert on.
+
 ## Review checkpoint
 
 Per the blueprint, schema and code changes start only after this plan is reviewed. Decisions needed from the project owner before Milestone 2:

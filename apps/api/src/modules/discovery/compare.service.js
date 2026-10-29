@@ -124,6 +124,7 @@ export function createCompareService({
   localSource = createLocalVendorSource({ pool }),
   matching = createMatchingService({ pool }),
   freshness = createFreshnessPolicy(config.EXTERNAL_FRESHNESS ?? {}),
+  metrics,
 }) {
   const deadlineMs = config.COMPARE_DEADLINE_MS;
   const rankingWeights = config.COMPARE_RANKING_WEIGHTS ?? DEFAULT_WEIGHTS;
@@ -227,6 +228,9 @@ export function createCompareService({
         { policy: rankingPolicy, weights: rankingWeights },
       );
       const sourceList = answers.map(({ results: r, ...meta }) => ({ ...meta, resultCount: r.length }));
+      for (const s of sourceList) {
+        metrics?.compareSources.inc({ source: s.sourceId, status: s.status, cache: s.fromCache ? 'hit' : 'miss' });
+      }
       const count = (...statuses) => sourceList.filter((s) => statuses.includes(s.status)).length;
       const notices = [];
       if (results.some((r) => r.dataProvenance.isDemo)) notices.push('Includes demo fixture data. These are not real prices or stock.');

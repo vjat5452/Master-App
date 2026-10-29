@@ -1,7 +1,7 @@
 // Consumes collection jobs. The job row in PostgreSQL is the source of truth: the collector
 // claims it atomically (so a redelivered message is a no-op), records success or failure,
 // and reschedules retryable failures itself. The message is therefore always acknowledged.
-export async function runCollectionConsumer({ channel, queue, collector, logger }) {
+export async function runCollectionConsumer({ channel, queue, collector, logger, onResult = () => {} }) {
   await channel.consume(queue, async (msg) => {
     if (!msg) return;
     let jobId;
@@ -12,7 +12,7 @@ export async function runCollectionConsumer({ channel, queue, collector, logger 
       return channel.nack(msg, false, false);
     }
     try {
-      await collector.runJob(jobId);
+      onResult(await collector.runJob(jobId));
     } catch (err) {
       // Database trouble mid-job: the job stays RUNNING and is re-queued by the scheduler's
       // stuck-job sweep.

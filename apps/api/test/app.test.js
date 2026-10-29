@@ -177,6 +177,31 @@ test('catalogue import requires authentication', async () => {
   assert.equal(res.status, 401);
 });
 
+test('metrics count requests by route pattern, never raw URLs', async () => {
+  const { app } = makeApp();
+  await request(app).get('/api/v1/catalog/variants/6f1c1d2e-0000-4000-8000-000000000009');
+  await request(app).get('/api/v1/nope/12345');
+  const res = await request(app).get('/metrics');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /text\/plain; version=0.0.4/);
+  assert.match(res.text, /localstock_http_requests_total\{method="GET",route="\/api\/v1\/catalog\/variants\/:variantId",status="404"\} 1/);
+  assert.match(res.text, /localstock_http_requests_total\{method="GET",route="unmatched",status="404"\} 1/);
+  assert.doesNotMatch(res.text, /6f1c1d2e|12345/);
+  assert.match(res.text, /localstock_change_feed_subscribers 0/);
+});
+
+test('metrics are hidden in production unless the token is sent', async () => {
+  const base = { ...config, NODE_ENV: 'production' };
+  const pool = { query: async () => ({ rows: [], rowCount: 0 }) };
+  const redis = { ping: async () => 'PONG', get: async () => null, set: async () => 'OK', incr: async () => 1, expire: async () => 1 };
+  const deps = { logger: createLogger({ level: 'silent' }), pool, redis, state: { shuttingDown: false } };
+  const closed = createApp({ ...deps, config: base });
+  assert.equal((await request(closed).get('/metrics')).status, 404);
+  const tokened = createApp({ ...deps, config: { ...base, METRICS_TOKEN: 'metrics-token-0123456789' } });
+  assert.equal((await request(tokened).get('/metrics')).status, 404);
+  assert.equal((await request(tokened).get('/metrics').set('authorization', 'Bearer metrics-token-0123456789')).status, 200);
+});
+
 test('unknown routes return a JSON 404', async () => {
   const { app } = makeApp();
   const res = await request(app).get('/api/v1/nope');

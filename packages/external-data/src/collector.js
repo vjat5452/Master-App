@@ -56,7 +56,7 @@ export function createCollector({ pool, redis, connectors, logger, sources = cre
       });
     });
     logger.warn('external collection failed', { jobId: job.id, source: job.source_code, errorCode: code, willRetry: retry });
-    return { status: 'FAILED', errorCode: code, willRetry: retry };
+    return { status: 'FAILED', source: job.source_code, errorCode: code, willRetry: retry };
   }
 
   return {
@@ -120,7 +120,7 @@ export function createCollector({ pool, redis, connectors, logger, sources = cre
           items: result.items,
         }).catch(() => {});
         logger.info('external collection succeeded', { jobId: job.id, source: connector.code, items: result.items.length, ...counts });
-        return { status: 'SUCCEEDED', runId, items: result.items.length, ...counts };
+        return { status: 'SUCCEEDED', source: connector.code, runId, items: result.items.length, ...counts };
       } catch (err) {
         return fail(job, runId, err, startedAt);
       }

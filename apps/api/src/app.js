@@ -1,5 +1,6 @@
 import express, { Router } from 'express';
 import { buildConnectorRegistry } from '@localstock/connectors';
+import { createApiMetrics, metricsHandler, metricsMiddleware } from './infrastructure/metrics.js';
 import { errorHandler } from './middleware/error-handler.js';
 import { createAdminRouter } from './modules/admin/admin.routes.js';
 import { createImportsRouter } from './modules/imports/imports.routes.js';
@@ -30,13 +31,17 @@ export function createApp(inputDeps) {
     ...inputDeps,
     connectors: inputDeps.connectors ?? buildConnectorRegistry({ env: { NODE_ENV: inputDeps.config.NODE_ENV } }),
     changeFeed: inputDeps.changeFeed ?? createChangeFeed({ pool: inputDeps.pool, logger: inputDeps.logger }),
+    metrics: inputDeps.metrics ?? createApiMetrics(),
   };
   const app = express();
   app.disable('x-powered-by');
   // Closed on shutdown so open event streams do not hold the server open.
   app.locals.changeFeed = deps.changeFeed;
+  deps.metrics.registry.gauge('change_feed_subscribers', 'Open /discovery/stream connections', () => deps.changeFeed.size());
 
   app.use(requestId());
+  app.use(metricsMiddleware(deps.metrics));
+  app.get('/metrics', metricsHandler(deps.metrics, deps.config));
   // Keep the raw body for webhook signature verification.
   app.use(express.json({ limit: '100kb', verify: (req, _res, buf) => (req.rawBody = buf) }));
   app.use(requestLogger(deps.logger));

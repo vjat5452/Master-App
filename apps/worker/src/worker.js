@@ -4,7 +4,15 @@ import { createPool } from '@localstock/database';
 import { createLogger } from '@localstock/logger';
 import { loadConfig } from './config.js';
 import { buildConnectorRegistry } from '@localstock/connectors';
-import { createCollector, createFreshnessPolicy, createHealthJob, createRefreshScheduler, createSourceRegistry } from '@localstock/external-data';
+import {
+  createCollector,
+  createFreshnessPolicy,
+  createHealthJob,
+  createRefreshScheduler,
+  createRetentionJob,
+  createSourceRegistry,
+} from '@localstock/external-data';
+import { createWorkerMetrics, startMetricsServer } from './metrics.js';
 import { createJobPublisher, runCollectionConsumer } from './consumers/external-collection.js';
 import { createExternalChangeHandler, createSearchProjectionHandler, handleNotification } from './consumers/handlers.js';
 import { runConsumer } from './consumers/run-consumer.js';
@@ -74,7 +82,14 @@ const collector = createCollector({ pool, redis, connectors, logger, sources });
 // Own channel so slow sources cannot starve the other consumers.
 const collectChannel = await connection.createChannel();
 await collectChannel.prefetch(config.EXTERNAL_COLLECTION_CONCURRENCY);
-await runCollectionConsumer({ channel: collectChannel, queue: QUEUES.externalCollection.name, collector, logger });
+const metrics = createWorkerMetrics({ pool, channel: publishChannel });
+await runCollectionConsumer({
+  channel: collectChannel,
+  queue: QUEUES.externalCollection.name,
+  collector,
+  logger,
+  onResult: (r) => r.source && metrics.collectionRuns.inc({ source: r.source, status: r.status }),
+});
 const refreshScheduler = createRefreshScheduler({
   pool,
   redis,
@@ -91,7 +106,16 @@ const jobs = [
   every('reconciliation', config.RECONCILIATION_INTERVAL_MS, createReconciliationJob({ pool, logger }), logger),
   every('external-refresh', config.EXTERNAL_REFRESH_INTERVAL_MS, refreshScheduler.tick, logger),
   every('external-health', config.EXTERNAL_HEALTH_INTERVAL_MS, createHealthJob({ pool, connectors, logger, sources }), logger),
+  every(
+    'retention',
+    config.RETENTION_INTERVAL_MS,
+    createRetentionJob({ pool, logger, externalDays: config.EXTERNAL_RETENTION_DAYS, eventDays: config.EVENT_RETENTION_DAYS }),
+    logger,
+  ),
 ];
+const metricsServer = config.WORKER_METRICS_PORT
+  ? startMetricsServer({ port: config.WORKER_METRICS_PORT, registry: metrics.registry, token: config.METRICS_TOKEN, production: config.NODE_ENV === 'production', logger })
+  : null;
 logger.info('worker started', { queues: Object.values(QUEUES).map((q) => q.name) });
 
 async function shutdown(signal) {
@@ -99,6 +123,7 @@ async function shutdown(signal) {
   shuttingDown = true;
   logger.info('shutting down', { signal });
   setTimeout(() => process.exit(1), 15_000).unref();
+  metricsServer?.close();
   await Promise.allSettled(jobs.map((j) => j.stop()));
   await Promise.allSettled([consumeChannel.close(), collectChannel.close(), publishChannel.close()]);
   await Promise.allSettled([connection.close(), pool.end(), redis.quit()]);

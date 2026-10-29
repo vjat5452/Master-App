@@ -10,3 +10,4 @@ export { detectChanges, persistListingObservations, persistServiceability, recor
 export { createCollector, MAX_JOB_ATTEMPTS } from './collector.js';
 export { createRefreshScheduler, dedupKey, demandPriority } from './scheduler.js';
 export { createHealthJob, deriveHealth } from './health.js';
+export { createRetentionJob } from './retention.js';

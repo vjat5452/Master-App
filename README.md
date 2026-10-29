@@ -24,7 +24,10 @@ packages/
   external-data/  shared by API and worker: quality checks, product matching, freshness,
               demand, observations and change detection, collector, scheduler, health
 docs/platforms/  platform access research (all RESEARCH_REQUIRED: no authorized access yet)
+  metrics/    Prometheus metrics (no dependencies)
 docs/ABOUT.md tech stack, required software and how to deploy online
+docs/RUNBOOK.md  releases, configuration, monitoring, retention and incident handling
+.github/workflows/ci.yml  tests, DB tests with migration rollback, web build, audit, images
 docs/DATA_DICTIONARY.md  external-platform tables, vendor extensions and data ownership rules
 docs/adr/     architecture decision records
 scripts/      demo walkthrough (PowerShell), k6 load test
@@ -43,7 +46,8 @@ scripts/      demo walkthrough (PowerShell), k6 load test
 | 9 Checkout | Done: Idempotency-Key, atomic multi-row reservations, orders and shipments, sandbox payments |
 | 10 Reliability | Done: outbox and inbox, publisher confirms, retries with a dead-letter queue, expiry job, reconciliation |
 | 11 Delivery | Partial: provider model, quoting and assignment at checkout. Live tracking events are not built yet |
-| 12 Production readiness | Not started: Prometheus/Grafana, AWS, runbooks. The k6 script exists |
+| 12 Production readiness | Mostly done: CI (GitHub Actions), Dockerfiles for API, worker and website, Prometheus metrics, data retention, [runbook](docs/RUNBOOK.md). Not yet: Grafana dashboards and a specific cloud deployment. The k6 script exists |
+| External platform discovery | Built behind authorized access only: connector framework, compare API, matching and review, background collection, live feed, comparison UI. No platform is connected yet ([why](docs/platforms/README.md)) |
 | Frontends (customer web, seller and admin dashboards) | Done (`apps/web`, Vite + React, Tailwind CSS + shadcn/ui, Material UI for charts, stepper and slider): shop, cart and checkout, orders and sandbox payment, seller hub with dashboards, admin console, API explorer |
 
 ## Run locally (Windows PowerShell)
@@ -134,6 +138,6 @@ See [docs/adr/README.md](docs/adr/README.md) for the reasoning and trade-offs.
 1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API.
 2. Shipment lifecycle after confirmation: pickup, tracking webhooks, `CONSUMED` reservations and `DISPATCH` movements.
 3. Refund execution (the `PaymentRefundRequested` event is emitted, but nothing processes it yet), and re-reserving stock for late payments.
-4. Prometheus metrics and Grafana dashboards, AWS deployment, and runbooks.
+4. Grafana dashboards and alert rules from the metrics listed in the runbook, and a specific cloud deployment.
 5. Polygon service areas (warehouses currently use a radius).
 6. Refresh tokens in HttpOnly cookies for the browser apps.

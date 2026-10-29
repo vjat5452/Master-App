@@ -185,7 +185,7 @@ test('failures are recorded; retryable ones are rescheduled with backoff, others
   await scheduler.tick();
   const jobId = published.at(-1).jobId;
   stub.answer = new ConnectorError(ERROR_CODES.UPSTREAM_ERROR, 'provider error (503)');
-  assert.deepEqual(await collector.runJob(jobId), { status: 'FAILED', errorCode: 'UPSTREAM_ERROR', willRetry: true });
+  assert.deepEqual(await collector.runJob(jobId), { status: 'FAILED', source: 'stub-source', errorCode: 'UPSTREAM_ERROR', willRetry: true });
   const retrying = await one(`SELECT status, attempts, last_error_code, scheduled_for > now() AS later FROM external_collection_jobs WHERE id = $1`, [jobId]);
   assert.deepEqual(retrying, { status: 'PENDING', attempts: 1, last_error_code: 'UPSTREAM_ERROR', later: true });
   const run = await one(`SELECT status, error_code, error_message FROM external_collection_runs WHERE job_id = $1 ORDER BY started_at DESC LIMIT 1`, [jobId]);
@@ -195,7 +195,7 @@ test('failures are recorded; retryable ones are rescheduled with backoff, others
 
   await pool.query(`UPDATE external_collection_jobs SET status = 'QUEUED' WHERE id = $1`, [jobId]);
   stub.answer = new ConnectorError(ERROR_CODES.INVALID_RESPONSE, 'response failed validation');
-  assert.deepEqual(await collector.runJob(jobId), { status: 'FAILED', errorCode: 'INVALID_RESPONSE', willRetry: false });
+  assert.deepEqual(await collector.runJob(jobId), { status: 'FAILED', source: 'stub-source', errorCode: 'INVALID_RESPONSE', willRetry: false });
   assert.equal((await one('SELECT status FROM external_collection_jobs WHERE id = $1', [jobId])).status, 'FAILED');
 });
 
@@ -206,7 +206,7 @@ test('a job for a source that is no longer configured fails without calling anyt
     [sourceId, CELL],
   );
   const calls = stub.locations.length;
-  assert.deepEqual(await collector.runJob(job.id), { status: 'FAILED', errorCode: 'SOURCE_NOT_CONFIGURED', willRetry: false });
+  assert.deepEqual(await collector.runJob(job.id), { status: 'FAILED', source: 'zepto-official', errorCode: 'SOURCE_NOT_CONFIGURED', willRetry: false });
   assert.equal(stub.locations.length, calls);
 });
 
