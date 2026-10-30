@@ -2,6 +2,8 @@
 
 LocalStock is a multi-vendor, multi-warehouse commerce and fulfillment platform. Sellers list standardized product variants and keep stock in several warehouses. Customers compare seller offers by price, availability and delivery estimate. Checkout allocates the cart across warehouses and delivery providers, then reserves stock atomically.
 
+**Architecture:** see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for diagrams, key flows, design decisions and the scaling path.
+
 **Stack:** Node.js Â· Express 5 Â· PostgreSQL + PostGIS Â· Redis Â· RabbitMQ Â· Zod Â· Docker
 
 ```
