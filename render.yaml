@@ -9,6 +9,9 @@ services:
     name: localstock-api
     runtime: docker
     plan: free
+    # Same region as the Neon database and CloudAMQP: the API makes many small queries, and
+    # each would otherwise cross an ocean. Fixed at creation: Render can't change it later.
+    region: singapore
     branch: main
     dockerfilePath: ./deploy/render/Dockerfile
     dockerContext: .
@@ -43,4 +46,5 @@ services:
   - type: keyvalue
     name: localstock-redis
     plan: free
+    region: singapore
     ipAllowList: []
