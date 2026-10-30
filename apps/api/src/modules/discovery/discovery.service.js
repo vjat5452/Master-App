@@ -69,15 +69,17 @@ export function createDiscoveryService({ pool, redis, logger }) {
       return cached({ op: 'search', ...params }, async () => {
         const { q, category, lat, lng, radiusKm, sort, page, limit } = params;
         // $1 is the search text and $2 the optional category slug in both queries.
-        const matchSql = `v.status = 'ACTIVE' AND ($1::text = ''
+        // Catalogue products, plus products discovered on other platforms (awaiting review):
+        // those have no LocalStock offers and are shown so they can be compared elsewhere.
+        const matchSql = `(v.status = 'ACTIVE' OR (v.origin = 'EXTERNAL' AND v.status = 'PENDING_REVIEW')) AND ($1::text = ''
           OR v.search_vector @@ websearch_to_tsquery('english', $1::text)
           OR v.name % $1::text)
           AND ($2::text = '' OR g.category_id = (SELECT id FROM categories WHERE slug = $2::text))`;
-        const fromSql = 'FROM product_variants v JOIN product_groups g ON g.id = v.group_id';
+        const fromSql = 'FROM product_variants v LEFT JOIN product_groups g ON g.id = v.group_id';
 
         const [{ rows }, { rows: countRows }] = await Promise.all([
           pool.query(
-            `SELECT v.id, v.name, v.brand, v.attributes, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url
+            `SELECT v.id, v.name, v.brand, v.attributes, v.origin, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url
                ${fromSql}
               WHERE ${matchSql}
               ORDER BY CASE WHEN $1::text = '' THEN 0
@@ -96,6 +98,8 @@ export function createDiscoveryService({ pool, redis, logger }) {
           brand: v.brand,
           group: v.group_name,
           attributes: v.attributes,
+          // EXTERNAL: found on another platform; never has LocalStock offers.
+          origin: v.origin,
           imageUrl: v.image_url ?? null,
           offers: sortOffers(offers.filter((o) => o.variantId === v.id), sort).map(({ variantId, ...o }) => o),
         }));

@@ -13,12 +13,13 @@
     "infra:up": "docker compose up -d",
     "infra:down": "docker compose down",
     "db:migrate": "npm run migrate -w @localstock/database",
-    "db:seed": "npm run seed -w @localstock/api && npm run seed:catalog -w @localstock/api",
+    "db:migrate:down": "npm run migrate:down -w @localstock/database",
+    "db:seed": "npm run seed -w @localstock/api && npm run seed:catalog -w @localstock/api && npm run backfill:pack-size -w @localstock/database",
     "dev:api": "npm run dev -w @localstock/api",
     "dev:worker": "npm run dev -w @localstock/worker",
     "dev:web": "npm run dev -w @localstock/web",
     "build:web": "npm run build -w @localstock/web",
     "test": "npm test --workspaces --if-present",
-    "test:db": "npm run test:db -w @localstock/database"
+    "test:db": "npm run test:db -w @localstock/database && npm run test:db -w @localstock/external-data && npm run test:db -w @localstock/api"
   }
 }

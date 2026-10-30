@@ -1,0 +1,46 @@
+# Render Blueprint for the free LocalStock demo backend (see docs/DEPLOY_FREE.md).
+# - localstock-api: API + worker in one free web service (deploy/render/Dockerfile); it runs
+#   migrations and demo seeding when it starts.
+# - localstock-redis: Render Key Value (Redis-compatible), free.
+# PostgreSQL+PostGIS (Neon) and RabbitMQ (CloudAMQP) are external free services: their URLs
+# are entered when the Blueprint is created. The website is deployed separately on Vercel.
+services:
+  - type: web
+    name: localstock-api
+    runtime: docker
+    plan: free
+    branch: main
+    dockerfilePath: ./deploy/render/Dockerfile
+    dockerContext: .
+    healthCheckPath: /health/ready
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false
+      - key: RABBITMQ_URL
+        sync: false
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: localstock-redis
+          property: connectionString
+      - key: JWT_ACCESS_SECRET
+        generateValue: true
+      - key: PAYMENT_WEBHOOK_SECRET
+        generateValue: true
+      - key: SEED_DEMO_DATA
+        value: "true"
+      - key: SEED_PASSWORD
+        sync: false
+      - key: ENABLE_SANDBOX_PAYMENTS
+        value: "true"
+      # Vercel's proxy, then Render's load balancer.
+      - key: TRUST_PROXY
+        value: "2"
+
+  - type: keyvalue
+    name: localstock-redis
+    plan: free
+    ipAllowList: []

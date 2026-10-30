@@ -46,8 +46,9 @@ export function createPaymentsRouter(deps) {
   );
 
   // Development helper standing in for the provider's checkout page: the customer "pays" and
-  // the sandbox delivers a webhook through the same verified code path.
-  if (config.NODE_ENV !== 'production') {
+  // the sandbox delivers a webhook through the same verified code path. In production only
+  // when explicitly enabled for a public demo (ENABLE_SANDBOX_PAYMENTS=true).
+  if (config.NODE_ENV !== 'production' || config.ENABLE_SANDBOX_PAYMENTS) {
     router.post('/payments/sandbox/:providerPaymentId/simulate', authenticate(config), validate({ body: simulateBody }), async (req, res) => {
       const { providerPaymentId } = req.params;
       const { rows } = await pool.query(

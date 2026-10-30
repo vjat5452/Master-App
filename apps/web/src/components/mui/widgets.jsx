@@ -77,6 +77,34 @@ export function AreaLine({ labels, values, label, height = 220, format }) {
   );
 }
 
+/**
+ * Several price lines over the same dates. `series`: [{ label, values (null = no data) }].
+ * Gaps stay gaps: missing days are never joined up or filled in.
+ */
+export function PriceLines({ dates, series, height = 240, format }) {
+  return (
+    <MuiScope>
+      <LineChart
+        height={height}
+        margin={{ top: 16, right: 16, bottom: 56, left: 60 }}
+        xAxis={[{ scaleType: 'point', data: dates }]}
+        yAxis={[{ valueFormatter: format }]}
+        series={series.map((s, i) => ({
+          data: s.values,
+          label: s.label,
+          color: CHART_COLORS[i % CHART_COLORS.length],
+          curve: 'stepAfter',
+          showMark: ({ index }) => s.values[index] !== null && (index === 0 || s.values[index - 1] !== s.values[index]),
+          connectNulls: false,
+          valueFormatter: (v) => (v == null ? 'no data' : format(v)),
+        }))}
+        slotProps={{ legend }}
+        grid={{ horizontal: true }}
+      />
+    </MuiScope>
+  );
+}
+
 /** Order progress. `steps`: [{ label, caption?, error? }], `active`: index of the current step. */
 export function ProgressStepper({ steps, active }) {
   return (

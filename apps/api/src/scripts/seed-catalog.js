@@ -213,7 +213,7 @@ const pool = createPool(process.env.DATABASE_URL, { max: 1 });
 try {
   await withTransaction(pool, seed, { retries: 0 });
   console.log('demo catalog seeded:', stats);
-  console.log(`new seller logins (password "${PASSWORD}"): seller.c … seller.g @localstock.dev`);
+  console.log(`new seller logins (password ${process.env.SEED_PASSWORD ? 'from SEED_PASSWORD' : `"${PASSWORD}"`}): seller.c … seller.g @localstock.dev`);
   // Search results are cached in Redis; bump the version so the new catalog shows immediately.
   const redis = new Redis(process.env.REDIS_URL, { lazyConnect: true, maxRetriesPerRequest: 1 });
   await redis.connect().then(() => redis.incr('search:version')).catch(() => console.warn('redis unavailable; search cache expires within 30 s'));

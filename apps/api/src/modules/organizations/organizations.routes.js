@@ -5,10 +5,13 @@ import { authenticate, COMPANY_MANAGERS, requireCompanyRole } from '../../middle
 import { writeAudit } from '../../shared/audit.js';
 import { conflict, notFound } from '../../shared/errors.js';
 import { validate } from '../../shared/validate.js';
+import { phone, VENDOR_TYPES } from '../../shared/vendor-fields.js';
 
 const createCompanyBody = z.object({
   name: z.string().trim().min(2).max(200),
   registrationNumber: z.string().trim().max(100).optional(),
+  vendorType: z.enum(VENDOR_TYPES).default('RETAILER'),
+  contactPhone: phone.optional(),
 });
 const addMemberBody = z.object({
   email: z.string().trim().toLowerCase().email(),
@@ -20,11 +23,12 @@ export function createOrganizationsRouter({ pool, config }) {
   router.use('/companies', authenticate(config));
 
   router.post('/companies', validate({ body: createCompanyBody }), async (req, res) => {
-    const { name, registrationNumber } = req.valid.body;
+    const { name, registrationNumber, vendorType, contactPhone } = req.valid.body;
     const company = await withTransaction(pool, async (client) => {
       const { rows } = await client.query(
-        'INSERT INTO companies (name, registration_number) VALUES ($1, $2) RETURNING id, name, registration_number, status, created_at',
-        [name, registrationNumber ?? null],
+        `INSERT INTO companies (name, registration_number, vendor_type, contact_phone) VALUES ($1, $2, $3, $4)
+         RETURNING id, name, registration_number, vendor_type, contact_phone, status, created_at`,
+        [name, registrationNumber ?? null, vendorType, contactPhone ?? null],
       );
       await client.query(`INSERT INTO company_members (company_id, user_id, role) VALUES ($1, $2, 'OWNER')`, [rows[0].id, req.user.id]);
       await writeAudit(client, { actorUserId: req.user.id, companyId: rows[0].id, action: 'company.created', entityType: 'company', entityId: rows[0].id, after: rows[0] });
@@ -34,6 +38,8 @@ export function createOrganizationsRouter({ pool, config }) {
       id: company.id,
       name: company.name,
       registrationNumber: company.registration_number,
+      vendorType: company.vendor_type,
+      contactPhone: company.contact_phone,
       status: company.status,
       role: 'OWNER',
     });
@@ -41,7 +47,7 @@ export function createOrganizationsRouter({ pool, config }) {
 
   router.get('/companies', async (req, res) => {
     const { rows } = await pool.query(
-      `SELECT c.id, c.name, c.status, m.role
+      `SELECT c.id, c.name, c.status, c.vendor_type AS "vendorType", c.contact_phone AS "contactPhone", m.role
          FROM company_members m JOIN companies c ON c.id = m.company_id
         WHERE m.user_id = $1 ORDER BY c.name`,
       [req.user.id],

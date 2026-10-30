@@ -2,14 +2,9 @@
 // same bread are different variants. Exact barcode matches are deterministic; fuzzy name matches
 // never merge silently, they only flag the new variant for review.
 
-export function normalizeText(value = '') {
-  return String(value)
-    .normalize('NFKC')
-    .toLowerCase()
-    .replace(/[^\p{L}\p{N}.]+/gu, ' ')
-    .replace(/(\d)\s+(?=[a-z])/g, '$1') // "400 g" -> "400g"
-    .trim();
-}
+import { normalizeText } from '@localstock/database';
+
+export { normalizeText };
 
 export function normalizeAttributes(attributes = {}) {
   return Object.fromEntries(

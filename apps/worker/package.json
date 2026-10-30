@@ -9,8 +9,11 @@
     "test": "node --test"
   },
   "dependencies": {
+    "@localstock/connectors": "*",
     "@localstock/database": "*",
+    "@localstock/external-data": "*",
     "@localstock/logger": "*",
+    "@localstock/metrics": "*",
     "amqplib": "^0.10.4",
     "dotenv": "^16.4.5",
     "ioredis": "^5.4.2",

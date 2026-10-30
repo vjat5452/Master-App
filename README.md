@@ -11,13 +11,24 @@ apps/
               orders, seller hub, admin, API explorer; light and dark themes
   api/        Express modular monolith (auth, organizations, warehouses, catalog, offers,
               inventory, discovery, checkout, orders, payments, delivery)
-  worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers
+  worker/     outbox publisher, reservation expiry, reconciliation, idempotent consumers,
+              external refresh scheduler and collector, source health checks
 packages/
   database/   SQL migrations, migration runner, transactional domain helpers
               (reserve/release stock, order state machine, outbox)
   allocation-engine/  pure warehouse + delivery allocation (no Express, no DB)
-  logger/     structured JSON logger
+  logger/     structured JSON logger (redacts credentials and personal data)
+  connectors/ external platform sources: connector contract, resilience (timeout, rate limit,
+              retry, circuit breaker), disabled platform adapters, licensed-provider adapter,
+              development-only demo fixture source
+  external-data/  shared by API and worker: quality checks, product matching, freshness,
+              demand, observations and change detection, collector, scheduler, health
+docs/platforms/  platform access research (all RESEARCH_REQUIRED: no authorized access yet)
+  metrics/    Prometheus metrics (no dependencies)
 docs/ABOUT.md tech stack, required software and how to deploy online
+docs/RUNBOOK.md  releases, configuration, monitoring, retention and incident handling
+.github/workflows/ci.yml  tests, DB tests with migration rollback, web build, audit, images
+docs/DATA_DICTIONARY.md  external-platform tables, vendor extensions and data ownership rules
 docs/adr/     architecture decision records
 scripts/      demo walkthrough (PowerShell), k6 load test
 ```
@@ -35,7 +46,8 @@ scripts/      demo walkthrough (PowerShell), k6 load test
 | 9 Checkout | Done: Idempotency-Key, atomic multi-row reservations, orders and shipments, sandbox payments |
 | 10 Reliability | Done: outbox and inbox, publisher confirms, retries with a dead-letter queue, expiry job, reconciliation |
 | 11 Delivery | Partial: provider model, quoting and assignment at checkout. Live tracking events are not built yet |
-| 12 Production readiness | Not started: Prometheus/Grafana, AWS, runbooks. The k6 script exists |
+| 12 Production readiness | Mostly done: CI (GitHub Actions), Dockerfiles for API, worker and website, Prometheus metrics, data retention, [runbook](docs/RUNBOOK.md). Not yet: Grafana dashboards and a specific cloud deployment. The k6 script exists |
+| External platform discovery | Built behind authorized access only: connector framework, compare API, matching and review, background collection, live feed, comparison UI. No platform is connected yet ([why](docs/platforms/README.md)) |
 | Frontends (customer web, seller and admin dashboards) | Done (`apps/web`, Vite + React, Tailwind CSS + shadcn/ui, Material UI for charts, stepper and slider): shop, cart and checkout, orders and sandbox payment, seller hub with dashboards, admin console, API explorer |
 
 ## Run locally (Windows PowerShell)
@@ -72,9 +84,19 @@ The RabbitMQ management UI is at http://localhost:15672 (user `localstock`, pass
 
 ```powershell
 npm test                                   # unit and HTTP tests, no infrastructure needed
-$env:RUN_DB_TESTS='1'; npm run test:db     # concurrency tests in a separate localstock_test database
+$env:RUN_DB_TESTS='1'; npm run test:db     # database and HTTP tests in a separate localstock_test database
 npm run bench -w @localstock/allocation-engine
 k6 run scripts/k6/search.js
+```
+
+**Endpoint smoke test.** `scripts/smoke-endpoints.mjs` calls every backend route (84 checks across 55 routes): success paths, permission and validation failures, the full order and payment flow, CSV import, admin actions, matching review and the live stream.
+- It creates all its own data, so run it against an API connected to a throwaway database whose name ends in `_smoke`, with the demo source on.
+- Point `SMOKE_API` at that API and `SMOKE_DATABASE_URL` at that database (the script refuses any other database name).
+
+```powershell
+# create localstock_smoke, migrate it, start an API on it (port 5055, Redis db 1, DEMO_EXTERNAL_FIXTURES=true), then:
+$env:SMOKE_API='http://localhost:5055'; $env:SMOKE_DATABASE_URL='postgres://localstock:localstock_dev_password@localhost:5432/localstock_smoke'
+node scripts/smoke-endpoints.mjs
 ```
 
 The database tests check the blueprint's invariants directly: 100 concurrent single-unit reservations against 5 units in stock give exactly 5 successes, and racing releases return stock exactly once.
@@ -94,6 +116,18 @@ The database tests check the blueprint's invariants directly: 100 concurrent sin
 | Checkout | `POST /checkout/quote` (advisory, reserves nothing) |
 | Orders | `POST /orders` (requires an `Idempotency-Key` header) Â· `GET /orders` Â· `GET /orders/:id` Â· `POST /orders/:id/cancel` |
 | Payments | `POST /payments/webhooks/sandbox` (HMAC `X-Sandbox-Signature`) Â· `POST /payments/sandbox/:paymentId/simulate` (outside production only) |
+| Compare | `POST /discovery/compare`: LocalStock sellers and enabled external sources side by side, with partial results, freshness and provenance (contract in [docs/openapi.yaml](docs/openapi.yaml)) Â· `GET /discovery/stream?variantIds&cell` (authenticated server-sent events of detected external changes) |
+| Catalogue import | `POST /companies/:id/catalogue-imports?dryRun=true\|false` (body `text/csv`, owners and admins only) |
+| Admin | `GET /admin/companies?status` Â· `PATCH /admin/companies/:id/status` Â· `GET /admin/companies/:id/warehouses` Â· `PATCH /admin/warehouses/:id/status` |
+| External sources (admin) | `GET /admin/external-platforms` Â· `GET /admin/external-sources/:code/runs` Â· `POST /admin/external-sources/:code/test-connection` Â· `PATCH /admin/external-sources/:code/status` (ACTIVE needs a configured non-demo source and an evidence note) |
+| Product matching review (admin) | `GET /admin/product-mapping/review-queue` Â· `POST /admin/product-mapping/:mappingId/decision` (`CONFIRM` / `REJECT`) Â· `POST /admin/product-mapping/listings/:listingId/manual` Â· `GET /admin/catalog/variants/review-queue` |
+
+**Catalogue import CSV.** Columns: `sku`, `barcode` or `variant_id`, `price`, and optionally `mrp`, `warehouse`, `quantity`.
+- `price` and `mrp` are in rupees, e.g. `45.50`. A blank `mrp` keeps the current one.
+- `warehouse` is a store name or id. `quantity` sets the on-hand count; it is not added to it.
+- Products must already be in the catalogue.
+- A dry run shows what would change. Otherwise the whole file is applied in one transaction, or nothing is applied if any row has an error.
+- Every change is audited with `source_of_change = CSV_IMPORT`.
 
 Health checks: `GET /health/live` (the process is up) and `GET /health/ready` (PostgreSQL and Redis are reachable and the process isn't shutting down).
 
@@ -111,9 +145,9 @@ See [docs/adr/README.md](docs/adr/README.md) for the reasoning and trade-offs.
 
 ## Known gaps and next steps
 
-1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API. There is also no admin endpoint to list variants awaiting review yet.
+1. Production hosting for `apps/web`: the dev server proxies to the API, so a deployment needs the same reverse proxy or CORS on the API.
 2. Shipment lifecycle after confirmation: pickup, tracking webhooks, `CONSUMED` reservations and `DISPATCH` movements.
 3. Refund execution (the `PaymentRefundRequested` event is emitted, but nothing processes it yet), and re-reserving stock for late payments.
-4. Prometheus metrics and Grafana dashboards, AWS deployment, and runbooks.
+4. Grafana dashboards and alert rules from the metrics listed in the runbook, and a specific cloud deployment.
 5. Polygon service areas (warehouses currently use a radius).
 6. Refresh tokens in HttpOnly cookies for the browser apps.

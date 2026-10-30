@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { withTransaction } from '@localstock/database';
+import { packSizeFromAttributes, withTransaction } from '@localstock/database';
 import { authenticate, requirePlatformAdmin } from '../../middleware/auth.js';
 import { writeAudit } from '../../shared/audit.js';
-import { conflict, notFound } from '../../shared/errors.js';
+import { AppError, conflict, notFound } from '../../shared/errors.js';
 import { idParams, validate } from '../../shared/validate.js';
 import { hasDistinguishingAttribute, variantKey } from './product-matching.js';
 
@@ -25,11 +25,23 @@ const variantBody = z.object({
   barcode: z.string().trim().regex(/^\d{8,14}$/, 'Barcode must be a GTIN (8-14 digits)').optional(),
 });
 const variantStatusBody = z.object({ status: z.enum(['ACTIVE', 'ARCHIVED']) });
+// brand / barcode: null clears them.
+const variantEditBody = z
+  .object({
+    groupId: z.string().uuid(),
+    brand: z.string().trim().max(100).nullable(),
+    name: z.string().trim().min(1).max(200),
+    attributes: z.record(z.string(), z.union([z.string().max(200), z.number(), z.boolean()])),
+    barcode: z.string().trim().regex(/^\d{8,14}$/, 'Barcode must be a GTIN (8-14 digits)').nullable(),
+  })
+  .partial()
+  .refine((b) => Object.keys(b).length > 0, 'Provide at least one field');
 
 // First image of a variant (alias `v`), or null.
 export const VARIANT_IMAGE_SQL = '(SELECT pi.image_url FROM product_images pi WHERE pi.variant_id = v.id ORDER BY pi.image_url LIMIT 1)';
 
-const VARIANT_COLUMNS = `v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url`;
+const VARIANT_COLUMNS = `v.id, v.group_id, v.brand, v.name, v.attributes, v.barcode, v.status, v.pack_quantity, v.pack_unit, v.pack_count,
+  v.origin, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url`;
 
 export const toVariant = (r) => ({
   id: r.id,
@@ -40,12 +52,17 @@ export const toVariant = (r) => ({
   attributes: r.attributes,
   barcode: r.barcode,
   status: r.status,
+  // LOCALSTOCK: catalogue product. EXTERNAL: discovered on another platform (no group until
+  // an admin classifies it; not sellable until ACTIVE).
+  origin: r.origin,
   imageUrl: r.image_url ?? null,
+  // Parsed size in base units (g, ml or pcs per item, times count); null when unknown.
+  packSize: r.pack_unit ? { quantity: Number(r.pack_quantity), unit: r.pack_unit, count: r.pack_count } : null,
 });
 
 async function findVariant(db, where, params) {
   const { rows } = await db.query(
-    `SELECT ${VARIANT_COLUMNS}, v.normalized_key FROM product_variants v JOIN product_groups g ON g.id = v.group_id WHERE ${where}`,
+    `SELECT ${VARIANT_COLUMNS}, v.normalized_key FROM product_variants v LEFT JOIN product_groups g ON g.id = v.group_id WHERE ${where}`,
     params,
   );
   return rows[0];
@@ -132,10 +149,11 @@ export function createCatalogRouter({ pool, config }) {
         .map((s) => ({ id: s.id, name: s.name, brand: s.brand, score: Number(Number(s.score).toFixed(3)) }));
       const status = possibleDuplicates.length > 0 ? 'PENDING_REVIEW' : 'ACTIVE';
 
+      const pack = packSizeFromAttributes(input.attributes);
       const { rows } = await client.query(
-        `INSERT INTO product_variants (group_id, brand, name, attributes, barcode, normalized_key, status)
-         VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id`,
-        [input.groupId, input.brand ?? null, input.name, JSON.stringify(input.attributes), input.barcode ?? null, key, status],
+        `INSERT INTO product_variants (group_id, brand, name, attributes, barcode, normalized_key, status, pack_quantity, pack_unit, pack_count)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10) RETURNING id`,
+        [input.groupId, input.brand ?? null, input.name, JSON.stringify(input.attributes), input.barcode ?? null, key, status, pack?.quantity ?? null, pack?.unit ?? null, pack?.count ?? null],
       );
       await writeAudit(client, { actorUserId: req.user.id, action: 'variant.created', entityType: 'product_variant', entityId: rows[0].id, after: { ...input, status } });
       const variant = await findVariant(client, 'v.id = $1', [rows[0].id]);
@@ -151,9 +169,59 @@ export function createCatalogRouter({ pool, config }) {
     requirePlatformAdmin,
     validate({ params: idParams('variantId'), body: variantStatusBody }),
     async (req, res) => {
-      const { rows } = await pool.query('UPDATE product_variants SET status = $2 WHERE id = $1 RETURNING id', [req.valid.params.variantId, req.valid.body.status]);
-      if (!rows[0]) throw notFound('VARIANT_NOT_FOUND', 'Product variant not found');
-      res.json(toVariant(await findVariant(pool, 'v.id = $1', [rows[0].id])));
+      const current = await findVariant(pool, 'v.id = $1', [req.valid.params.variantId]);
+      if (!current) throw notFound('VARIANT_NOT_FOUND', 'Product variant not found');
+      if (req.valid.body.status === 'ACTIVE' && !current.group_id) {
+        throw new AppError(422, 'GROUP_REQUIRED', 'Classify this product into a group before approving it');
+      }
+      await pool.query('UPDATE product_variants SET status = $2 WHERE id = $1', [current.id, req.valid.body.status]);
+      res.json(toVariant(await findVariant(pool, 'v.id = $1', [current.id])));
+    },
+  );
+
+  // Admin review and enrichment of a product's metadata, e.g. one discovered on another
+  // platform: fix its name, brand or size, add a barcode, and classify it into a group.
+  // The identity key is recomputed so later seller proposals of the same product match it.
+  router.patch(
+    '/catalog/variants/:variantId',
+    auth,
+    requirePlatformAdmin,
+    validate({ params: idParams('variantId'), body: variantEditBody }),
+    async (req, res) => {
+      const updated = await withTransaction(pool, async (client) => {
+        const before = await findVariant(client, 'v.id = $1 FOR UPDATE OF v', [req.valid.params.variantId]);
+        if (!before) throw notFound('VARIANT_NOT_FOUND', 'Product variant not found');
+        const next = {
+          groupId: req.valid.body.groupId ?? before.group_id,
+          brand: req.valid.body.brand === undefined ? before.brand : req.valid.body.brand,
+          name: req.valid.body.name ?? before.name,
+          attributes: req.valid.body.attributes ?? before.attributes,
+          barcode: req.valid.body.barcode === undefined ? before.barcode : req.valid.body.barcode,
+        };
+        if (next.groupId) {
+          const { rowCount } = await client.query('SELECT 1 FROM product_groups WHERE id = $1', [next.groupId]);
+          if (!rowCount) throw notFound('GROUP_NOT_FOUND', 'Product group not found');
+        }
+        const pack = packSizeFromAttributes(next.attributes);
+        await client.query(
+          `UPDATE product_variants
+              SET group_id = $2, brand = $3, name = $4, attributes = $5, barcode = $6, normalized_key = $7,
+                  pack_quantity = $8, pack_unit = $9, pack_count = $10
+            WHERE id = $1`,
+          [before.id, next.groupId, next.brand, next.name, JSON.stringify(next.attributes), next.barcode, variantKey(next), pack?.quantity ?? null, pack?.unit ?? null, pack?.count ?? null],
+        );
+        await writeAudit(client, {
+          actorUserId: req.user.id,
+          action: 'variant.edited',
+          entityType: 'product_variant',
+          entityId: before.id,
+          before: toVariant(before),
+          after: next,
+          sourceOfChange: 'ADMIN',
+        });
+        return findVariant(client, 'v.id = $1', [before.id]);
+      });
+      res.json(toVariant(updated));
     },
   );
 

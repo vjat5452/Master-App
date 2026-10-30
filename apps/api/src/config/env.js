@@ -1,3 +1,5 @@
+import { parseFreshnessConfig } from '@localstock/external-data';
+import { parseRankingWeights } from '../modules/discovery/ranking.js';
 import { z } from 'zod';
 
 const schema = z.object({
@@ -12,11 +14,47 @@ const schema = z.object({
   RESERVATION_TTL_SECONDS: z.coerce.number().int().positive().default(600),
   MAX_CANDIDATE_RADIUS_KM: z.coerce.number().positive().default(50),
   PAYMENT_WEBHOOK_SECRET: z.string().min(16),
+  // Upper bound for a whole /discovery/compare request; slower sources are reported as TIMEOUT.
+  COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
+  // Bearer token for GET /metrics. Without it, /metrics only answers outside production.
+  METRICS_TOKEN: z.string().min(16).optional(),
+  // Sandbox "pay" button for a public demo running with NODE_ENV=production. Off by default;
+  // outside production the sandbox is always available.
+  ENABLE_SANDBOX_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Number of reverse proxies in front of the API whose X-Forwarded-For entries are trusted
+  // (0 = none; 2 for Vercel -> Render). A request sent straight to the API, bypassing
+  // them, can then choose the address it is rate-limited under.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
+  // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
+  COMPARE_RANKING_WEIGHTS: z
+    .string()
+    .optional()
+    .transform((text, ctx) => {
+      try {
+        return parseRankingWeights(text);
+      } catch (err) {
+        ctx.addIssue({ code: 'custom', message: err.message });
+        return z.NEVER;
+      }
+    }),
+  // Per-source freshness overrides (JSON); see @localstock/external-data freshness.js.
+  EXTERNAL_FRESHNESS: z
+    .string()
+    .optional()
+    .transform((text, ctx) => {
+      try {
+        return parseFreshnessConfig(text);
+      } catch (err) {
+        ctx.addIssue({ code: 'custom', message: err.message });
+        return z.NEVER;
+      }
+    }),
 });
 
 // Fail fast at startup rather than on the first request that needs a missing setting.
 export function loadConfig(env = process.env) {
-  const result = schema.safeParse(env);
+  // Hosting platforms (Railway, Render, Fly) assign the port through PORT.
+  const result = schema.safeParse(env.API_PORT === undefined && env.PORT !== undefined ? { ...env, API_PORT: env.PORT } : env);
   if (!result.success) {
     const problems = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${problems}`);

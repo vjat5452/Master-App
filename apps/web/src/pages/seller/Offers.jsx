@@ -52,6 +52,7 @@ export default function Offers({ companyId, canManage }) {
               <TableHead>Product</TableHead>
               <TableHead>Your SKU</TableHead>
               <TableHead className="text-right">Price</TableHead>
+              <TableHead className="text-right">MRP</TableHead>
               <TableHead>Status</TableHead>
               <TableHead>Id</TableHead>
               <TableHead />
@@ -75,6 +76,7 @@ export default function Offers({ companyId, canManage }) {
                   <span className="rounded-md border bg-muted/50 px-1.5 py-0.5 font-mono text-xs">{o.sellerSku}</span>
                 </TableCell>
                 <TableCell className="num text-right text-base font-extrabold">{money(o.priceMinor)}</TableCell>
+                <TableCell className="num text-right text-sm text-muted-foreground">{o.mrpMinor != null ? money(o.mrpMinor) : '—'}</TableCell>
                 <TableCell>
                   <Badge status={o.status} dot />
                 </TableCell>
@@ -104,9 +106,15 @@ function CreateOffer({ companyId, onClose, onDone }) {
   const [variant, setVariant] = useState(null);
   const [sku, setSku] = useState('');
   const [price, setPrice] = useState('');
+  const [mrp, setMrp] = useState('');
   const submit = useSubmit(async (e) => {
     e.preventDefault();
-    const o = await post(`/companies/${companyId}/offers`, { variantId: variant.variantId, sellerSku: sku, priceMinor: toMinor(price) });
+    const o = await post(`/companies/${companyId}/offers`, {
+      variantId: variant.variantId,
+      sellerSku: sku,
+      priceMinor: toMinor(price),
+      ...(mrp.trim() ? { mrpMinor: toMinor(mrp) } : {}),
+    });
     toast(`Listed ${o.variantName} at ${money(o.priceMinor)}`);
     onDone();
     onClose();
@@ -139,6 +147,9 @@ function CreateOffer({ companyId, onClose, onDone }) {
             <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
           </Field>
         </div>
+        <Field label="MRP (₹)" hint="Optional. Your price may not be above the MRP.">
+          <Input type="number" min={0} step="0.01" value={mrp} onChange={(e) => setMrp(e.target.value)} />
+        </Field>
         <ErrorBox error={submit.error} />
       </form>
     </Modal>
@@ -148,11 +159,15 @@ function CreateOffer({ companyId, onClose, onDone }) {
 function EditOffer({ companyId, offer, onClose, onDone }) {
   const toast = useToast();
   const [price, setPrice] = useState(String(offer.priceMinor / 100));
+  const [mrp, setMrp] = useState(offer.mrpMinor != null ? String(offer.mrpMinor / 100) : '');
   const [status, setStatus] = useState(offer.status);
   const submit = useSubmit(async (e) => {
     e.preventDefault();
     const body = {};
     if (toMinor(price) !== offer.priceMinor) body.priceMinor = toMinor(price);
+    // Empty clears the MRP.
+    const nextMrp = mrp.trim() ? toMinor(mrp) : null;
+    if (nextMrp !== (offer.mrpMinor ?? null)) body.mrpMinor = nextMrp;
     if (status !== offer.status) body.status = status;
     if (!Object.keys(body).length) return onClose();
     await patch(`/companies/${companyId}/offers/${offer.id}`, body);
@@ -176,9 +191,14 @@ function EditOffer({ companyId, offer, onClose, onDone }) {
       }
     >
       <form id="offer-edit" className="grid gap-4" onSubmit={submit.run}>
-        <Field label="Price (₹)">
-          <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
-        </Field>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Field label="Price (₹)">
+            <Input type="number" min={0} step="0.01" value={price} onChange={(e) => setPrice(e.target.value)} required />
+          </Field>
+          <Field label="MRP (₹)" hint="Leave empty for no MRP">
+            <Input type="number" min={0} step="0.01" value={mrp} onChange={(e) => setMrp(e.target.value)} />
+          </Field>
+        </div>
         <Field label="Status" hint="Paused offers are hidden from customers. Archived offers are retired.">
           <Segmented
             value={status}

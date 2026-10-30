@@ -1,0 +1,54 @@
+# The application itself, from the Dockerfiles, on top of docker-compose.yml (infrastructure):
+#   docker compose -f docker-compose.yml -f docker-compose.app.yml up -d --build
+# Website: http://localhost:8080. Migrations run once (service "migrate") before the API
+# and worker start. Secrets come from .env; service URLs point at the compose services.
+x-app-env: &app-env
+  env_file: .env
+  environment:
+    NODE_ENV: production
+    DATABASE_URL: postgres://localstock:localstock_dev_password@postgres:5432/localstock
+    REDIS_URL: redis://redis:6379
+    RABBITMQ_URL: amqp://localstock:localstock_dev_password@rabbitmq:5672
+
+services:
+  migrate:
+    build: { context: ., dockerfile: apps/api/Dockerfile }
+    image: localstock-api
+    <<: *app-env
+    command: ["node", "packages/database/src/cli/migrate.js"]
+    depends_on:
+      postgres: { condition: service_healthy }
+    restart: "no"
+
+  api:
+    image: localstock-api
+    <<: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  worker:
+    build: { context: ., dockerfile: apps/worker/Dockerfile }
+    image: localstock-worker
+    <<: *app-env
+    depends_on:
+      migrate: { condition: service_completed_successfully }
+      rabbitmq: { condition: service_healthy }
+      redis: { condition: service_healthy }
+    restart: unless-stopped
+
+  web:
+    build:
+      context: .
+      dockerfile: apps/web/Dockerfile
+      args:
+        VITE_DEMO_NOTICE: "on"
+    image: localstock-web
+    environment:
+      API_UPSTREAM: http://api:5000
+    ports:
+      - "8080:8080"
+    depends_on:
+      api: { condition: service_healthy }
+    restart: unless-stopped

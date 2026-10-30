@@ -142,6 +142,66 @@ test('search rejects a malformed category slug', async () => {
   assert.equal(res.status, 400);
 });
 
+test('admin vendor and store controls need the platform admin role', async () => {
+  const { app, queries } = makeApp();
+  const company = '6f1c1d2e-0000-4000-8000-000000000002';
+  for (const [method, path, body] of [
+    ['get', '/api/v1/admin/companies'],
+    ['patch', `/api/v1/admin/companies/${company}/status`, { status: 'SUSPENDED' }],
+    ['patch', '/api/v1/admin/warehouses/6f1c1d2e-0000-4000-8000-000000000004/status', { status: 'INACTIVE' }],
+  ]) {
+    const anonymous = await request(app)[method](path).send(body);
+    assert.equal(anonymous.status, 401, path);
+    const seller = await request(app)[method](path).set('authorization', `Bearer ${token()}`).send(body);
+    assert.equal(seller.status, 403, path);
+  }
+  assert.equal(queries.length, 0);
+});
+
+test('admin status changes validate the status value', async () => {
+  const { app } = makeApp();
+  const res = await request(app)
+    .patch('/api/v1/admin/companies/6f1c1d2e-0000-4000-8000-000000000002/status')
+    .set('authorization', `Bearer ${token(undefined, 'ADMIN')}`)
+    .send({ status: 'DELETED' });
+  assert.equal(res.status, 400);
+  assert.equal(res.body.error.code, 'VALIDATION_FAILED');
+});
+
+test('catalogue import requires authentication', async () => {
+  const { app } = makeApp();
+  const res = await request(app)
+    .post('/api/v1/companies/6f1c1d2e-0000-4000-8000-000000000002/catalogue-imports')
+    .set('content-type', 'text/csv')
+    .send('sku,barcode,price\nA,8901063010116,10\n');
+  assert.equal(res.status, 401);
+});
+
+test('metrics count requests by route pattern, never raw URLs', async () => {
+  const { app } = makeApp();
+  await request(app).get('/api/v1/catalog/variants/6f1c1d2e-0000-4000-8000-000000000009');
+  await request(app).get('/api/v1/nope/12345');
+  const res = await request(app).get('/metrics');
+  assert.equal(res.status, 200);
+  assert.match(res.headers['content-type'], /text\/plain; version=0.0.4/);
+  assert.match(res.text, /localstock_http_requests_total\{method="GET",route="\/api\/v1\/catalog\/variants\/:variantId",status="404"\} 1/);
+  assert.match(res.text, /localstock_http_requests_total\{method="GET",route="unmatched",status="404"\} 1/);
+  assert.doesNotMatch(res.text, /6f1c1d2e|12345/);
+  assert.match(res.text, /localstock_change_feed_subscribers 0/);
+});
+
+test('metrics are hidden in production unless the token is sent', async () => {
+  const base = { ...config, NODE_ENV: 'production' };
+  const pool = { query: async () => ({ rows: [], rowCount: 0 }) };
+  const redis = { ping: async () => 'PONG', get: async () => null, set: async () => 'OK', incr: async () => 1, expire: async () => 1 };
+  const deps = { logger: createLogger({ level: 'silent' }), pool, redis, state: { shuttingDown: false } };
+  const closed = createApp({ ...deps, config: base });
+  assert.equal((await request(closed).get('/metrics')).status, 404);
+  const tokened = createApp({ ...deps, config: { ...base, METRICS_TOKEN: 'metrics-token-0123456789' } });
+  assert.equal((await request(tokened).get('/metrics')).status, 404);
+  assert.equal((await request(tokened).get('/metrics').set('authorization', 'Bearer metrics-token-0123456789')).status, 200);
+});
+
 test('unknown routes return a JSON 404', async () => {
   const { app } = makeApp();
   const res = await request(app).get('/api/v1/nope');
