@@ -36,6 +36,9 @@ export function createApp(inputDeps) {
   };
   const app = express();
   app.disable('x-powered-by');
+  // Behind proxies (e.g. Vercel -> Render), take the client address from X-Forwarded-For so
+  // rate limits are per visitor rather than shared by everyone behind the proxy.
+  if (deps.config.TRUST_PROXY) app.set('trust proxy', deps.config.TRUST_PROXY);
   // Closed on shutdown so open event streams do not hold the server open.
   app.locals.changeFeed = deps.changeFeed;
   deps.metrics.registry.gauge('change_feed_subscribers', 'Open /discovery/stream connections', () => deps.changeFeed.size());

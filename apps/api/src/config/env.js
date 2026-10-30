@@ -21,6 +21,10 @@ const schema = z.object({
   // Sandbox "pay" button for a public demo running with NODE_ENV=production. Off by default;
   // outside production the sandbox is always available.
   ENABLE_SANDBOX_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Number of reverse proxies in front of the API whose X-Forwarded-For entries are trusted
+  // (0 = none; 2 for Vercel -> Render). A request sent straight to the API, bypassing
+  // them, can then choose the address it is rate-limited under.
+  TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
   COMPARE_RANKING_WEIGHTS: z
     .string()

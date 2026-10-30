@@ -1,4 +1,5 @@
-// Release step for hosted deployments (Railway pre-deploy command):
+// Release step for hosted deployments (Railway pre-deploy command; deploy/all-in-one.mjs
+// imports it at start on Render's free plan):
 //   1. apply pending migrations;
 //   2. with SEED_DEMO_DATA=true, load the demo sellers, stores and catalogue. The seed
 //      scripts skip data that is already there, so this is safe on every deploy.
