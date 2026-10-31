@@ -1,10 +1,5 @@
-// Deletes data that is no longer needed, in small batches so it never holds long locks:
-//   - external observations, change events, collection runs and finished jobs older than
-//     EXTERNAL_RETENTION_DAYS (listings and product mappings are kept);
-//   - published outbox events and processed inbox records older than EVENT_RETENTION_DAYS.
-// Order matters because of foreign keys: change events before the outbox rows they point
-// to, availability before serviceability observations, observations before runs, runs
-// before jobs.
+// Deletes in small batches to avoid long locks; table order follows foreign keys.
+// Listings and product mappings are never deleted.
 
 const BATCH = 5000;
 
@@ -43,10 +38,6 @@ const STEPS = [
   { table: 'inbox_events', where: 'processed_at < now() - make_interval(days => $1)', days: 'events' },
 ];
 
-/**
- * @param {{ pool, logger, externalDays: number, eventDays: number, batch?: number }} deps
- * @returns {() => Promise<Record<string, number>>} rows deleted per table
- */
 export function createRetentionJob({ pool, logger, externalDays, eventDays, batch = BATCH }) {
   return async function applyRetention() {
     const deleted = {};

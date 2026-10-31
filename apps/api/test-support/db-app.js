@@ -1,5 +1,4 @@
-// Builds the real API against the isolated *_test database (see
-// @localstock/database/test-support) for DB-backed HTTP tests. Redis is an in-memory stand-in.
+// The real API on the isolated *_test database; Redis is an in-memory stand-in.
 import { randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config as loadDotenv } from 'dotenv';
@@ -33,10 +32,7 @@ function memoryRedis() {
   };
 }
 
-/**
- * @param {{ connectors?: object, changeFeed?: (pool) => object }} [opts]
- *   connectors: external source registry (default: all disabled); changeFeed: factory
- */
+// connectors defaults to every source disabled; changeFeed is a factory taking the pool.
 export async function createTestApi({ connectors, changeFeed } = {}) {
   const pool = await prepareTestDatabase({ max: 10 });
   const config = loadConfig({

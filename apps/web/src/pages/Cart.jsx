@@ -45,8 +45,7 @@ export default function Cart() {
   const idem = useRef({ for: null, key: null });
   if (idem.current.for !== bodyKey) idem.current = { for: bodyKey, key: newIdempotencyKey() };
 
-  // Signed-in shoppers get a live bill: re-quote (debounced) whenever the cart or preferences change,
-  // and drop any response that arrives for a cart that has since changed.
+  // Drop quote responses for a cart that has since changed.
   const latest = useRef(bodyKey);
   latest.current = bodyKey;
   const quoting = useSubmit(async () => {

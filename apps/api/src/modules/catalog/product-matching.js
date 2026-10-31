@@ -1,6 +1,4 @@
-// Product identity rules. A variant is a specific sellable item: "400 g" and "700 g" packs of the
-// same bread are different variants. Exact barcode matches are deterministic; fuzzy name matches
-// never merge silently, they only flag the new variant for review.
+// Barcode matches are deterministic; fuzzy name matches never merge, they only flag for review.
 
 import { normalizeText } from '@localstock/database';
 

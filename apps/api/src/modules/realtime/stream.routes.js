@@ -19,11 +19,7 @@ const streamQuery = z
   })
   .refine((q) => q.variantIds || q.cell, 'Subscribe by variantIds and/or cell');
 
-/**
- * GET /discovery/stream: server-sent events with external price, availability,
- * serviceability and source-health changes that LocalStock has detected and stored.
- * Authenticated; at most a few streams per user.
- */
+// Authenticated; at most a few streams per user.
 export function createStreamRouter({ config, changeFeed }) {
   const router = Router();
 

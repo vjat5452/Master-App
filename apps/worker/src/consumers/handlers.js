@@ -11,8 +11,7 @@ const CUSTOMER_TEMPLATES = {
   PaymentRefundRequested: 'refund-initiated',
 };
 
-// Notifications are simulated: log what would be sent. Swap in an email/SMS provider here;
-// the provider gets the address, the log only gets the customer id.
+// Simulated delivery; logs the customer id only, never contact details.
 export async function handleNotification(event, { client, logger }) {
   const template = CUSTOMER_TEMPLATES[event.type];
   if (!template) return;
@@ -21,8 +20,7 @@ export async function handleNotification(event, { client, logger }) {
   logger.info('notification sent (simulated)', { customerId: rows[0].customer_id, template, orderId: event.aggregateId });
 }
 
-// A changed external price, availability or serviceability makes cached comparison answers
-// of that source in that cell out of date; drop them so the next comparison asks again.
+// Drop cached comparisons for this source and cell so the next request refetches.
 export function createExternalChangeHandler(redis) {
   return async function handleExternalChange(event, { logger }) {
     const { sourceCode, cell } = event.payload ?? {};
@@ -32,7 +30,7 @@ export function createExternalChangeHandler(redis) {
   };
 }
 
-// Invalidate cached search results by bumping the version embedded in every cache key.
+// Bumping the version embedded in every search cache key invalidates them all.
 export function createSearchProjectionHandler(redis) {
   return async function handleSearchProjection() {
     await redis.incr(SEARCH_VERSION_KEY);

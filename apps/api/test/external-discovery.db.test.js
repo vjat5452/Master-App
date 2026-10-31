@@ -1,6 +1,4 @@
 // Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
-// Products that no LocalStock seller lists, found on other platforms (brief scenarios B and D),
-// with two test sources standing in for two platforms. No real platform data is involved.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -87,7 +85,7 @@ test('scenario B: a product no LocalStock seller lists is still found, once, fro
   assert.equal(r.b70.canonicalProductId, r.a70.canonicalProductId, 'the same 70 g product from two platforms is one product');
   assert.equal(r.bgtin.canonicalProductId, r.agtin.canonicalProductId, 'same GTIN, different titles: one product');
 
-  // Scenario C on the way: a failing platform does not stop the others.
+  // A failing platform does not stop the others.
   assert.equal(body.sources.find((s) => s.sourceId === down.code).status, 'FAILED');
 
   const product = await http().get(`/api/v1/catalog/variants/${r.a70.canonicalProductId}`);

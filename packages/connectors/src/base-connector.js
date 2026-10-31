@@ -13,30 +13,9 @@ import { createResiliencePolicy } from './resilience.js';
 
 const noopLogger = { debug() {}, info() {}, warn() {}, error() {} };
 
-/**
- * Base class for every external source. Subclasses implement the `do*` hooks they support;
- * the public methods add the shared rules:
- * - an unconfigured source fails with SOURCE_NOT_CONFIGURED before doing anything;
- * - an operation whose capability is not SUPPORTED fails with UNSUPPORTED (no guessing);
- * - every call runs under the source's resilience policy (timeout, rate limit, retry,
- *   circuit breaker, bounded concurrency);
- * - every result is validated against the contract schema (else INVALID_RESPONSE);
- * - logs carry source, operation, outcome, duration and request id, never the query
- *   location, credentials or payloads.
- */
+// Subclasses implement the `do*` hooks; only SUPPORTED capabilities are ever called, and
+// logs never include the query location, credentials or payloads.
 export class BaseConnector {
-  /**
-   * @param {object} opts
-   * @param {string} opts.code source code, e.g. "demo-quick-commerce-fixture"
-   * @param {string} opts.platformCode e.g. "blinkit"
-   * @param {string} opts.name display name
-   * @param {string} opts.accessType one of ACCESS_TYPES
-   * @param {Record<string, 'SUPPORTED'|'UNSUPPORTED'|'UNKNOWN'>} [opts.capabilities]
-   * @param {boolean} [opts.isDemo]
-   * @param {object} [opts.policy] resilience options (see createResiliencePolicy)
-   * @param {object} [opts.logger]
-   * @param {() => number} [opts.now]
-   */
   constructor({ code, platformCode, name, accessType, capabilities = {}, isDemo = false, policy = {}, logger = noopLogger, now = Date.now }) {
     this.code = code;
     this.platformCode = platformCode;
@@ -68,7 +47,6 @@ export class BaseConnector {
     };
   }
 
-  /** @returns {{ ok: true } | { ok: false, missing: string[], reason: string }} */
   validateConfiguration() {
     return { ok: true };
   }
@@ -92,12 +70,10 @@ export class BaseConnector {
       this.doGetProductDetails(externalListingId, loc, signal), location);
   }
 
-  /** A fresh observation of one listing, with its price. */
   getPrice(externalListingId, location, options = {}) {
     return this.invoke('price', 'getPrice', options, listingSchema.nullable(), (loc, signal) => this.doGetPrice(externalListingId, loc, signal), location);
   }
 
-  /** A fresh observation of one listing, with its availability. */
   getAvailability(externalListingId, location, options = {}) {
     return this.invoke('availability', 'getAvailability', options, listingSchema.nullable(), (loc, signal) =>
       this.doGetAvailability(externalListingId, loc, signal), location);
@@ -113,14 +89,11 @@ export class BaseConnector {
       this.doGetFulfillmentInfo(loc, productContext, signal), location);
   }
 
-  /** Turns one raw source record into a contract listing. Sources override this. */
   normalizeResponse() {
     throw new ConnectorError(ERROR_CODES.UNSUPPORTED, 'this source has no response normalizer', { source: this.code });
   }
 
   async close() {}
-
-  // ---------------------------------------------------------------- internals
 
   isoNow() {
     return new Date(this.now()).toISOString();

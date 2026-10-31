@@ -9,8 +9,7 @@ if (!process.env.DATABASE_URL) {
   process.exit(1);
 }
 
-// `node migrate.js` applies pending migrations; `node migrate.js down [steps]` reverts the
-// newest applied ones (default 1).
+// Usage: migrate.js applies pending migrations; migrate.js down [steps] reverts the newest (default 1).
 const [command, stepsArg] = process.argv.slice(2);
 if (command && command !== 'down') {
   console.error(`Unknown command "${command}". Usage: migrate.js [down [steps]]`);

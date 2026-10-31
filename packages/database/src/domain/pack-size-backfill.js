@@ -1,10 +1,6 @@
 import { packSizeFromAttributes } from './pack-size.js';
 
-/**
- * Fills product_variants.pack_* from `attributes`. By default only rows not parsed yet;
- * with `all` it recomputes every row (and clears sizes that no longer parse).
- * Returns { scanned, parsed, unparsed }.
- */
+// `all` recomputes every row, clearing sizes that no longer parse.
 export async function backfillPackSizes(pool, { all = false } = {}) {
   const client = await pool.connect();
   try {

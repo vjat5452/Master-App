@@ -1,5 +1,4 @@
-// API metrics. Route labels are Express route patterns (e.g. /api/v1/orders/:orderId), never
-// raw URLs, so ids and query strings cannot explode the number of series.
+// Route labels are Express patterns, never raw URLs, so ids cannot explode the series count.
 import { createRegistry, metricsAccess } from '@localstock/metrics';
 
 export function createApiMetrics() {
@@ -10,10 +9,7 @@ export function createApiMetrics() {
   return { registry, requests, duration, compareSources };
 }
 
-/**
- * Records every request once it finishes. Express has reset req.baseUrl by then, so the
- * /api/v1 mount (the only router mount) is restored from the URL.
- */
+// req.baseUrl is reset by the time a request finishes, so the /api/v1 mount is restored from the URL.
 export function metricsMiddleware(metrics) {
   return (req, res, next) => {
     const start = process.hrtime.bigint();

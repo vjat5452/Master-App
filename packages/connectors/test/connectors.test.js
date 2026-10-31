@@ -23,7 +23,7 @@ const clock = { now: () => FIXED_NOW };
 
 const rejectsWith = (promise, code) => assert.rejects(promise, (err) => err instanceof ConnectorError && err.code === code);
 
-// ---------------------------------------------------------------- registry and platforms
+// Registry and platforms
 
 test('by default every platform is present, disabled and returns no data', async () => {
   const registry = buildConnectorRegistry({ env: {}, ...clock });
@@ -71,7 +71,7 @@ test('platform search links point at each platform own search page, encoded', ()
   assert.deepEqual(links.filter((l) => !l.verified).map((l) => l.platformCode), ['blinkit', 'instamart']);
 });
 
-// ---------------------------------------------------------------- demo fixture
+// Demo fixture
 
 test('the demo source is opt-in, fictional and labelled as demo', () => {
   const registry = buildConnectorRegistry({ env: { DEMO_EXTERNAL_FIXTURES: 'true' }, ...clock });
@@ -124,7 +124,7 @@ test('connectors reject bad input before calling anything', async () => {
   await assert.rejects(demo.searchProducts('milk', { lat: 200, lng: 0 }), TypeError);
 });
 
-// ---------------------------------------------------------------- licensed provider
+// Licensed provider
 
 const MAPPING = {
   provider: 'Example Provider',

@@ -1,7 +1,5 @@
-// Generic adapter for a contracted data provider (a licensed feed/API with display rights).
-// Nothing about the provider is hard-coded: its endpoints, auth header and field names come
-// from a mapping file written from the provider's own documentation, and its key comes from
-// the environment. Disabled unless every piece is present.
+// Adapter for a contracted provider with display rights; endpoints and fields come from a
+// mapping file, and it stays disabled unless mapping, URL and key are all present.
 import { readFileSync } from 'node:fs';
 import { z } from 'zod';
 import { BaseConnector } from './base-connector.js';
@@ -12,9 +10,8 @@ const fieldSpec = z.union([
   z.object({
     path: z.string().min(1).optional(),
     const: z.union([z.string(), z.number(), z.boolean(), z.null()]).optional(),
-    // Money: "rupees" (decimal) or "paise" (integer minor units).
     unit: z.enum(['rupees', 'paise']).optional(),
-    // Enum translation, e.g. {"in_stock": "IN_STOCK"}. Unmapped values become the default.
+    // Unmapped values become the default.
     map: z.record(z.string(), z.string()).optional(),
     default: z.union([z.string(), z.number(), z.null()]).optional(),
   }),
@@ -32,7 +29,7 @@ const operationSchema = z.object({
 
 export const mappingSchema = z.object({
   provider: z.string().min(1),
-  // Contract reference, so it is clear what grants the right to use the data.
+  // The contract that grants the right to use the data.
   agreementReference: z.string().min(1),
   auth: z.object({ header: z.string().regex(/^[A-Za-z0-9-]+$/), prefix: z.string().default('') }),
   rateLimit: z.object({ ratePerSecond: z.number().positive(), burst: z.number().int().positive().optional() }),
@@ -72,7 +69,6 @@ export const mappingSchema = z.object({
   }),
 });
 
-/** Reads a dotted path ("a.b.0.c") from an object. */
 export function readPath(obj, path) {
   return path.split('.').reduce((v, key) => (v == null ? undefined : v[key]), obj);
 }
@@ -119,12 +115,6 @@ export function licensedProviderConfig(env) {
 }
 
 export class LicensedProviderConnector extends BaseConnector {
-  /**
-   * @param {object} opts
-   * @param {string} opts.platformCode the platform this source reports on
-   * @param {{ code, name, baseUrl, apiKey, mapping?, mappingFile? }} opts.provider
-   * @param {typeof fetch} [opts.fetchImpl]
-   */
   constructor({ platformCode, provider, fetchImpl = globalThis.fetch, policy = {}, ...opts }) {
     const problems = [];
     let mapping = null;
@@ -290,8 +280,7 @@ export class LicensedProviderConnector extends BaseConnector {
     return this.normalizeResponse(op.itemPath ? readPath(json, op.itemPath) : json);
   }
 
-  // Price and availability come from the details operation when the provider has no
-  // separate endpoints.
+  // The details operation also carries price and availability.
   doGetPrice(listingId, location, signal) {
     return this.doGetProductDetails(listingId, location, signal);
   }

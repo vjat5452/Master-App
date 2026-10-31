@@ -8,11 +8,8 @@ import { idParams, validate } from '../../shared/validate.js';
 import { registerMappingReviewRoutes } from './mapping-review.routes.js';
 import { registerSourceRoutes } from './sources.routes.js';
 
-// Platform admins approve (ACTIVE) or disable vendors and stores. A suspended company drops
-// out of search and checkout, and its members lose access to its seller routes; an inactive
-// warehouse drops out of search and allocation. Existing orders and reservations are not
-// touched. Every change is audited with source_of_change = ADMIN and emits an event so the
-// search cache is invalidated.
+// Suspending a company or warehouse removes it from search and checkout; existing orders and
+// reservations are untouched. Each change emits an event so the search cache is invalidated.
 
 const listQuery = z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']).optional() });
 const companyStatusBody = z.object({ status: z.enum(['ACTIVE', 'SUSPENDED']), reason: z.string().trim().max(500).optional() });

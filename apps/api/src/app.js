@@ -23,10 +23,7 @@ import { createStreamRouter } from './modules/realtime/stream.routes.js';
 import { createWarehousesRouter } from './modules/warehouses/warehouses.routes.js';
 import { AppError } from './shared/errors.js';
 
-/**
- * @param {{config, logger, pool, redis, state: {shuttingDown: boolean}, connectors?}} deps
- *   connectors: external source registry; defaults to every source disabled.
- */
+// deps.connectors defaults to every external source disabled.
 export function createApp(inputDeps) {
   const deps = {
     ...inputDeps,
@@ -36,8 +33,7 @@ export function createApp(inputDeps) {
   };
   const app = express();
   app.disable('x-powered-by');
-  // Behind proxies (e.g. Vercel -> Render), take the client address from X-Forwarded-For so
-  // rate limits are per visitor rather than shared by everyone behind the proxy.
+  // Trust X-Forwarded-For from known proxies so rate limits are per visitor, not per proxy.
   if (deps.config.TRUST_PROXY) app.set('trust proxy', deps.config.TRUST_PROXY);
   // Closed on shutdown so open event streams do not hold the server open.
   app.locals.changeFeed = deps.changeFeed;

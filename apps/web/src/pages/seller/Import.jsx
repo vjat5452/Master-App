@@ -1,5 +1,4 @@
-// Catalogue and stock import from CSV: check the file first (nothing is saved), then import
-// it in one go. Any error means nothing is imported.
+// Imports are all-or-nothing: any error means nothing is saved.
 import { useState } from 'react';
 import { Download, FileCheck2, FileUp, Upload, XCircle } from 'lucide-react';
 import { Alert, Badge, Button, Empty, ErrorBox, Panel, useSubmit } from '@/components/kit';

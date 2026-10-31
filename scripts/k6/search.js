@@ -1,4 +1,4 @@
-// k6 run scripts/k6/search.js   (publish dataset shape and hardware with any results)
+// Usage: BASE_URL=http://localhost:5000 k6 run scripts/k6/search.js
 import http from 'k6/http';
 import { check, sleep } from 'k6';
 

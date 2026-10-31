@@ -6,7 +6,6 @@ import { attrs, distance, minutes, money, price } from '@/lib/format';
 import { useCart } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
-// Category artwork: a gradient tile with an icon, so every product has a consistent, polished visual.
 const ART = [
   [/bread|bakery|bun|cake|croissant/i, Croissant, 'from-amber-200 via-orange-200 to-rose-200 text-amber-800 dark:from-amber-500/30 dark:via-orange-500/20 dark:to-rose-500/20 dark:text-amber-200'],
   [/milk|dairy|curd|paneer|cheese/i, Milk, 'from-sky-100 via-blue-100 to-indigo-200 text-sky-800 dark:from-sky-500/25 dark:via-blue-500/20 dark:to-indigo-500/25 dark:text-sky-200'],
@@ -22,7 +21,7 @@ const FALLBACK = [null, Package, 'from-emerald-100 via-teal-100 to-cyan-100 text
 
 export const artFor = (...names) => ART.find(([re]) => names.some((n) => re.test(n ?? ''))) ?? FALLBACK;
 
-/** Product photo when one exists; otherwise (or if it fails to load) category gradient art. */
+/** Falls back to category art when there is no photo or it fails to load. */
 export function ProductArt({ names, src, size = 'md', label, className }) {
   const [failed, setFailed] = useState(false);
   const [, Icon, gradient] = artFor(...names);
@@ -124,7 +123,6 @@ export function summarize(item) {
   return { from, stock, eta };
 }
 
-/** Quick-commerce ADD control: an outlined button that becomes a −/+ stepper bound to the cart. */
 export function AddButton({ item, className, size = 'sm' }) {
   const cart = useCart();
   const { from, stock } = summarize(item);
@@ -165,7 +163,7 @@ export function AddButton({ item, className, size = 'sm' }) {
   );
 }
 
-/** Solid green −/+ stepper; going below 1 calls onChange(0), which the cart treats as remove. */
+/** Going below 1 calls onChange(0), which the cart treats as remove. */
 export function QtyStepper({ value, onChange, max = 100, big = false, className }) {
   return (
     <div className={cn('flex items-center justify-between rounded-lg bg-primary text-primary-foreground shadow-glow', big ? 'h-11 w-36' : 'h-9 w-[76px]', className)}>
@@ -188,7 +186,6 @@ export function QtyStepper({ value, onChange, max = 100, big = false, className 
   );
 }
 
-/** Compact shelf card: photo, ETA chip, name, pack size, price and ADD. */
 export function QuickCard({ item, className }) {
   const { from, eta } = summarize(item);
   const pack = primaryAttr(item.attributes);

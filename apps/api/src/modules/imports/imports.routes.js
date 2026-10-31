@@ -19,9 +19,7 @@ class InvalidImport extends Error {
   }
 }
 
-// POST /companies/:companyId/catalogue-imports?dryRun=true with a text/csv body.
-// A dry run reports what would change (and any errors) without writing anything. A real
-// run applies everything in one transaction or nothing at all.
+// dryRun=true reports changes and errors without writing; a real run is all or nothing.
 export function createImportsRouter({ pool, config, redis, logger }) {
   const router = Router();
   const limiter = rateLimit(redis, logger, { keyPrefix: 'catalogue-import', limit: 20, windowSeconds: 60 });

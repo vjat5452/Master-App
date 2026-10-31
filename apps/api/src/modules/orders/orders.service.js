@@ -99,8 +99,7 @@ export async function loadOrder(db, orderId, customerId = null) {
 }
 
 export function createOrdersService({ pool, config }) {
-  // Everything in one transaction: stock reservation, order, items, shipments, allocations,
-  // reservation records, payment record, outbox event and the idempotency response.
+  // One transaction, including the outbox event and the idempotency response.
   async function persistOrder(client, { userId, input, plan, idempotency }) {
     const orderId = randomUUID();
     const lines = plan.shipments.flatMap((s) => s.lines);

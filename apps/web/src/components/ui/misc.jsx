@@ -1,4 +1,3 @@
-// Small shadcn primitives: switch, checkbox, separator, avatar, skeleton, toggle group, scroll area.
 import { forwardRef } from 'react';
 import * as AvatarPrimitive from '@radix-ui/react-avatar';
 import * as CheckboxPrimitive from '@radix-ui/react-checkbox';

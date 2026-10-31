@@ -1,12 +1,5 @@
-// End-to-end check of every backend endpoint against a running API.
-//
-//   SMOKE_API=http://localhost:5055 SMOKE_DATABASE_URL=postgres://.../localstock_smoke node scripts/smoke-endpoints.mjs
-//
-// It creates all of its own data (admin, seller, customer, catalogue, store, stock,
-// orders) so it must point at a throwaway database: SMOKE_DATABASE_URL is only used to
-// promote the test admin, and must name a database ending in "_smoke". The API should run
-// with DEMO_EXTERNAL_FIXTURES=true so the comparison and matching flows have a source.
-// Exits non-zero if any check fails.
+// Usage: SMOKE_API=http://localhost:5055 SMOKE_DATABASE_URL=postgres://.../localstock_smoke node scripts/smoke-endpoints.mjs
+// Creates its own data, so SMOKE_DATABASE_URL must be a throwaway "*_smoke" database; run the API with DEMO_EXTERNAL_FIXTURES=true.
 import { createHmac, randomUUID } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { config } from 'dotenv';
@@ -43,7 +36,6 @@ async function call(method, path, { token, body, headers = {}, raw } = {}) {
     h['content-type'] ??= 'application/json';
     payload = JSON.stringify(body);
   }
-  // Health and metrics live at the root; everything else under /api/v1.
   const url = /^\/(health|metrics)/.test(path) ? `${BASE}${path}` : `${BASE}/api/v1${path}`;
   const res = await fetch(url, { method, headers: h, body: payload });
   const text = await res.text();
@@ -56,7 +48,6 @@ async function call(method, path, { token, body, headers = {}, raw } = {}) {
   return { status: res.status, data, headers: res.headers };
 }
 
-/** One check: the route (as a pattern), what was tested, the expected status and extra assertions. */
 async function check(route, label, expected, fn, assert = () => true) {
   const [method, pattern] = route.split(' ');
   seen.add(route);
@@ -84,13 +75,9 @@ async function check(route, label, expected, fn, assert = () => true) {
 
 const must = (cond, msg) => (cond ? true : msg);
 
-// ---------------------------------------------------------------- health and metrics
-
 await check('GET /health/live', 'process up', 200, () => call('GET', '/health/live'));
 await check('GET /health/ready', 'Postgres and Redis reachable', 200, () => call('GET', '/health/ready'), (r) => must(r.data.status === 'ready', 'not ready'));
 await check('GET /metrics', 'Prometheus text (non-production)', 200, () => call('GET', '/metrics'), (r) => must(String(r.data).includes('localstock_http_requests_total'), 'no request counter'));
-
-// ---------------------------------------------------------------- auth
 
 const reg = async (name) => {
   const r = await call('POST', '/auth/register', { body: { name, email: `${name.toLowerCase()}-${tag}@smoke.test`, password: PASSWORD } });
@@ -120,8 +107,6 @@ await check('POST /auth/refresh', 'reusing a rotated token is refused', 401, () 
 await check('POST /auth/logout', 'log out', 204, () => call('POST', '/auth/logout', { body: { refreshToken: rotated.data.refreshToken } }));
 await check('GET /users/me', 'current user', 200, () => call('GET', '/users/me', { token: SELLER }), (r) => must(r.data.email === `seller-${tag}@smoke.test`, 'wrong user'));
 await check('GET /users/me', 'no token rejected', 401, () => call('GET', '/users/me'));
-
-// ---------------------------------------------------------------- catalogue (admin)
 
 await check('GET /catalog/categories', 'list categories', 200, () => call('GET', '/catalog/categories'));
 const category = await check('POST /catalog/categories', 'create category (admin)', 201, () =>
@@ -155,8 +140,6 @@ await check('PATCH /catalog/variants/:variantId/status', 'admin archives the dup
   call('PATCH', `/catalog/variants/${similar.variant.id}/status`, { token: ADMIN, body: { status: 'ARCHIVED' } }),
   (r) => must(r.data.status === 'ARCHIVED', 'not archived'),
 );
-
-// ---------------------------------------------------------------- company, members, store, fleet
 
 const company = await check('POST /companies', 'register a company', 201, () =>
   call('POST', '/companies', { token: SELLER, body: { name: `Smoke Mart ${tag}`, vendorType: 'RETAILER', contactPhone: '+91 98100 12345' } }),
@@ -196,8 +179,6 @@ await check('POST /admin/delivery-providers', 'add platform courier (admin)', 20
 );
 await check('GET /delivery/providers', 'list available couriers', 200, () => call('GET', '/delivery/providers', { token: CUSTOMER }));
 
-// ---------------------------------------------------------------- offers, stock, import
-
 const offer = await check('POST /companies/:companyId/offers', 'list a product with MRP', 201, () =>
   call('POST', `/companies/${CO}/offers`, { token: SELLER, body: { variantId: milk.data.variant.id, sellerSku: 'SM-MILK-1L', priceMinor: 5200, mrpMinor: 5600 } }),
 );
@@ -226,8 +207,6 @@ await check('POST /companies/:companyId/catalogue-imports', 'CSV dry run', 200, 
 );
 await check('POST /companies/:companyId/catalogue-imports', 'CSV import', 201, () => csv({ dry: false, text: importText }), (r) => must(r.data.summary.stockChanged === 1, 'stock not set'));
 await check('POST /companies/:companyId/catalogue-imports', 'invalid CSV imports nothing', 422, () => csv({ dry: false, text: 'sku,barcode,price\nX,123,abc\n' }));
-
-// ---------------------------------------------------------------- discovery
 
 await check('GET /catalog/search', 'search finds the offer near the store', 200, () =>
   call('GET', `/catalog/search?q=taaza&lat=${LOC.lat}&lng=${LOC.lng}&radiusKm=10`),
@@ -266,7 +245,7 @@ const cmp = await check('POST /discovery/compare', 'compare local seller and sou
 });
 await check('POST /discovery/compare', 'unknown platform rejected', 400, () => compare('milk', { platforms: ['myntra'] }));
 
-// Listings for review: "Cheese Slices Classic" (ours) vs "Cheese Slices" (demo) -> needs review.
+// Seeds the review queue: "Cheese Slices Classic" vs demo "Cheese Slices" needs review.
 await compare('amul cheese slices');
 await compare('amul buttermilk');
 
@@ -282,8 +261,6 @@ await check('GET /discovery/stream', 'live feed opens (SSE)', 200, async () => s
   must(r.headers.get('content-type').startsWith('text/event-stream') && r.data.includes(': subscribed'), 'not an event stream'),
 );
 await check('GET /discovery/stream', 'filter required', 400, () => call('GET', '/discovery/stream', { token: CUSTOMER }));
-
-// ---------------------------------------------------------------- checkout, orders, payments
 
 const cart = { location: LOC, items: [{ variantId: milk.data.variant.id, quantity: 2 }] };
 await check('POST /checkout/quote', 'quote a cart', 200, () => call('POST', '/checkout/quote', { token: CUSTOMER, body: cart }), (r) => must(r.data.status === 'OK', `quote ${r.data.status}`));
@@ -318,8 +295,6 @@ await check('POST /payments/webhooks/sandbox', 'bad signature rejected', 401, ()
   call('POST', '/payments/webhooks/sandbox', { raw: webhookBody, headers: { 'content-type': 'application/json', 'x-sandbox-signature': 'deadbeef' } }),
 );
 
-// ---------------------------------------------------------------- admin: vendors and stores
-
 await check('GET /admin/companies', 'list vendors', 200, () => call('GET', '/admin/companies', { token: ADMIN }), (r) => must(r.data.items.some((c) => c.id === CO), 'vendor missing'));
 await check('GET /admin/companies', 'non-admin refused', 403, () => call('GET', '/admin/companies', { token: SELLER }));
 await check('PATCH /admin/companies/:companyId/status', 'suspend vendor', 200, () => call('PATCH', `/admin/companies/${CO}/status`, { token: ADMIN, body: { status: 'SUSPENDED', reason: 'smoke test' } }));
@@ -331,8 +306,6 @@ await check('PATCH /admin/companies/:companyId/status', 'restore vendor', 200, (
 await check('GET /admin/companies/:companyId/warehouses', "vendor's stores", 200, () => call('GET', `/admin/companies/${CO}/warehouses`, { token: ADMIN }));
 await check('PATCH /admin/warehouses/:warehouseId/status', 'disable store', 200, () => call('PATCH', `/admin/warehouses/${WH}/status`, { token: ADMIN, body: { status: 'INACTIVE' } }));
 await check('PATCH /admin/warehouses/:warehouseId/status', 'enable store', 200, () => call('PATCH', `/admin/warehouses/${WH}/status`, { token: ADMIN, body: { status: 'ACTIVE' } }));
-
-// ---------------------------------------------------------------- admin: external sources and matching
 
 await check('GET /admin/external-platforms', 'platforms and sources', 200, () => call('GET', '/admin/external-platforms', { token: ADMIN }), (r) => {
   const all = r.data.items.flatMap((p) => p.sources);
@@ -383,8 +356,6 @@ await check('POST /admin/product-mapping/listings/:listingId/manual', 'manual li
 );
 
 await db.end();
-
-// ---------------------------------------------------------------- report
 
 reported = true;
 printReport();

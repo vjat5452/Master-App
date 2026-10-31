@@ -1,12 +1,5 @@
-// Staged warehouse allocation heuristic.
-//
-//   A. whole cart from one warehouse
-//   B. one warehouse per line (no quantity splitting)
-//   C. split a line's quantity across warehouses (if allowed)
-//
-// With preferSingleWarehouse (default) the first stage that yields a deliverable plan wins.
-// Otherwise every stage contributes candidates and the scoring model decides.
-// This is a heuristic: it returns good feasible plans, not a proven global optimum.
+// Staged heuristic: (A) one warehouse, (B) one warehouse per line, (C) split quantities.
+// With preferSingleWarehouse the first stage with a deliverable plan wins; not a global optimum.
 
 import { attachDelivery } from './delivery.js';
 import { DEFAULT_WEIGHTS, rankPlans } from './scoring.js';
@@ -14,16 +7,7 @@ import { compareIds } from './util.js';
 
 export const SORTS = Object.freeze(['best_value', 'lowest_price', 'fastest']);
 
-/**
- * @param {object} input
- * @param {{variantId: string, quantity: number}[]} input.items
- * @param {{inventoryId, warehouseId, companyId, offerId, variantId, unitPriceMinor, available, distanceMeters}[]} input.candidates
- *        Pre-filtered (active, in service area, in radius) warehouse/offer pairs.
- * @param {object[]} [input.providers] Delivery providers (see delivery.js).
- * @param {{allowSplit?: boolean, preferSingleWarehouse?: boolean, sort?: string}} [input.preferences]
- * @param {object} [input.weights] Overrides for DEFAULT_WEIGHTS.
- * @param {{roadFactor?: number}} [input.options]
- */
+// candidates must be pre-filtered to active, in-service-area, in-radius warehouse/offer pairs.
 export function allocate({ items, candidates, providers = [], preferences = {}, weights = {}, options = {} }) {
   const prefs = { allowSplit: true, preferSingleWarehouse: true, sort: 'best_value', ...preferences };
   if (!SORTS.includes(prefs.sort)) throw new TypeError(`Unknown sort: ${prefs.sort}`);
@@ -115,7 +99,6 @@ function planKey(allocations) {
     .join('|');
 }
 
-// Stage A
 function singleWarehousePlans(lines, warehouses) {
   return warehouses
     .filter((wh) => lines.every((l) => covers(wh, l)))
@@ -125,7 +108,7 @@ function singleWarehousePlans(lines, warehouses) {
     }));
 }
 
-// Stage B: each line from exactly one warehouse. Produces a few alternative plans and lets ranking choose.
+// Stage B: emits several alternative plans and lets ranking choose.
 function warehousePerLinePlans(lines, warehouses) {
   const coverers = new Map(lines.map((l) => [l.variantId, warehouses.filter((wh) => covers(wh, l))]));
   if (lines.some((l) => coverers.get(l.variantId).length === 0)) return [];
@@ -144,8 +127,7 @@ function warehousePerLinePlans(lines, warehouses) {
   return [consolidatedPlan(lines, warehouses), pickEach(cheapest), pickEach(nearest)];
 }
 
-// Greedy set cover: repeatedly take the warehouse that fully covers the most remaining lines.
-// Minimizes shipment count without being exhaustive.
+// Greedy set cover to minimize shipment count without exhaustive search.
 function consolidatedPlan(lines, warehouses) {
   const remaining = new Map(lines.map((l) => [l.variantId, l]));
   const allocations = [];
@@ -170,8 +152,7 @@ function consolidatedPlan(lines, warehouses) {
   return { strategy: 'WAREHOUSE_PER_LINE', allocations };
 }
 
-// Stage C: lines that no single warehouse can cover are filled from several, preferring
-// warehouses already in the plan (fewer shipments), then price, then distance.
+// Stage C: prefer warehouses already in the plan (fewer shipments), then price, then distance.
 function splitQuantitiesPlan(lines, warehouses) {
   const used = new Set();
   const allocations = [];

@@ -1,4 +1,3 @@
-// Price graph for a product and the "open on other apps" menu.
 import { ChevronDown, ExternalLink, FlaskConical, LineChart as LineChartIcon, TrendingDown, TrendingUp } from 'lucide-react';
 import { useState } from 'react';
 import { Badge, Button, ErrorBox, Spinner } from '@/components/kit';
@@ -79,7 +78,6 @@ export function PriceHistory({ variantId, location }) {
   );
 }
 
-/** Dropdown with each platform's own page for this product, opened in a new tab. */
 export function PlatformLinks({ variantId, className }) {
   const links = useAsync(() => get(`/catalog/variants/${variantId}/platform-links`, { auth: false }), [variantId]);
   return (

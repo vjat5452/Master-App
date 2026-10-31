@@ -1,5 +1,4 @@
-// The contract every external data source implements. A connector reports observations
-// about another platform; it never claims more than its source supplied.
+// Connector contract: a connector never reports more than its source supplied.
 import { z } from 'zod';
 
 export const CAPABILITIES = Object.freeze([
@@ -15,8 +14,7 @@ export const CAPABILITIES = Object.freeze([
   'webhooks',
 ]);
 
-// Per capability: SUPPORTED, UNSUPPORTED (the source cannot do it), or UNKNOWN (access
-// not researched or not granted yet). Only SUPPORTED operations are ever called.
+// UNKNOWN means access is not yet researched or granted. Only SUPPORTED operations are called.
 export const CAPABILITY_STATES = Object.freeze(['SUPPORTED', 'UNSUPPORTED', 'UNKNOWN']);
 
 export const AVAILABILITY = Object.freeze(['IN_STOCK', 'OUT_OF_STOCK', 'NOT_SERVICEABLE', 'UNKNOWN', 'FETCH_FAILED']);
@@ -25,7 +23,7 @@ export const COST_COMPLETENESS = Object.freeze(['COMPLETE', 'PARTIAL', 'UNKNOWN'
 export const ACCESS_TYPES = Object.freeze(['OFFICIAL_API', 'PARTNER_API', 'LICENSED_PROVIDER', 'PERMITTED_COLLECTION', 'DEMO_FIXTURE']);
 export const HEALTH = Object.freeze(['HEALTHY', 'DEGRADED', 'DOWN', 'NOT_CONFIGURED', 'UNKNOWN']);
 
-// Error taxonomy, shared with external_collection_runs.error_code.
+// Shared with external_collection_runs.error_code.
 export const ERROR_CODES = Object.freeze({
   SOURCE_NOT_CONFIGURED: 'SOURCE_NOT_CONFIGURED',
   UNSUPPORTED: 'UNSUPPORTED',
@@ -39,11 +37,7 @@ export const ERROR_CODES = Object.freeze({
 const RETRYABLE = new Set([ERROR_CODES.TIMEOUT, ERROR_CODES.RATE_LIMITED, ERROR_CODES.UPSTREAM_ERROR]);
 
 export class ConnectorError extends Error {
-  /**
-   * @param {keyof ERROR_CODES} code
-   * @param {string} message safe to log: no payloads, tokens or customer data
-   * @param {{ source?: string, retryAfterMs?: number, status?: number, retryable?: boolean }} [details]
-   */
+  // message must be safe to log: no payloads, tokens or customer data.
   constructor(code, message, { source, retryAfterMs, status, retryable } = {}) {
     super(message);
     this.name = 'ConnectorError';
@@ -56,8 +50,6 @@ export class ConnectorError extends Error {
 }
 
 export const isRetryable = (err) => err instanceof ConnectorError && err.retryable;
-
-// ---------------------------------------------------------------- normalized output
 
 const minor = z.number().int().min(0);
 const isoTime = z.iso.datetime({ offset: true });
@@ -80,7 +72,7 @@ export const etaSchema = z
   .object({
     minMinutes: z.number().int().min(0).nullable(),
     maxMinutes: z.number().int().min(0).nullable(),
-    // Where the estimate came from, e.g. "source", never a guess by LocalStock.
+    // Where the estimate came from; never a LocalStock guess.
     provenance: z.string().min(1),
   })
   .refine((e) => e.minMinutes == null || e.maxMinutes == null || e.minMinutes <= e.maxMinutes, 'minMinutes > maxMinutes');
@@ -110,7 +102,7 @@ export const listingSchema = z.object({
   availability: z.enum(AVAILABILITY),
   eta: etaSchema.nullable(),
   fulfillmentNode: fulfillmentNodeSchema.nullable(),
-  // What the source said; null when it said nothing (never invented).
+  // null when the source did not say; never invented.
   sourceObservedAt: isoTime.nullable(),
   collectedAt: isoTime,
 });
@@ -127,14 +119,11 @@ export const serviceabilitySchema = z.object({
 
 export const searchResultSchema = z.object({
   items: z.array(listingSchema),
-  // Coarse location cell the query was made for (geohash, at most 6 characters).
+  // Coarse geohash cell, at most 6 characters.
   queryCell: z.string().regex(/^[0-9b-hjkmnp-z]{1,6}$/).nullable(),
 });
 
-/**
- * Validates connector output. Anything that does not match is an INVALID_RESPONSE, so a
- * malformed upstream answer can never be shown as data.
- */
+// Malformed upstream answers become INVALID_RESPONSE so they are never shown as data.
 export function assertShape(schema, value, source) {
   const result = schema.safeParse(value);
   if (!result.success) {
@@ -144,7 +133,6 @@ export function assertShape(schema, value, source) {
   return result.data;
 }
 
-/** Customer location as passed to connectors: coordinates plus the coarse cell. */
 export const locationSchema = z.object({
   lat: z.number().min(-90).max(90),
   lng: z.number().min(-180).max(180),

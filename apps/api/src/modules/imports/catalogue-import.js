@@ -1,19 +1,8 @@
 import { enqueueEvent, recordMovement } from '@localstock/database';
 import { writeAudit } from '../../shared/audit.js';
 
-// Seller catalogue / stock import. One CSV row is one offer and, optionally, the stock of
-// that offer in one warehouse:
-//
-//   sku,barcode,variant_id,price,mrp,warehouse,quantity
-//
-// - sku: required, the seller's SKU.
-// - barcode or variant_id: which catalogue product. Products must already exist in the
-//   catalogue; the import never creates catalogue entries (those go through matching).
-// - price: required, rupees with up to 2 decimals. mrp: optional; blank keeps the current MRP.
-// - warehouse: the warehouse name or id (required when quantity is given).
-// - quantity: optional, the new on-hand count (absolute, not a delta).
-//
-// The whole file is validated first. Any error means nothing is written.
+// Columns: sku,barcode,variant_id,price,mrp,warehouse,quantity. Prices in rupees; quantity is
+// absolute, not a delta. Products must already exist, and any error means nothing is written.
 
 export const MAX_IMPORT_ROWS = 2000;
 const KNOWN_COLUMNS = ['sku', 'barcode', 'variant_id', 'price', 'mrp', 'warehouse', 'quantity'];
@@ -26,11 +15,7 @@ export function rupeesToMinor(text) {
   return Number(rupees) * 100 + Number(paise.padEnd(2, '0'));
 }
 
-/**
- * Validates the shape of every row without touching the database.
- * @param {{ line: number, cells: string[] }[]} csvRows header first
- * @returns {{ rows: object[], errors: { line: number, column?: string, message: string }[] }}
- */
+// Shape checks only, no database access. csvRows starts with the header.
 export function validateRows(csvRows) {
   const errors = [];
   if (csvRows.length === 0) return { rows: [], errors: [{ line: 1, message: 'The file is empty' }] };
@@ -91,11 +76,7 @@ export function validateRows(csvRows) {
   return { rows, errors };
 }
 
-/**
- * Resolves rows against the catalogue and the seller's own offers, warehouses and stock,
- * and works out what would change. With `lock`, the seller's offers and stock rows are
- * locked so the plan stays true until the transaction commits.
- */
+// With `lock`, the seller's offers and stock rows stay locked so the plan holds until commit.
 export async function planImport(db, companyId, rows, { lock = false } = {}) {
   const errors = [];
   const fail = (line, column, message) => errors.push({ line, column, message });

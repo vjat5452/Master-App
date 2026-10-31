@@ -1,6 +1,4 @@
-// Minimal RFC 4180 CSV parser: quoted fields, "" escapes, commas and newlines inside
-// quotes, CRLF or LF line endings, and a leading byte-order mark. Blank lines are skipped.
-// Returns { rows: [{ line, cells }] } or throws CsvError with the line number.
+// Minimal RFC 4180 parser (quotes, "" escapes, CRLF/LF, BOM). Blank lines are skipped.
 
 export class CsvError extends Error {
   constructor(message, line) {

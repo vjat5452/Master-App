@@ -1,7 +1,4 @@
-// Runs one background collection job: ask the source, check and match what it returned,
-// store the observations and any detected changes in one transaction, then refresh the
-// shared comparison cache. The source is queried at the centre of the job's location cell,
-// never at a customer's coordinates.
+// Sources are queried at the job's cell centre, never at a customer's coordinates.
 import { ConnectorError, decodeGeohash, ERROR_CODES } from '@localstock/connectors';
 import { enqueueEvent, withTransaction } from '@localstock/database';
 import { compareCacheKey, writeCompareCache } from './compare-cache.js';
@@ -12,13 +9,9 @@ import { createSourceRegistry } from './sources.js';
 
 export const MAX_JOB_ATTEMPTS = 3;
 const retryDelaySeconds = (attempt) => Math.min(3600, 60 * 2 ** (attempt - 1));
-// Error messages stored with a run are already safe (ConnectorError messages carry no
-// payloads or credentials), but are capped in length.
+// ConnectorError messages carry no payloads or credentials.
 const safeMessage = (err) => (err instanceof ConnectorError ? err.message : 'unexpected collector failure').slice(0, 300);
 
-/**
- * @param {{ pool, redis, connectors, logger, sources?, matching? }} deps
- */
 export function createCollector({ pool, redis, connectors, logger, sources = createSourceRegistry({ pool }), matching = createMatchingService({ pool, sources }) }) {
   async function claim(jobId) {
     const { rows } = await pool.query(
@@ -60,10 +53,7 @@ export function createCollector({ pool, redis, connectors, logger, sources = cre
   }
 
   return {
-    /**
-     * Idempotent: a job that is not PENDING/QUEUED (already done, running elsewhere or
-     * cancelled) is skipped, so a redelivered message does nothing.
-     */
+    // Idempotent: jobs not PENDING/QUEUED are skipped, so redelivered messages do nothing.
     async runJob(jobId) {
       const job = await claim(jobId);
       if (!job) return { status: 'SKIPPED' };
@@ -114,7 +104,7 @@ export function createCollector({ pool, redis, connectors, logger, sources = cre
           return { observations, changes: listed.changes + served.changes };
         });
 
-        // The comparison API reads this; a failure here only costs a later live lookup.
+        // Best effort: a cache miss only costs a later live lookup.
         await writeCompareCache(redis, compareCacheKey(connector.code, job.query_cell, job.search_query), {
           collectedAt: new Date().toISOString(),
           items: result.items,

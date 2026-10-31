@@ -1,12 +1,8 @@
 import { withTransaction } from '@localstock/database';
 import { EVENTS_EXCHANGE, routingKey } from '../messaging/topology.js';
 
-/**
- * Publish unpublished outbox rows with publisher confirms, then mark them published.
- * SKIP LOCKED lets several worker instances share the table. If the broker fails mid-batch the
- * transaction rolls back and the rows are retried, so delivery is at least once and consumers
- * must deduplicate by message id.
- */
+// SKIP LOCKED lets several workers share the table. A broker failure rolls the batch back,
+// so delivery is at least once and consumers dedupe by message id.
 export function createOutboxPublisher({ pool, channel, logger, batchSize = 100 }) {
   return async function publishOutbox() {
     const published = await withTransaction(pool, async (client) => {

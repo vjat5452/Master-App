@@ -1,8 +1,5 @@
-// Fans persisted external change events out to live subscribers. One poller per API process
-// reads external_change_events (only while someone is subscribed), so clients get what
-// LocalStock has detected and stored: a push after detection, not a promise that platforms
-// change in real time. Each event is sent at most once per connection; a reconnecting
-// client can resume with Last-Event-ID.
+// One poller per process, only while someone is subscribed. Each event is sent at most once
+// per connection; reconnecting clients resume with Last-Event-ID.
 
 const EVENT_SQL = `
   SELECT ce.id, ce.event_id, ce.entity_type, ce.query_cell, ce.old_value, ce.new_value, ce.detected_at,

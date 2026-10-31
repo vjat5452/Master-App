@@ -68,28 +68,29 @@ export function createDiscoveryService({ pool, redis, logger }) {
     search(params) {
       return cached({ op: 'search', ...params }, async () => {
         const { q, category, lat, lng, radiusKm, sort, page, limit } = params;
-        // $1 is the search text and $2 the optional category slug in both queries.
-        // Catalogue products, plus products discovered on other platforms (awaiting review):
-        // those have no LocalStock offers and are shown so they can be compared elsewhere.
+        // $1: search text, $2: optional category slug. EXTERNAL products have no offers but are
+        // listed so they can be compared on other platforms.
         const matchSql = `(v.status = 'ACTIVE' OR (v.origin = 'EXTERNAL' AND v.status = 'PENDING_REVIEW')) AND ($1::text = ''
           OR v.search_vector @@ websearch_to_tsquery('english', $1::text)
           OR v.name % $1::text)
           AND ($2::text = '' OR g.category_id = (SELECT id FROM categories WHERE slug = $2::text))`;
         const fromSql = 'FROM product_variants v LEFT JOIN product_groups g ON g.id = v.group_id';
 
-        const [{ rows }, { rows: countRows }] = await Promise.all([
-          pool.query(
-            `SELECT v.id, v.name, v.brand, v.attributes, v.origin, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url
-               ${fromSql}
-              WHERE ${matchSql}
-              ORDER BY CASE WHEN $1::text = '' THEN 0
-                            ELSE ts_rank(v.search_vector, websearch_to_tsquery('english', $1::text)) + similarity(v.name, $1::text)
-                       END DESC, v.name, v.id
-              LIMIT $3 OFFSET $4`,
-            [q, category, limit, (page - 1) * limit],
-          ),
-          pool.query(`SELECT count(*)::int AS total ${fromSql} WHERE ${matchSql}`, [q, category]),
-        ]);
+        const { rows } = await pool.query(
+          `SELECT v.id, v.name, v.brand, v.attributes, v.origin, g.name AS group_name, ${VARIANT_IMAGE_SQL} AS image_url,
+                  count(*) OVER ()::int AS total
+             ${fromSql}
+            WHERE ${matchSql}
+            ORDER BY CASE WHEN $1::text = '' THEN 0
+                          ELSE ts_rank(v.search_vector, websearch_to_tsquery('english', $1::text)) + similarity(v.name, $1::text)
+                     END DESC, v.name, v.id
+            LIMIT $3 OFFSET $4`,
+          [q, category, limit, (page - 1) * limit],
+        );
+        // The window count is only available when the page has rows.
+        const total = rows.length
+          ? rows[0].total
+          : (await pool.query(`SELECT count(*)::int AS total ${fromSql} WHERE ${matchSql}`, [q, category])).rows[0].total;
 
         const offers = await findOffers(pool, { variantIds: rows.map((r) => r.id), lat, lng, radiusMeters: radiusKm * 1000 });
         const items = rows.map((v) => ({
@@ -103,7 +104,7 @@ export function createDiscoveryService({ pool, redis, logger }) {
           imageUrl: v.image_url ?? null,
           offers: sortOffers(offers.filter((o) => o.variantId === v.id), sort).map(({ variantId, ...o }) => o),
         }));
-        return { items, page, limit, total: countRows[0].total };
+        return { items, page, limit, total };
       });
     },
 

@@ -1,6 +1,4 @@
-// LocalStock's own sellers as a comparison source. Prices and stock come straight from
-// seller_offers and warehouse_inventory (authoritative, not observations); distance is
-// measured to the nearest qualifying warehouse's verified coordinates.
+// Seller prices and stock are authoritative, not observations; distance is to the nearest qualifying warehouse.
 import { extractPackSize, parsePackSize } from '@localstock/database';
 import { estimateDeliveryMinutes, pointSql } from '../../shared/geo.js';
 import { VARIANT_IMAGE_SQL } from '../catalog/catalog.routes.js';
@@ -8,10 +6,7 @@ import { assessFreshness } from '@localstock/external-data';
 
 export const LOCAL_SOURCE = Object.freeze({ code: 'localstock', name: 'LocalStock sellers' });
 
-/**
- * Splits a customer query into search text and an optional pack size:
- * "Amul toned milk 1 litre" -> { text: "Amul toned milk", packSize: 1000 ml }.
- */
+// "Amul toned milk 1 litre" -> { text: "Amul toned milk", packSize: 1000 ml }
 export function splitQuery(query) {
   const { packSize, phrase } = extractPackSize(query);
   const text = packSize ? query.replace(phrase, ' ').replace(/\s+/g, ' ').trim() : query.trim();
@@ -24,8 +19,7 @@ const firstAttributeValue = (attributes) => {
 };
 
 export function createLocalVendorSource({ pool }) {
-  // Text match on brand + name (or an exact GTIN). A size in the query ranks the exact pack
-  // size first but does not hide other sizes: they are different products, shown as such.
+  // A size in the query ranks that pack first but never hides other sizes.
   async function findVariants(query, limit) {
     const { text, packSize } = splitQuery(query);
     const { rows } = await pool.query(
@@ -43,8 +37,7 @@ export function createLocalVendorSource({ pool }) {
     return rows;
   }
 
-  // One row per offer: the nearest warehouse with sellable stock that serves the location,
-  // plus the offer's total sellable units across all such warehouses.
+  // One row per offer: nearest serving warehouse with stock, plus total sellable units.
   async function findOffers(variantIds, { lat, lng }, radiusMeters) {
     const { rows } = await pool.query(
       `SELECT DISTINCT ON (o.id)
@@ -68,7 +61,6 @@ export function createLocalVendorSource({ pool }) {
     code: LOCAL_SOURCE.code,
     name: LOCAL_SOURCE.name,
 
-    /** @returns {Promise<object[]>} unified comparison results */
     async search({ query, location, radiusKm, limit, now = Date.now() }) {
       const variants = await findVariants(query, limit);
       if (variants.length === 0) return [];

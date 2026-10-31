@@ -23,8 +23,7 @@ const state = { shuttingDown: false };
 const app = createApp({ config, logger, pool, redis, state, connectors });
 const server = app.listen(config.API_PORT, () => logger.info('api listening', { port: config.API_PORT }));
 
-// Graceful shutdown: fail readiness, stop accepting connections, let in-flight requests finish,
-// then close dependencies. A hard deadline prevents hanging forever.
+// Graceful shutdown, with a hard deadline so it never hangs.
 async function shutdown(signal) {
   if (state.shuttingDown) return;
   state.shuttingDown = true;

@@ -1,12 +1,8 @@
-// Stores what a source reported (price, availability, serviceability) as time-stamped
-// observations, and records a change event, plus an outbox event in the same transaction,
-// when a value differs from the previous observation for the same listing and cell.
-// Observations are history: nothing here touches LocalStock sellers' prices or stock.
+// Observations are append-only history; nothing here touches LocalStock sellers' prices or stock.
 import { enqueueEvent } from '@localstock/database';
 
 const PRICE_FIELDS = ['itemPriceMinor', 'mrpMinor', 'currency'];
 
-/** Pure: the changes between the previous and the new observation of one listing. */
 export function detectChanges(previous, next) {
   const changes = [];
   if (previous.price && next.price && PRICE_FIELDS.some((f) => previous.price[f] !== next.price[f])) {
@@ -25,7 +21,7 @@ const EVENT = {
   SOURCE_HEALTH: { aggregateType: 'external_source', eventType: 'HealthChanged' },
 };
 
-/** Writes a change event and its outbox event (schemaVersion 1). Call inside a transaction. */
+// Must run inside a transaction so the change and its outbox event commit together.
 export async function recordChange(client, { entityType, sourceId, sourceCode, listingId = null, cell = null, oldValue, newValue, aggregateId }) {
   const { aggregateType, eventType } = EVENT[entityType];
   const detectedAt = new Date().toISOString();
@@ -60,12 +56,6 @@ async function upsertNode(client, { platformId, sourceId }, node) {
   return rows[0].id;
 }
 
-/**
- * @param {object} client transaction client
- * @param {{ sourceId, platformId, sourceCode, runId, cell }} ctx
- * @param {{ listing: object, listingRecordId: string }[]} entries quality-checked listings with stored ids
- * @returns {Promise<{ observations: number, changes: number }>}
- */
 export async function persistListingObservations(client, ctx, entries) {
   const stored = entries.filter((e) => e.listingRecordId);
   if (stored.length === 0) return { observations: 0, changes: 0 };
@@ -121,7 +111,6 @@ export async function persistListingObservations(client, ctx, entries) {
   return { observations, changes };
 }
 
-/** Stores a serviceability answer for a cell; records a change when the status flips. */
 export async function persistServiceability(client, ctx, result) {
   const { rows: prev } = await client.query(
     `SELECT status FROM external_serviceability_observations WHERE platform_id = $1 AND query_cell = $2 AND source_id = $3

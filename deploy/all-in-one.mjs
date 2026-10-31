@@ -1,16 +1,8 @@
-// One process running the release step, the API and the worker, for hosts whose free plan
-// offers neither background workers nor pre-deploy commands (e.g. Render free web services).
-// Elsewhere, run the API and worker as separate services (their own Dockerfiles).
-//
-//   1. a placeholder server takes the port at once (hosts give up on a service that does not
-//      bind its port in time) and answers 503 "starting", except 200 on /health/live;
-//   2. release: migrations, then demo data when SEED_DEMO_DATA=true (exits on failure);
-//   3. the API replaces the placeholder on the same port;
-//   4. the worker (outbox, consumers, scheduled jobs). If the broker connection drops, the
-//      process exits and the host restarts it.
+// Release, API and worker in one process: Render's free plan has no background workers or pre-deploy commands.
 import http from 'node:http';
 import { createLogger } from '@localstock/logger';
 
+// Bind the port immediately or the host gives up on the service; the API takes it over after release.
 const port = Number(process.env.API_PORT ?? process.env.PORT ?? 5000);
 const placeholder = http.createServer((req, res) => {
   const live = req.url === '/health/live';
@@ -34,5 +26,5 @@ const config = loadConfig();
 const logger = createLogger({ level: config.LOG_LEVEL, base: { service: 'worker' } });
 const worker = await startWorker({ config, logger });
 
-// The API's own handler closes the HTTP server and exits; stop the worker alongside it.
+// The API's own signal handler closes the server and exits; stop the worker alongside it.
 for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => worker.stop());

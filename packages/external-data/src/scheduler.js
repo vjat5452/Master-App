@@ -1,7 +1,5 @@
-// Turns comparison demand into background refresh jobs, within each source's permitted
-// cadence. One job = one query, in one location cell, from one source. Duplicate work is
-// impossible: open jobs are unique per dedup key (a partial unique index), and a key
-// that succeeded within the source's minRefreshSeconds is not scheduled again.
+// Open jobs are unique per dedup key (partial unique index), and a key that succeeded
+// within the source's minRefreshSeconds is not scheduled again.
 import { createHash } from 'node:crypto';
 import { topDemand } from './demand.js';
 import { createSourceRegistry } from './sources.js';
@@ -10,15 +8,11 @@ const STUCK_AFTER_SECONDS = 600;
 
 export const dedupKey = (sourceCode, cell, query) => `search:${sourceCode}:${cell}:${createHash('sha1').update(query).digest('hex')}`;
 
-/** More demand, higher RabbitMQ priority (0-9). */
+// RabbitMQ priority 1-9, logarithmic in demand.
 export const demandPriority = (count) => Math.min(9, Math.max(1, Math.ceil(Math.log2(count + 1))));
 
-/**
- * @param {{ pool, redis, connectors, policy, publish: (jobId: string, priority: number) => Promise<void>, logger, maxJobsPerSource?: number }} deps
- *   publish sends a job to the collection queue (with publisher confirms)
- */
+// publish must use publisher confirms.
 export function createRefreshScheduler({ pool, redis, connectors, policy, publish, logger, maxJobsPerSource = 20, sources = createSourceRegistry({ pool }) }) {
-  // Sources that can be refreshed in the background: configured and able to search.
   const refreshable = () =>
     connectors.list().filter((c) => c.validateConfiguration().ok && c.capabilities.product_search === 'SUPPORTED');
 
@@ -45,8 +39,7 @@ export function createRefreshScheduler({ pool, redis, connectors, policy, publis
     return created;
   }
 
-  // Sends due PENDING jobs (new ones, retries whose backoff has passed, and any whose
-  // earlier publish failed) to the queue and marks them QUEUED.
+  // Also re-sends jobs whose earlier publish failed.
   async function dispatch(limit = 200) {
     const { rows } = await pool.query(
       `SELECT id, priority FROM external_collection_jobs

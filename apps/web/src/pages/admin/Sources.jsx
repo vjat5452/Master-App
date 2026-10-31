@@ -1,6 +1,4 @@
-// External platforms and their sources: access state, health, recent collection runs, and
-// the integration-status workflow. ACTIVE is a recorded human decision (with evidence),
-// never something this page infers.
+// ACTIVE is a recorded human decision (with evidence); this page never infers it.
 import { useState } from 'react';
 import { Activity, FileText, FlaskConical, Globe, PlugZap, RefreshCw, ScrollText, Stethoscope } from 'lucide-react';
 import { Badge, Button, Empty, ErrorBox, Field, Modal, Panel, SkeletonRows, useSubmit } from '@/components/kit';

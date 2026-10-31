@@ -1,6 +1,3 @@
-// Thin fetch wrapper for /api/v1. Holds the token pair, retries once after refreshing on 401,
-// and normalizes the API's error shape { error: { code, message, details, requestId } }.
-
 const TOKENS_KEY = 'localstock.tokens';
 export const API_BASE = '/api/v1';
 

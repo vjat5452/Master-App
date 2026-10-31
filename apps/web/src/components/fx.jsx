@@ -1,11 +1,9 @@
-// Motion and effect components, re-implemented on framer-motion + Tailwind after patterns from
-// Magic UI (Marquee, NumberTicker, BorderBeam, ShimmerButton, BlurFade), React Bits (RotatingText,
-// ShinyText) and Aceternity UI (Spotlight card). All three publish their components under MIT.
+// Adapted from Magic UI, React Bits and Aceternity UI (all MIT).
 import { forwardRef, useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useInView, useMotionValue, useSpring } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
-/** Infinite horizontal scroller; children are rendered `repeat` times so the loop is seamless. */
+/** Children are rendered `repeat` times so the loop is seamless. */
 export function Marquee({ children, repeat = 4, duration = 40, pauseOnHover = true, reverse = false, className }) {
   return (
     <div
@@ -29,7 +27,6 @@ export function Marquee({ children, repeat = 4, duration = 40, pauseOnHover = tr
   );
 }
 
-/** Springs from the previous value to `value`; `format` renders the number (e.g. money). */
 export function NumberTicker({ value, format = (n) => Math.round(n).toLocaleString('en-IN'), className }) {
   const ref = useRef(null);
   const motionValue = useMotionValue(value);
@@ -51,7 +48,7 @@ export function NumberTicker({ value, format = (n) => Math.round(n).toLocaleStri
   );
 }
 
-/** A light beam travelling along the border of its (relative, rounded) parent. */
+/** Parent must be relative and rounded. */
 export function BorderBeam({ size = 180, duration = 9, delay = 0, from = '#34d399', to = '#facc15', className }) {
   return (
     <div
@@ -69,7 +66,6 @@ export function BorderBeam({ size = 180, duration = 9, delay = 0, from = '#34d39
   );
 }
 
-/** Button with a light sweep running around its edge. */
 export const ShimmerButton = forwardRef(({ children, className, background = 'hsl(var(--primary))', as: Comp = 'button', ...props }, ref) => (
   <Comp
     ref={ref}
@@ -93,7 +89,6 @@ export const ShimmerButton = forwardRef(({ children, className, background = 'hs
 ));
 ShimmerButton.displayName = 'ShimmerButton';
 
-/** Fades and un-blurs its children the first time they scroll into view. */
 export function BlurFade({ children, delay = 0, y = 12, className, as = 'div' }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-40px' });
@@ -111,7 +106,6 @@ export function BlurFade({ children, delay = 0, y = 12, className, as = 'div' })
   );
 }
 
-/** Cycles through `words`, sliding each one up into place. */
 export function RotatingText({ words, interval = 2200, className }) {
   const [i, setI] = useState(0);
   useEffect(() => {
@@ -136,7 +130,6 @@ export function RotatingText({ words, interval = 2200, className }) {
   );
 }
 
-/** Text with a highlight sweeping across it. */
 export function ShinyText({ children, className }) {
   return (
     <span
@@ -151,7 +144,6 @@ export function ShinyText({ children, className }) {
   );
 }
 
-/** Card whose surface lights up under the pointer. */
 export function SpotlightCard({ children, className, color = 'rgba(255,255,255,0.22)', ...props }) {
   const ref = useRef(null);
   const [pos, setPos] = useState(null);

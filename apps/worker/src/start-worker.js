@@ -1,7 +1,4 @@
-// Starts every worker duty (outbox publishing, consumers, scheduled jobs, external
-// collection) and returns a stop() for graceful shutdown. Used by worker.js (standalone
-// process) and by the all-in-one entry that runs the worker inside the API process on hosts
-// without background workers (e.g. Render's free plan).
+// Shared by worker.js and deploy/all-in-one.mjs.
 import amqp from 'amqplib';
 import { Redis } from 'ioredis';
 import { buildConnectorRegistry } from '@localstock/connectors';
@@ -36,12 +33,7 @@ async function connectWithRetry(url, logger, attempts = 30) {
   }
 }
 
-/**
- * @param {{ config, logger, onFatal?: (reason: string) => void }} opts
- *   onFatal: called when the broker connection drops unexpectedly (default: exit so the
- *   supervisor restarts the process).
- * @returns {Promise<{ stop: () => Promise<void> }>}
- */
+// onFatal runs if the broker connection drops; the default exits so the supervisor restarts us.
 export async function startWorker({ config, logger, onFatal = () => process.exit(1) }) {
   const pool = createPool(config.DATABASE_URL, { max: 5 });
   pool.on('error', (err) => logger.error('idle postgres client error', { err }));
@@ -50,7 +42,6 @@ export async function startWorker({ config, logger, onFatal = () => process.exit
 
   const connection = await connectWithRetry(config.RABBITMQ_URL, logger);
   let stopping = false;
-  // Without a broker connection the worker cannot do its job.
   connection.on('close', () => {
     if (!stopping) {
       logger.error('rabbitmq connection closed unexpectedly');
@@ -81,7 +72,7 @@ export async function startWorker({ config, logger, onFatal = () => process.exit
     handle: createExternalChangeHandler(redis),
   });
 
-  // External sources: only configured ones are ever called (all are disabled by default).
+  // Only configured sources are ever called; all are disabled by default.
   const connectors = buildConnectorRegistry({ env: process.env, logger: logger.child({ component: 'connectors' }) });
   const sources = createSourceRegistry({ pool });
   const collector = createCollector({ pool, redis, connectors, logger, sources });

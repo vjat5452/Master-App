@@ -2,8 +2,7 @@ import { get, qs } from './api.js';
 
 const GROUPS_KEY = 'localstock.knownGroups';
 
-// The API has no "list groups" endpoint. Groups are discovered from catalog variants
-// (each variant carries its groupId) plus any groups this browser created.
+// The API has no "list groups" endpoint, so groups come from variants plus ones created here.
 export function rememberGroup(group) {
   try {
     const list = JSON.parse(localStorage.getItem(GROUPS_KEY) ?? '[]').filter((g) => g.id !== group.id);
@@ -56,7 +55,6 @@ export function setReviewQueue(ids) {
   }
 }
 
-// Catalogue products a seller can list: products discovered on other platforms are excluded
-// until an admin approves them.
+// Products discovered on other platforms are excluded until an admin approves them.
 export const searchVariants = (q) =>
   get(`/catalog/search${qs({ q, limit: 20 })}`, { auth: false }).then((r) => r.items.filter((i) => i.origin !== 'EXTERNAL'));

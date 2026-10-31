@@ -3,11 +3,10 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const DEFAULT_DIR = fileURLToPath(new URL('../migrations', import.meta.url));
-// Arbitrary constant so concurrent migrators (e.g. two deploys) serialize.
+// Advisory lock id so concurrent migrators (e.g. two deploys) serialize.
 const MIGRATION_LOCK_ID = 727274;
 
-// `NNN_name.sql` is applied by migrate(); the optional `NNN_name.down.sql` next to it
-// reverses it and is only ever run by rollback().
+// Optional `NNN_name.down.sql` reverses `NNN_name.sql` and is only run by rollback().
 const isDown = (f) => f.endsWith('.down.sql');
 const downFileFor = (name) => name.replace(/\.sql$/, '.down.sql');
 
@@ -57,10 +56,7 @@ export async function migrate(pool, { dir = DEFAULT_DIR, log = () => {} } = {}) 
   });
 }
 
-/**
- * Reverts the most recently applied migrations, newest first, using their `.down.sql`
- * files. Stops before touching anything if one of them has no down file.
- */
+// Fails before changing anything if any target lacks a .down.sql file.
 export async function rollback(pool, { dir = DEFAULT_DIR, steps = 1, log = () => {} } = {}) {
   if (!Number.isInteger(steps) || steps < 1) throw new Error('steps must be a positive integer');
   return withMigrationLock(pool, async (client) => {

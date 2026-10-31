@@ -1,14 +1,10 @@
-// Periodic health of every external source: the connector's own health check combined with
-// the last hour of collection runs (error rate, median latency, last success/failure).
-// Written to external_source_health; a change of health is recorded as a change event and
-// published as external_source.HealthChanged.
+// Combines the connector's health check with the last hour of collection runs.
 import { withTransaction } from '@localstock/database';
 import { recordChange } from './observations.js';
 import { createSourceRegistry } from './sources.js';
 
 const MIN_RUNS_FOR_RATE = 3;
 
-/** Pure: overall health from the connector's answer and recent run statistics. */
 export function deriveHealth(check, stats) {
   if (check.health === 'NOT_CONFIGURED') return 'NOT_CONFIGURED';
   if (check.health === 'DOWN') return 'DOWN';
@@ -17,7 +13,7 @@ export function deriveHealth(check, stats) {
     if (stats.errorRate >= 0.5) return 'DEGRADED';
   }
   if (check.health === 'HEALTHY') return 'HEALTHY';
-  // UNKNOWN from the connector: recent successful runs are the best evidence available.
+  // Connector says UNKNOWN: recent successful runs are the best evidence.
   return stats.total > 0 && stats.errorRate < 0.5 ? 'HEALTHY' : 'UNKNOWN';
 }
 
