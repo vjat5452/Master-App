@@ -2,11 +2,8 @@ import { withTransaction } from '@localstock/database';
 
 export const backoffMs = (attempt) => Math.min(30_000, 500 * 2 ** attempt) + Math.floor(Math.random() * 250);
 
-/**
- * Consume a queue with inbox deduplication: the message id is recorded in the same transaction
- * as the handler's database effects, so a redelivered message is acknowledged without being
- * applied twice. Failures are retried with exponential backoff and jitter, then dead-lettered.
- */
+// Inbox dedup: the message id is recorded in the same transaction as the handler's effects,
+// so a redelivery is acked without being applied twice.
 export async function runConsumer({ channel, pool, logger, queue, consumer, handle, maxAttempts = 5 }) {
   await channel.consume(queue, async (msg) => {
     if (!msg) return;

@@ -1,6 +1,4 @@
 // Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
-// The background collection pipeline against the isolated *_test database, with a stub
-// source: demand -> scheduled job -> collector -> observations, changes, outbox, cache.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { fileURLToPath } from 'node:url';

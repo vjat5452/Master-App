@@ -1,21 +1,10 @@
-// Persists external listings and their product mappings, and answers "which LocalStock
-// product is this listing?" for the comparison API.
-//
-// A listing is matched once; afterwards the stored decision is reused:
-// - an accepted mapping (AUTO_CONFIRMED / CONFIRMED) links it to a canonical product;
-// - open NEEDS_REVIEW candidates wait for an admin and are not shown as a match;
-// - with no mapping (or only rejected ones) the matcher runs again, skipping rejected products.
-// Listings are stored here; their price and availability observations are stored by
-// observations.js.
+// A listing is matched once and the stored decision reused; open NEEDS_REVIEW candidates are
+// never shown as a match, and re-matching skips products a reviewer rejected.
 import { normalizeText } from '@localstock/database';
 import { decideMatch, findCandidates, nameTokens } from './matcher.js';
 import { createSourceRegistry } from './sources.js';
 
-/**
- * @param {{ pool, sources?: ReturnType<typeof createSourceRegistry>, createCanonicalProducts?: boolean }} deps
- *   `pool` may also be a transaction client. createCanonicalProducts (default true): give
- *   unmatched listings with a known pack size a canonical product of their own.
- */
+// `pool` may also be a transaction client.
 export function createMatchingService({ pool, sources = createSourceRegistry({ pool }), createCanonicalProducts = true }) {
   async function upsertListings({ sourceId, platformId }, entries) {
     const unique = [...new Map(entries.map((e) => [e.listing.externalListingId, e])).values()];
@@ -50,19 +39,13 @@ export function createMatchingService({ pool, sources = createSourceRegistry({ p
     return new Map(rows.map((r) => [r.external_listing_id, r.id]));
   }
 
-  /**
-   * A listing that matches no catalogue product becomes a canonical product of its own
-   * (origin EXTERNAL, PENDING_REVIEW, no group), so it can be found and compared. Only
-   * when its pack size is known: without it, different sizes could not be kept apart.
-   * Returns the new (or concurrently created) product id, or null.
-   */
+  // Requires a known pack size; without it different sizes could not be kept apart.
   async function createCanonical(listingId, listing, packSize) {
     if (!packSize || !listing.title) return null;
     const brand = listing.brand?.trim() || null;
     const name = (brand && listing.title.toLowerCase().startsWith(`${brand.toLowerCase()} `) ? listing.title.slice(brand.length + 1) : listing.title).trim();
     const sizeKey = `${packSize.count > 1 ? `${packSize.count}x` : ''}${packSize.quantity}${packSize.unit}`;
-    // Built from the matcher's identifying words (no brand, size or packaging words), so two
-    // platforms creating the same product at the same moment land on one row.
+    // Keyed on identifying words so concurrent creation from two platforms lands on one row.
     const words = [...nameTokens(listing.title, brand)].sort().join(' ') || normalizeText(name);
     const key = `ext|${normalizeText(brand ?? '')}|${words}|${sizeKey}`;
     const attributes = listing.variantText ? { size: listing.variantText } : {};
@@ -77,9 +60,7 @@ export function createMatchingService({ pool, sources = createSourceRegistry({ p
       return rows[0].id;
     } catch (err) {
       if (err.code !== '23505') throw err;
-      // Another product already carries this barcode, e.g. created a moment ago from the
-      // same product on another platform. Reuse it if it is usable and the sizes agree;
-      // otherwise (archived, or a size conflict) leave the listing unmapped.
+      // Barcode already taken: reuse that product if usable and sizes agree, else leave unmapped.
       const { rows } = await pool.query(
         `SELECT id FROM product_variants
           WHERE barcode = $1 AND (status = 'ACTIVE' OR (origin = 'EXTERNAL' AND status = 'PENDING_REVIEW'))
@@ -106,11 +87,6 @@ export function createMatchingService({ pool, sources = createSourceRegistry({ p
     ensureSource: (connector) => sources.ensure(connector),
     upsertListings,
 
-    /**
-     * @param {object} connector
-     * @param {{ listing: object, packSize: object | null }[]} entries quality-checked listings
-     * @returns {Promise<Map<string, { listingRecordId, matchStatus: 'MATCHED'|'NEEDS_REVIEW'|'UNMAPPED', canonicalProductId, match }>>}
-     */
     async resolve(connector, entries) {
       const out = new Map();
       if (entries.length === 0) return out;

@@ -6,10 +6,8 @@ export const DEAD_LETTER_QUEUE = 'localstock.dead-letter';
 export const QUEUES = Object.freeze({
   notifications: { name: 'localstock.notifications', bindings: ['order.#'] },
   searchProjection: { name: 'localstock.search-projection', bindings: ['inventory.#', 'offer.#', 'company.#', 'warehouse.#'] },
-  // External price/availability/serviceability changes invalidate cached comparison answers.
   externalChanges: { name: 'localstock.external-changes', bindings: ['external_price.#', 'external_availability.#', 'external_serviceability.#'] },
-  // Background collection jobs ({ jobId }), sent directly by the refresh scheduler; more
-  // demanded queries get a higher priority.
+  // Sent directly by the refresh scheduler; more demanded queries get higher priority.
   externalCollection: { name: 'localstock.external-collection', bindings: [], maxPriority: 9 },
 });
 

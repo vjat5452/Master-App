@@ -1,4 +1,4 @@
-// Material UI widgets. Import these through ./lazy.jsx, not directly, so MUI loads on demand.
+// Import through ./lazy.jsx so MUI stays out of the main bundle.
 import Slider from '@mui/material/Slider';
 import Step from '@mui/material/Step';
 import StepLabel from '@mui/material/StepLabel';
@@ -10,7 +10,6 @@ import { CHART_COLORS, MuiScope } from './MuiScope.jsx';
 
 const legend = { direction: 'row', position: { vertical: 'bottom', horizontal: 'middle' }, padding: 0, itemMarkWidth: 10, itemMarkHeight: 10, labelStyle: { fontSize: 12 } };
 
-/** Stacked bars: one category per x value, one series per stack part. */
 export function StackedBars({ categories, series, height = 260 }) {
   return (
     <MuiScope>
@@ -27,7 +26,6 @@ export function StackedBars({ categories, series, height = 260 }) {
   );
 }
 
-/** Donut with a centred total label. */
 export function Donut({ data, height = 230, centerLabel }) {
   const total = data.reduce((s, d) => s + d.value, 0);
   return (
@@ -59,7 +57,6 @@ export function Donut({ data, height = 230, centerLabel }) {
   );
 }
 
-/** Area line over ordered x labels. */
 export function AreaLine({ labels, values, label, height = 220, format }) {
   return (
     <MuiScope>
@@ -77,10 +74,7 @@ export function AreaLine({ labels, values, label, height = 220, format }) {
   );
 }
 
-/**
- * Several price lines over the same dates. `series`: [{ label, values (null = no data) }].
- * Gaps stay gaps: missing days are never joined up or filled in.
- */
+/** Null values stay gaps: missing days are never joined up or filled in. */
 export function PriceLines({ dates, series, height = 240, format }) {
   return (
     <MuiScope>
@@ -105,7 +99,7 @@ export function PriceLines({ dates, series, height = 240, format }) {
   );
 }
 
-/** Order progress. `steps`: [{ label, caption?, error? }], `active`: index of the current step. */
+/** `steps`: [{ label, caption?, error? }]; `active` is the index of the current step. */
 export function ProgressStepper({ steps, active }) {
   return (
     <MuiScope>

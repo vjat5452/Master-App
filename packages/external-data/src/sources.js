@@ -1,10 +1,4 @@
-// Registers connectors as rows in external_platforms / external_sources.
-//
-// The initial integration_status reflects what LocalStock actually has:
-//   - not configured (no authorized access)  -> RESEARCH_REQUIRED
-//   - configured, including the demo fixture -> SANDBOX
-// It is never set to ACTIVE here, and an existing row keeps the status an operator gave it:
-// ACTIVE is a human decision made after acceptance tests against the genuine source.
+// Never sets ACTIVE: that is an operator decision after acceptance tests against the real source.
 
 const CONFIG_REFERENCE = {
   DEMO_FIXTURE: 'DEMO_EXTERNAL_FIXTURES',
@@ -44,7 +38,6 @@ export function createSourceRegistry({ pool }) {
   }
 
   return {
-    /** @returns {Promise<{ sourceId: string, platformId: string }>} cached per process */
     ensure(connector) {
       if (!cache.has(connector.code)) {
         const pending = register(connector);

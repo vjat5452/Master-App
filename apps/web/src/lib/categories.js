@@ -1,7 +1,6 @@
 import { get, qs } from './api.js';
 
-// Storefront order and tile styling for the seeded categories. Unknown categories still show,
-// after these, with the neutral tint.
+// Unknown categories are shown after these with the neutral tint.
 export const CATEGORY_STYLE = {
   dairy: { short: 'Dairy, Curd & Ice Cream', tint: 'from-sky-100 to-blue-50 dark:from-sky-500/20 dark:to-blue-500/5' },
   bakery: { short: 'Bread & Biscuits', tint: 'from-amber-100 to-orange-50 dark:from-amber-500/20 dark:to-orange-500/5' },
@@ -21,7 +20,7 @@ const NEUTRAL = { tint: 'from-muted to-background' };
 export const styleFor = (slug) => CATEGORY_STYLE[slug] ?? NEUTRAL;
 
 let cache;
-/** Leaf categories (the ones products are filed under) in storefront order, memoised for the session. */
+/** Leaf categories in storefront order, memoised for the session. */
 export function loadCategories() {
   cache ??= get('/catalog/categories', { auth: false })
     .then((r) =>

@@ -1,14 +1,5 @@
-// How old an observation may be before it is no longer "fresh", per source and per field:
-// availability goes stale faster than price. Defaults can be overridden per source with
-// EXTERNAL_FRESHNESS (JSON), whose keys are source codes, e.g.
-//   {"acme-blinkit": {"price": {"freshSeconds": 600, "expireSeconds": 7200}, "minRefreshSeconds": 1800}}
-// `minRefreshSeconds` is the shortest interval at which the background collector may
-// refresh the same query from that source (its permitted cadence).
-//
-//   FRESH       younger than `freshSeconds`
-//   STALE       younger than `expireSeconds`: shown, labelled stale
-//   EXPIRED     older: not shown as a current value
-//   UNVERIFIED  demo data, or no trustworthy timestamp at all
+// FRESH < freshSeconds <= STALE (shown, labelled) < expireSeconds <= EXPIRED (not shown).
+// UNVERIFIED: demo data or no trustworthy timestamp. minRefreshSeconds is the permitted cadence.
 import { z } from 'zod';
 
 const timeWindow = z.object({ freshSeconds: z.number().positive(), expireSeconds: z.number().positive() }).refine((w) => w.freshSeconds <= w.expireSeconds, 'freshSeconds must not exceed expireSeconds');
@@ -33,7 +24,7 @@ export const DEFAULT_POLICY = Object.freeze({
   },
 });
 
-/** Parses EXTERNAL_FRESHNESS; throws a readable error on bad JSON or values. */
+// EXTERNAL_FRESHNESS is JSON keyed by source code.
 export function parseFreshnessConfig(text) {
   if (!text || !text.trim()) return {};
   let json;
@@ -50,7 +41,6 @@ export function parseFreshnessConfig(text) {
   return result.data;
 }
 
-/** Freshness policy: defaults plus per-source overrides. */
 export function createFreshnessPolicy(overrides = {}) {
   const rulesFor = (sourceType, sourceCode) => {
     const base = DEFAULT_POLICY[sourceType] ?? DEFAULT_POLICY.EXTERNAL;
@@ -65,7 +55,6 @@ export function createFreshnessPolicy(overrides = {}) {
 
 const DEFAULT = createFreshnessPolicy();
 
-/** Age-based status of one field. */
 export function fieldFreshness(collectedAt, { freshSeconds, expireSeconds }, now = Date.now()) {
   const t = collectedAt ? Date.parse(collectedAt) : NaN;
   if (!Number.isFinite(t)) return 'UNVERIFIED';
@@ -77,11 +66,7 @@ export function fieldFreshness(collectedAt, { freshSeconds, expireSeconds }, now
 
 const RANK = { FRESH: 0, STALE: 1, EXPIRED: 2, UNVERIFIED: 3 };
 
-/**
- * Freshness of a result: the worst of its price and availability statuses. Demo data is
- * always UNVERIFIED. The source's own timestamp is preferred; otherwise LocalStock's
- * collection time is used and `basis` says so.
- */
+// Worst of price and availability; prefers the source's timestamp over collection time.
 export function assessFreshness(
   { sourceType, sourceCode = null, isDemo = false, sourceObservedAt = null, collectedAt },
   { now = Date.now(), policy = DEFAULT } = {},

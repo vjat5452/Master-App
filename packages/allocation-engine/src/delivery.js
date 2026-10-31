@@ -1,13 +1,9 @@
 import { compareIds } from './util.js';
 
-// Straight-line distance understates road distance; this factor is a crude stand-in until a
-// routing service provides real road ETAs.
+// Approximates road distance from straight-line distance until real routing is available.
 const DEFAULT_ROAD_FACTOR = 1.3;
 
-/**
- * Quote one provider for one shipment, or null if the provider is ineligible.
- * provider: { id, type, companyId, baseFeeMinor, perKmFeeMinor, speedKmph, pickupMinutes, reliability, maxDistanceMeters, maxUnits? }
- */
+// Returns null when the provider is ineligible for the shipment.
 export function quoteProvider(provider, shipment, { roadFactor = DEFAULT_ROAD_FACTOR } = {}) {
   if (provider.maxDistanceMeters != null && shipment.distanceMeters > provider.maxDistanceMeters) return null;
   if (provider.type === 'SELLER_FLEET' && provider.companyId !== shipment.companyId) return null;
@@ -37,8 +33,7 @@ function chooseQuote(quotes, sort, weights) {
   return [...quotes].sort((a, b) => score(a) - score(b) || byFee(a, b))[0];
 }
 
-// Group a draft plan's allocations into one shipment per warehouse and attach the best provider
-// to each. Returns null if any shipment has no eligible provider.
+// One shipment per warehouse; returns null if any shipment has no eligible provider.
 export function attachDelivery(draft, providers, sort, weights, options) {
   const groups = new Map();
   for (const a of draft.allocations) {
@@ -70,7 +65,6 @@ export function attachDelivery(draft, providers, sort, weights, options) {
     itemsCostMinor,
     deliveryFeeMinor,
     totalLandedCostMinor: itemsCostMinor + deliveryFeeMinor,
-    // The order arrives when its slowest shipment arrives.
     maxEtaMinutes: Math.max(...shipments.map((s) => s.delivery.etaMinutes)),
     shipmentCount: shipments.length,
     risk: Math.round((1 - successProbability) * 10000) / 10000,

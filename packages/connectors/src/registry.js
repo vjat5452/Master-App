@@ -1,6 +1,3 @@
-// Builds every external source from configuration. Platform sources are disabled until an
-// authorized adapter exists; a licensed provider is built only from complete configuration;
-// the demo fixture source exists only when explicitly enabled outside production.
 import { z } from 'zod';
 import { DemoFixtureConnector } from './demo-fixture.js';
 import { LicensedProviderConnector, licensedProviderConfig } from './licensed-provider.js';
@@ -31,9 +28,6 @@ export function loadConnectorConfig(env = process.env) {
   return config;
 }
 
-/**
- * @returns {{ list(): BaseConnector[], get(code: string): BaseConnector | undefined, enabled(): BaseConnector[], describe(): object[] }}
- */
 export function buildConnectorRegistry({ env = process.env, logger, now, fetchImpl } = {}) {
   const config = loadConnectorConfig(env);
   const policy = { timeoutMs: config.EXTERNAL_SOURCE_TIMEOUT_MS, maxConcurrency: config.EXTERNAL_SEARCH_MAX_CONCURRENCY };
@@ -71,7 +65,6 @@ export function buildConnectorRegistry({ env = process.env, logger, now, fetchIm
   return {
     list: () => [...connectors],
     get: (code) => byCode.get(code),
-    /** Sources that are configured and may be called. */
     enabled: () => connectors.filter((c) => c.validateConfiguration().ok),
     describe: () => connectors.map((c) => c.describe()),
     close: () => Promise.all(connectors.map((c) => c.close())),

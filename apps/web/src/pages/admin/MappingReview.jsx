@@ -1,6 +1,4 @@
-// Review queue for external listings the matcher could not link with certainty. A reviewer
-// confirms one candidate, rejects candidates, or links the listing to another product.
-// Pack sizes are shown side by side: the API refuses to link two different known sizes.
+// Pack sizes are shown side by side because the API refuses to link two different known sizes.
 import { useState } from 'react';
 import { Check, FlaskConical, Link2, SearchCheck, X } from 'lucide-react';
 import { VariantPicker } from '@/components/VariantPicker';

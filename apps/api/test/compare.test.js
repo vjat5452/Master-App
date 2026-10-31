@@ -267,8 +267,6 @@ test('local vendor failure is isolated too', async () => {
   assert.equal(out.results.length, 1);
 });
 
-// ---------------------------------------------------------------- HTTP
-
 function makeApp(connectors) {
   const pool = { query: async () => ({ rows: [], rowCount: 0 }) };
   return createApp({ config, logger, pool, redis: memoryRedis(), state: { shuttingDown: false }, connectors });
@@ -298,8 +296,6 @@ test('POST /discovery/compare answers with every source accounted for and no exa
   ]);
   assert.doesNotMatch(JSON.stringify(res.body), /28\.6129|77\.2295/);
 });
-
-// ---------------------------------------------------------------- helpers
 
 test('query splitting separates the pack size from the search text', () => {
   assert.deepEqual(splitQuery('Amul toned milk 1 litre'), { text: 'Amul toned milk', packSize: { quantity: 1000, unit: 'ml', count: 1 } });

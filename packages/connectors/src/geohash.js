@@ -1,5 +1,4 @@
-// Geohash encoding for coarse location cells. Precision 6 is about 1.2 km x 0.6 km: precise
-// enough for serviceability and caching, too coarse to identify a home.
+// Precision 6 (~1.2 km x 0.6 km) is enough for serviceability and caching, too coarse to identify a home.
 const BASE32 = '0123456789bcdefghjkmnpqrstuvwxyz';
 
 export const DEFAULT_CELL_PRECISION = 6;
@@ -34,7 +33,7 @@ export function encodeGeohash(lat, lng, precision = DEFAULT_CELL_PRECISION) {
   return hash;
 }
 
-/** Centre of a geohash cell: background collection queries a cell, never a person's location. */
+// Background collection queries a cell centre, never a person's location.
 export function decodeGeohash(hash) {
   if (!/^[0-9b-hjkmnp-z]{1,12}$/.test(hash)) throw new RangeError('invalid geohash');
   const lat = [-90, 90];
@@ -53,6 +52,5 @@ export function decodeGeohash(hash) {
   return { lat: (lat[0] + lat[1]) / 2, lng: (lng[0] + lng[1]) / 2 };
 }
 
-/** The coarse cell for a customer location. */
 export const locationCell = ({ lat, lng }, precision = DEFAULT_CELL_PRECISION) =>
   encodeGeohash(lat, lng, Math.min(precision, DEFAULT_CELL_PRECISION));

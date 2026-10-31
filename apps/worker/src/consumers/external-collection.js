@@ -1,6 +1,5 @@
-// Consumes collection jobs. The job row in PostgreSQL is the source of truth: the collector
-// claims it atomically (so a redelivered message is a no-op), records success or failure,
-// and reschedules retryable failures itself. The message is therefore always acknowledged.
+// The job row is the source of truth: the collector claims it atomically (redeliveries are
+// no-ops) and reschedules retries itself, so the message is always acked.
 export async function runCollectionConsumer({ channel, queue, collector, logger, onResult = () => {} }) {
   await channel.consume(queue, async (msg) => {
     if (!msg) return;
@@ -14,15 +13,13 @@ export async function runCollectionConsumer({ channel, queue, collector, logger,
     try {
       onResult(await collector.runJob(jobId));
     } catch (err) {
-      // Database trouble mid-job: the job stays RUNNING and is re-queued by the scheduler's
-      // stuck-job sweep.
+      // The job stays RUNNING and is re-queued by the scheduler's stuck-job sweep.
       logger.error('collection job crashed', { jobId, err });
     }
     channel.ack(msg);
   });
 }
 
-/** Publishes one job id to the collection queue and waits for the broker's confirm. */
 export function createJobPublisher(confirmChannel, queue) {
   return async (jobId, priority) => {
     confirmChannel.sendToQueue(queue, Buffer.from(JSON.stringify({ jobId })), {

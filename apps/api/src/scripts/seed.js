@@ -1,5 +1,4 @@
-// Demo data around Delhi/Noida: two sellers, four warehouses, a small catalog and three
-// delivery providers (platform fleet, third party, one seller fleet). Safe to re-run.
+// Usage: npm run seed -w @localstock/api  (demo data around Delhi/Noida; safe to re-run)
 import '../config/load-env.js';
 import { createPool, withTransaction } from '@localstock/database';
 import { variantKey } from '../modules/catalog/product-matching.js';

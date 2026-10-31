@@ -1,4 +1,4 @@
-// Run a job repeatedly without overlapping runs. stop() waits for an in-flight run to finish.
+// Runs never overlap; stop() waits for the in-flight run.
 export function every(name, intervalMs, job, logger) {
   let timer = null;
   let running = Promise.resolve();

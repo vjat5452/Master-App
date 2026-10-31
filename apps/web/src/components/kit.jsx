@@ -1,4 +1,3 @@
-// App-level building blocks on top of the shadcn primitives in ./ui.
 import { forwardRef, useState } from 'react';
 import { AlertTriangle, Check, CheckCircle2, Copy, Info, Loader2, Minus, Plus, RotateCw, XCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -38,7 +37,6 @@ export function Badge({ status, kind, children, className, dot = false }) {
   );
 }
 
-/** Card with an optional header row (icon, title, description, actions). */
 export function Panel({ title: heading, description, icon: Icon, actions, children, className, pad = true, bodyClassName }) {
   return (
     <Card className={cn('overflow-hidden', className)}>
@@ -314,7 +312,6 @@ export function CopyId({ id }) {
   );
 }
 
-/** Definition list of label/value rows. */
 export function KV({ rows, className }) {
   return (
     <dl className={cn('grid gap-2.5 text-sm', className)}>
@@ -328,7 +325,6 @@ export function KV({ rows, className }) {
   );
 }
 
-/** Form helper: runs an async submit, tracks busy/error, and resets error on next submit. */
 export function useSubmit(fn) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -347,7 +343,6 @@ export function useSubmit(fn) {
   return { run, busy, error, setError };
 }
 
-/** Fade-and-rise entrance for page sections. */
 export function Reveal({ children, delay = 0, className }) {
   return (
     <motion.div className={className} initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.45, delay, ease: [0.22, 1, 0.36, 1] }}>

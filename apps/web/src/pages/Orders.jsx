@@ -18,7 +18,6 @@ export default function Orders() {
   const confirmed = items.filter((o) => o.status === 'CONFIRMED');
   const pending = items.filter((o) => o.status === 'PENDING_PAYMENT');
 
-  // Confirmed spend per day, oldest first, for the trend chart.
   const byDay = new Map();
   for (const o of [...confirmed].reverse()) byDay.set(dayKey(o.createdAt), (byDay.get(dayKey(o.createdAt)) ?? 0) + o.totalMinor);
   const byStatus = new Map();

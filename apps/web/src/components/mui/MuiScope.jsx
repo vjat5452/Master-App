@@ -1,5 +1,4 @@
-// Material UI is used for a few rich widgets (charts, stepper, slider). It is only imported by
-// lazily loaded modules, so the storefront's first paint never waits for it.
+// Only imported by lazily loaded modules so first paint never waits for MUI.
 import { useMemo } from 'react';
 import { createTheme, StyledEngineProvider, ThemeProvider } from '@mui/material/styles';
 import { useTheme } from '@/lib/theme';

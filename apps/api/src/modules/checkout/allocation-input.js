@@ -1,9 +1,7 @@
 import { pointSql } from '../../shared/geo.js';
 import { toProvider } from '../delivery/delivery.routes.js';
 
-// Load everything the pure allocation engine needs. Candidate filtering happens here in SQL:
-// active warehouse/offer/company, positive availability, destination inside the warehouse's
-// service radius and inside the platform's maximum candidate radius.
+// Candidate filtering happens here in SQL so the allocation engine stays pure.
 export async function loadAllocationInput(db, { location, items }, { maxCandidateRadiusKm }) {
   const variantIds = [...new Set(items.map((i) => i.variantId))];
   const { rows } = await db.query(

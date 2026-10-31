@@ -94,7 +94,7 @@ test('variants a reviewer rejected are not proposed again', () => {
   assert.equal(d.status, 'UNMATCHED');
 });
 
-// ---------------------------------------------------------------- data quality
+// Data quality
 
 const external = (overrides = {}) => ({
   externalListingId: 'L1',

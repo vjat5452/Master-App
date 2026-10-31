@@ -1,5 +1,4 @@
-// Inventory invariants live here so the API and the worker change stock the same way.
-// Invariant: 0 <= reserved <= on_hand, enforced both by these conditional updates and by table CHECKs.
+// Invariant: 0 <= reserved <= on_hand, enforced by these conditional updates and by table CHECKs.
 
 export class InsufficientStockError extends Error {
   constructor(shortfalls) {
@@ -35,11 +34,7 @@ export async function recordMovement(
   );
 }
 
-/**
- * Reserve stock on several inventory rows atomically. Must run inside a transaction.
- * Throws InsufficientStockError (listing every short row) if any row cannot be reserved;
- * the caller's transaction must then roll back.
- */
+// Must run in a transaction; the caller must roll back on InsufficientStockError.
 export async function reserveInventory(client, rows, { referenceType = null, referenceId = null } = {}) {
   const totals = sumByInventory(rows);
   await lockInventoryRows(client, [...totals.keys()]);
@@ -61,11 +56,8 @@ export async function reserveInventory(client, rows, { referenceType = null, ref
   }
 }
 
-/**
- * Move an order's reservations from `fromStatus` to `toStatus` and give the stock back.
- * The conditional status update means each reservation is released at most once, even when
- * expiry, cancellation and payment callbacks race. Returns the reservations that were released.
- */
+// The conditional status update releases each reservation at most once, even when expiry,
+// cancellation and payment callbacks race.
 export async function releaseReservations(
   client,
   { orderId, fromStatus = 'ACTIVE', toStatus, onlyExpired = false, actorUserId = null },

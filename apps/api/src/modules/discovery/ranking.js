@@ -1,13 +1,5 @@
-// Ranks comparison results and explains every position with reason codes.
-//
-// Two hard rules come before any weighting and can never be outweighed:
-//   1. the pack size searched for ranks first, an unreadable size next, a different size last;
-//   2. unavailable results (out of stock, not serviceable, failed) rank after available
-//      and unknown ones.
-// Within those groups a weighted score orders results (lower is better). The weights are
-// configurable per policy (COMPARE_RANKING_WEIGHTS); the defaults below are placeholders
-// until a product decision sets them. Unknown values never help a result: an unknown
-// distance or ETA scores as the worst, never as zero.
+// Size match and availability are hard rules no weight can outweigh; a weighted score (lower is
+// better) orders results within them. Unknown distance or ETA scores as the worst, never zero.
 import { z } from 'zod';
 
 export const POLICIES = ['best_value', 'lowest_price', 'fastest', 'nearest'];
@@ -58,11 +50,7 @@ function normalizer(values) {
 const SIZE_RANK = { EXACT: 0, NOT_REQUESTED: 0, UNKNOWN: 1, DIFFERENT: 2 };
 const group = (r) => (SIZE_RANK[r.sizeMatch] ?? 0) * 2 + (UNAVAILABLE.has(r.availability) ? 1 : 0);
 
-/**
- * @param {object[]} results comparison results (with sizeMatch set)
- * @param {{ policy?: string, weights?: object }} [opts]
- * @returns {object[]} new array, ranked, each with `rank` and `ranking: { score, reasons, factors }`
- */
+// Returns a new array; results must already have sizeMatch set.
 export function rankResults(results, { policy = 'best_value', weights = DEFAULT_WEIGHTS } = {}) {
   const w = weights[policy] ?? DEFAULT_WEIGHTS.best_value;
   // "Lowest/nearest/fastest" claims are only made among comparable, available results.

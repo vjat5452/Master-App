@@ -1,5 +1,4 @@
 // Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
-// Price graph data and platform links for a product.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

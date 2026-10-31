@@ -1,6 +1,5 @@
-// Development-only source that serves a checked-in fixture under a fictional platform name,
-// so the comparison flow can be built before any authorized access exists. It refuses to
-// run in production, marks itself isDemo, and its results carry no source timestamp.
+// Development-only fixture source under a fictional platform name. Refuses to run in
+// production; results are marked isDemo and carry no source timestamp.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
@@ -84,7 +83,6 @@ export class DemoFixtureConnector extends BaseConnector {
     return { ...this.fixture.serviceability.eta, provenance: 'demo fixture' };
   }
 
-  /** Fixture record -> contract listing for a location cell. */
   normalizeResponse(raw, cell) {
     const s = this.fixture.serviceability;
     const serviceable = this.serviceable(cell);
@@ -96,7 +94,7 @@ export class DemoFixtureConnector extends BaseConnector {
       gtin: raw.gtin,
       imageUrl: null,
       deepLink: null,
-      // Prices are location-specific, so none is given where the platform does not deliver.
+      // Prices are location-specific: none where the platform does not deliver.
       price: serviceable
         ? {
             itemPriceMinor: raw.priceMinor,
@@ -107,7 +105,7 @@ export class DemoFixtureConnector extends BaseConnector {
             platformFeeMinor: null,
             handlingFeeMinor: s.handlingFeeMinor,
             otherFeeMinor: null,
-            // Platform fee is unknown, so the total is only partly known.
+            // Platform fee is unknown.
             totalCostCompleteness: 'PARTIAL',
           }
         : null,
@@ -130,8 +128,7 @@ export class DemoFixtureConnector extends BaseConnector {
   }
 
   async doSearchProducts(query, location, { limit = 20 } = {}) {
-    // Sizes ("1 litre", "500g") are not words to match: every size of the product is
-    // returned and labelled, and the caller decides which size was asked for.
+    // Sizes are not matched; every size is returned and the caller picks one.
     const tokens = query
       .toLowerCase()
       .split(/\s+/)

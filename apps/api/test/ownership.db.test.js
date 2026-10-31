@@ -1,6 +1,4 @@
 // Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
-// Data ownership: external platform observations and vendor-managed prices/stock never
-// overwrite each other.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';

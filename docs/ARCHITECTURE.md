@@ -153,8 +153,13 @@ sequenceDiagram
 - The database constraint `reserved <= on_hand` is the last line of defence even against bugs.
 - Redis is never consulted for stock decisions ([ADR-003](adr/README.md#adr-003-redis-is-a-cache-not-an-authority)).
 
-**Why retries are safe**: `POST /orders` requires an `Idempotency-Key`. A retried request with the
-same key and body returns the original order instead of reserving twice.
+**Why retries are safe**: `POST /orders` requires an `Idempotency-Key`, scoped to the user and
+stored with a hash of the request body. A replay returns the stored response instead of reserving
+twice; reusing a key with a different body returns 422.
+
+**Expiry versus payment race**: both paths lock the order row first and change reservations with a
+conditional `ACTIVE →` update, so only one can win. A payment that arrives after expiry moves the
+order to `REFUND_PENDING`; stock is never shipped without a live reservation.
 
 ### 4.3 Events: transactional outbox and idempotent consumers
 
@@ -197,10 +202,11 @@ flowchart TD
     STORE -->|"change events"| SSE["SSE stream to open product pages"]
 ```
 
-- **Locations are bucketed** into geohash cells. Sources are queried at the centre of a cell,
-  never at a shopper's exact coordinates, and one cached answer serves everyone in that cell.
-- **Freshness is explicit**: each observation is FRESH, STALE (shown, labelled) or EXPIRED (not
-  shown as current). Availability goes stale faster than price.
+- **Locations are bucketed** into geohash cells. Background collection queries sources at the
+  centre of a cell, and one cached answer serves everyone in that cell. A live comparison passes
+  the shopper's coordinates to the source.
+- **Freshness is explicit**: each observation is labelled FRESH, STALE, EXPIRED or UNVERIFIED, and
+  ranking penalises older data. Availability goes stale faster than price.
 - **A deadline bounds every comparison**: sources slower than it are reported as `TIMEOUT` rather than delaying the page.
 - **Only permitted sources run.** Every connector is disabled by default. Platforms without an
   official API are represented only by a search link that opens in the shopper's own browser;
@@ -232,7 +238,7 @@ fast responses at checkout. A benchmark (`npm run bench -w @localstock/allocatio
 | Abuse | Redis fixed-window rate limits on login, search, compare, checkout and imports (fail open) |
 | Payments | Webhooks verified by HMAC; webhook events deduplicated |
 | Auditing | Seller and admin changes write before/after snapshots to `audit_logs` |
-| Logging | JSON logs with request ids; request logs omit query strings |
+| Logging | JSON logs with request ids; the logger redacts credentials and personal data, and request logs omit query strings |
 | Graceful shutdown | Readiness fails first, in-flight requests finish, then connections close, with a hard deadline |
 | Health | `/health/live` (process up) and `/health/ready` (Postgres and Redis reachable) |
 | Migrations | Applied in order, each in a transaction, under an advisory lock; every migration after the initial schema has a down script |

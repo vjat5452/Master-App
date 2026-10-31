@@ -1,5 +1,3 @@
-// Worker metrics, served on WORKER_METRICS_PORT (optional) together with /health/live for
-// container health checks. Backlogs are read at scrape time, so they are always current.
 import http from 'node:http';
 import { createRegistry, metricsAccess } from '@localstock/metrics';
 import { QUEUES, DEAD_LETTER_QUEUE } from './messaging/topology.js';

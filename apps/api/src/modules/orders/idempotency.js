@@ -17,11 +17,7 @@ export const requestHash = (body) => createHash('sha256').update(stableStringify
 
 const STALE_AFTER_SECONDS = 300;
 
-/**
- * Claim (userId, key) for a new request. Returns { claimed: true } or { replay: {status, body} }.
- * Reusing a key with a different body is rejected; a crashed request's key can be reclaimed
- * once it is stale.
- */
+// Reusing a key with a different body is rejected; a crashed request's stale key can be reclaimed.
 export async function claimIdempotencyKey(pool, { userId, key, hash }, retried = false) {
   const { rowCount } = await pool.query(
     `INSERT INTO idempotency_keys (user_id, key, request_hash) VALUES ($1, $2, $3)

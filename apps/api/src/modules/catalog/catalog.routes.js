@@ -113,8 +113,7 @@ export function createCatalogRouter({ pool, config }) {
     res.json(toVariant(variant));
   });
 
-  // Sellers propose variants. Matching rules decide whether this is an existing item,
-  // a conflict that needs a human, a probable duplicate to review, or a new item.
+  // Matching decides: existing item, conflict for a human, probable duplicate, or new item.
   router.post('/catalog/variants', auth, validate({ body: variantBody }), async (req, res) => {
     const input = req.valid.body;
     const key = variantKey(input);
@@ -179,8 +178,6 @@ export function createCatalogRouter({ pool, config }) {
     },
   );
 
-  // Admin review and enrichment of a product's metadata, e.g. one discovered on another
-  // platform: fix its name, brand or size, add a barcode, and classify it into a group.
   // The identity key is recomputed so later seller proposals of the same product match it.
   router.patch(
     '/catalog/variants/:variantId',

@@ -29,10 +29,9 @@ const PROMOS = [
   { slug: 'staples', title: 'Stock up the kitchen', body: 'Atta, rice, dals and oils compared across warehouses', bg: 'from-emerald-500 to-teal-700' },
 ];
 
-// Recognisable packs for the hero collage (first hit of each search).
+// Hero collage uses the first hit of each search.
 const HERO_QUERIES = ['dairy milk silk', 'maggi masala noodles', 'lays classic salted', 'kool kesar', 'oreo'];
 
-// Load every category's first shelf in parallel; the home page is built from these.
 function useShelves(location) {
   return useAsync(async () => {
     const categories = await loadCategories();

@@ -3,9 +3,7 @@ const LEVELS = { debug: 10, info: 20, warn: 30, error: 40, silent: 100 };
 
 export const REDACTED = '[REDACTED]';
 
-// Credentials and personal data never reach the logs. Keys are compared case-insensitively,
-// ignoring "_" and "-": any key containing one of SECRET_PARTS, or exactly one of
-// PERSONAL_KEYS (exact, so "latency" or "emailTemplate" stay visible).
+// Keys are normalized (case, "_", "-"); SECRET_PARTS match as substrings, PERSONAL_KEYS exactly.
 const SECRET_PARTS = ['password', 'passwd', 'secret', 'token', 'authorization', 'cookie', 'apikey', 'privatekey', 'signature', 'credential'];
 const PERSONAL_KEYS = new Set(['email', 'phone', 'contactphone', 'lat', 'lng', 'latitude', 'longitude', 'location', 'address', 'line1', 'line2']);
 const MAX_DEPTH = 6;
@@ -17,7 +15,6 @@ export function isSensitiveKey(key) {
   return PERSONAL_KEYS.has(k) || SECRET_PARTS.some((part) => k.includes(part));
 }
 
-/** Copy of `value` with sensitive keys replaced by "[REDACTED]", at any depth. */
 export function redact(value, depth = 0) {
   if (value === null || typeof value !== 'object') return value;
   if (depth >= MAX_DEPTH) return '[TRUNCATED]';

@@ -1,13 +1,4 @@
-// Admin review of product matches. Registered on the admin router, so every route here is
-// already authenticated and limited to platform admins.
-//
-//   GET  /admin/product-mapping/review-queue           listings with candidates to decide
-//   POST /admin/product-mapping/:mappingId/decision    CONFIRM a candidate, or REJECT any mapping
-//   POST /admin/product-mapping/listings/:listingId/manual   link a listing to a chosen product
-//   GET  /admin/catalog/variants/review-queue          seller-proposed variants marked PENDING_REVIEW
-//
-// A confirmation is refused when the listing's and the product's pack sizes are both known
-// and differ: no reviewer can map 500 ml to 1 l.
+// A confirmation is refused when both pack sizes are known and differ: 500 ml is never 1 l.
 import { z } from 'zod';
 import { packSizeFromAttributes, samePackSize, withTransaction } from '@localstock/database';
 import { writeAudit } from '../../shared/audit.js';
@@ -221,8 +212,7 @@ export function registerMappingReviewRoutes(router, { pool }) {
     },
   );
 
-  // Products awaiting review: seller proposals that may duplicate a product (LOCALSTOCK), and
-  // products discovered on other platforms (EXTERNAL) that need enriching and a group.
+  // LOCALSTOCK: seller proposals that may be duplicates. EXTERNAL: discovered elsewhere, needs a group.
   router.get('/admin/catalog/variants/review-queue', validate({ query: variantQueueQuery }), async (req, res) => {
     const { page, limit, origin } = req.valid.query;
     const { rows } = await pool.query(

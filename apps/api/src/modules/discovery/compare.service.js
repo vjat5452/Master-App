@@ -1,7 +1,5 @@
-// Unified comparison: LocalStock's own sellers plus every enabled external source, queried
-// concurrently. Each source is bounded by its own connector timeout and by an overall
-// request deadline; a slow or failing source never fails the request. Results are
-// normalized into one shape but keep their provenance, freshness and certainty.
+// Sources run concurrently under per-source and overall deadlines; a slow or failing source
+// never fails the request.
 import { randomUUID } from 'node:crypto';
 import { ConnectorError, ERROR_CODES, locationCell, withTimeout } from '@localstock/connectors';
 import { samePackSize } from '@localstock/database';
@@ -33,11 +31,7 @@ function haversineKm(a, b) {
   return 6371 * 2 * Math.asin(Math.sqrt(h));
 }
 
-/**
- * Contract listing from a connector -> unified comparison result.
- * @param {object} [extra.match] from the matching service; absent means unmapped
- * @param {object[]} [extra.issues] data-quality issues from checkListingQuality
- */
+// extra.match absent means the listing is unmapped.
 export function externalResult(connector, listing, { location, now, packSize = listingPackSize(listing), match = null, issues = [], freshness = createFreshnessPolicy() }) {
   const price = listing.price && {
     itemPriceMinor: listing.price.itemPriceMinor,
@@ -95,10 +89,7 @@ export function externalResult(connector, listing, { location, now, packSize = l
   };
 }
 
-/**
- * Whether a result's pack size is the one the customer asked for. EXACT and DIFFERENT need
- * both sizes known; anything else is UNKNOWN (or NOT_REQUESTED when the query has no size).
- */
+// EXACT and DIFFERENT need both sizes known; otherwise UNKNOWN (NOT_REQUESTED without a query size).
 export function sizeMatch(requested, actual) {
   if (!requested) return 'NOT_REQUESTED';
   if (!actual) return 'UNKNOWN';
@@ -111,10 +102,6 @@ const safeError = (err) =>
     ? { code: err.code, message: err.message }
     : { code: ERROR_CODES.UPSTREAM_ERROR, message: 'The source could not be queried' };
 
-/**
- * @param {{ pool, redis, logger, connectors, config }} deps
- *   connectors: registry from @localstock/connectors
- */
 export function createCompareService({
   pool,
   redis,

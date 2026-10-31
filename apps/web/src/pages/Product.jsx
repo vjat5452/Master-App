@@ -70,7 +70,6 @@ export default function Product() {
   return (
     <div className="space-y-12">
       <div className="grid grid-cols-[minmax(0,1fr)] items-start gap-8 lg:grid-cols-2 lg:gap-12">
-        {/* Photo */}
         <BlurFade className="lg:sticky lg:top-28">
           <div className="relative rounded-3xl border bg-white p-4 shadow-soft sm:p-10">
             <ProductArt names={[v.groupName, v.name]} src={v.imageUrl} size="lg" className="ring-0 max-sm:aspect-[4/3]" />
@@ -82,7 +81,6 @@ export default function Product() {
           </div>
         </BlurFade>
 
-        {/* Buy box */}
         <BlurFade delay={0.05} className="min-w-0 space-y-6">
           <nav className="flex min-w-0 items-center gap-1.5 text-xs font-semibold text-muted-foreground">
             <Link to="/" className="hover:text-primary">

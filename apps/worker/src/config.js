@@ -13,15 +13,12 @@ const schema = z.object({
   OUTBOX_POLL_INTERVAL_MS: z.coerce.number().int().positive().default(1000),
   RESERVATION_EXPIRY_INTERVAL_MS: z.coerce.number().int().positive().default(15_000),
   RECONCILIATION_INTERVAL_MS: z.coerce.number().int().positive().default(300_000),
-  // Background collection from external sources (only sources that are configured).
   EXTERNAL_REFRESH_INTERVAL_MS: z.coerce.number().int().min(5000).default(60_000),
   EXTERNAL_HEALTH_INTERVAL_MS: z.coerce.number().int().min(10_000).default(300_000),
   EXTERNAL_COLLECTION_CONCURRENCY: z.coerce.number().int().min(1).max(16).default(2),
-  // Data retention (see @localstock/external-data retention.js).
   EXTERNAL_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(90),
   EVENT_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
   RETENTION_INTERVAL_MS: z.coerce.number().int().min(60_000).default(3_600_000),
-  // Optional HTTP port for /metrics and /health/live. METRICS_TOKEN protects /metrics.
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   WORKER_METRICS_PORT: z.coerce.number().int().positive().optional(),
   METRICS_TOKEN: z.string().min(16).optional(),

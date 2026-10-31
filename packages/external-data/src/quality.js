@@ -1,6 +1,4 @@
-// Data-quality checks on an external listing after the connector contract has validated
-// its shape. Problems are reported, never silently fixed: an implausible price is dropped
-// (shown as unknown) rather than displayed, and a future timestamp is not trusted.
+// Problems are reported, never silently fixed: implausible prices are dropped, future timestamps distrusted.
 import { extractPackSize, parsePackSize } from '@localstock/database';
 
 export const KNOWN_CURRENCIES = new Set(['INR']);
@@ -9,15 +7,11 @@ export const MAX_PLAUSIBLE_DISCOUNT = 0.9;
 // Allowed clock difference between a source and LocalStock.
 export const MAX_CLOCK_SKEW_MS = 5 * 60 * 1000;
 
-/** Pack size from the listing's size text, else from a size inside its title. */
 export function listingPackSize(listing) {
   return parsePackSize(listing.variantText) ?? extractPackSize(listing.variantText ?? '').packSize ?? extractPackSize(listing.title).packSize;
 }
 
-/**
- * @returns {{ listing: object, packSize: object | null, issues: { code: string, severity: 'ERROR'|'WARNING'|'INFO', field: string, message: string }[] }}
- *   `listing` is a copy with unusable values removed.
- */
+// Returns a copy of the listing with unusable values removed.
 export function checkListingQuality(listing, { now = Date.now() } = {}) {
   const issues = [];
   const issue = (code, severity, field, message) => issues.push({ code, severity, field, message });

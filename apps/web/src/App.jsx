@@ -98,8 +98,7 @@ export default function App() {
   );
 }
 
-// Outside production builds (or when VITE_DEMO_NOTICE=on), say plainly that the data is not
-// real. VITE_DEMO_NOTICE=off hides it, e.g. for a production deployment with real sellers.
+// Demo data must be labelled as such; VITE_DEMO_NOTICE=off is for deployments with real sellers.
 const SHOW_DEMO_NOTICE =
   import.meta.env.VITE_DEMO_NOTICE === 'on' || (import.meta.env.VITE_DEMO_NOTICE !== 'off' && import.meta.env.MODE !== 'production');
 const DEMO_NOTICE_KEY = 'localstock.demoNoticeDismissed';
@@ -141,7 +140,6 @@ function DemoNotice() {
 
 const SHOPPER_PATHS = /^\/($|search|c\/|product\/)/;
 
-/** Floating "View cart" bar on shopping pages, like a quick-commerce app. */
 function CartBar() {
   const { count, items } = useCart();
   const { pathname } = useLocation();

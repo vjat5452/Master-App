@@ -1,7 +1,4 @@
-// Parses free-text pack sizes ("500 g", "1.5 l", "6 x 200 ml", "pack of 4") into base
-// units so products can be compared on size: 500 ml and 1 l are different products, and a
-// 6-pack is not the single item. Anything not understood returns null (size unknown)
-// rather than a guess.
+// Parses free-text pack sizes into base units; anything not understood is null, never a guess.
 
 const UNITS = new Map([
   ...['mg'].map((u) => [u, { unit: 'g', factor: 0.001 }]),
@@ -36,11 +33,7 @@ function build(rawQuantity, rawUnit, count) {
   return { quantity: base, unit: unit.unit, count };
 }
 
-/**
- * @param {unknown} text e.g. "500 g", "1 L", "6 x 200 ml"
- * @returns {{ quantity: number, unit: 'g' | 'ml' | 'pcs', count: number } | null}
- *   quantity is per item in grams, millilitres or pieces; count is items in the pack.
- */
+// Returns { quantity per item in g/ml/pcs, unit, count of items } or null.
 export function parsePackSize(text) {
   if (typeof text !== 'string') return null;
   const s = text
@@ -63,7 +56,6 @@ export function parsePackSize(text) {
 // Attribute keys that hold a pack size, most specific first.
 const SIZE_KEYS = ['pack_size', 'packSize', 'net_quantity', 'netQuantity', 'size', 'weight', 'volume', 'quantity', 'count'];
 
-/** Pack size from a variant's `attributes` object, or null when none parses. */
 export function packSizeFromAttributes(attributes) {
   if (!attributes || typeof attributes !== 'object') return null;
   for (const key of SIZE_KEYS) {
@@ -81,10 +73,7 @@ const SIZES_IN_TEXT = [
   /\bpack\s+of\s+\d{1,4}\b/i,
 ];
 
-/**
- * Finds a pack size inside free text: "Amul Taaza Toned Milk 1 L" -> 1000 ml, with the
- * matched phrase so callers can remove it. Returns { packSize: null } when none parses.
- */
+// Also returns the matched phrase so callers can strip it from the title.
 export function extractPackSize(text) {
   if (typeof text !== 'string') return { packSize: null, phrase: null };
   for (const pattern of SIZES_IN_TEXT) {
@@ -95,10 +84,7 @@ export function extractPackSize(text) {
   return { packSize: null, phrase: null };
 }
 
-/**
- * True only when both sizes are known and identical. Unknown sizes are never "the same";
- * callers must treat that as needing review, not as a match.
- */
+// Unknown sizes are never equal; callers should treat them as needing review.
 export function samePackSize(a, b) {
   return Boolean(a && b) && a.unit === b.unit && a.count === b.count && round3(a.quantity) === round3(b.quantity);
 }

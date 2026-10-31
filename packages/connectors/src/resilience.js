@@ -1,11 +1,7 @@
-// Protection around every outbound call: timeout, per-source rate limit, retry of
-// retryable failures only (exponential backoff with full jitter), circuit breaker and
-// bounded concurrency. Clock, sleep and randomness are injectable for tests.
 import { ConnectorError, ERROR_CODES, isRetryable } from './contract.js';
 
 const realSleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
-/** Runs fn(signal) and fails with TIMEOUT after `ms`, aborting the signal. */
 export async function withTimeout(fn, ms, { source } = {}) {
   const controller = new AbortController();
   let timer;
@@ -22,12 +18,12 @@ export async function withTimeout(fn, ms, { source } = {}) {
   }
 }
 
-/** Delay before retry `attempt` (1-based): random in [0, min(maxMs, baseMs * 2^(attempt-1))]. */
+// Exponential backoff with full jitter; attempt is 1-based.
 export function backoffDelay(attempt, { baseMs = 200, maxMs = 5000, random = Math.random } = {}) {
   return Math.round(random() * Math.min(maxMs, baseMs * 2 ** (attempt - 1)));
 }
 
-/** Retries retryable ConnectorErrors only. A source's Retry-After wins over the backoff. */
+// A source's Retry-After takes precedence over the computed backoff.
 export async function retry(fn, { attempts = 3, baseMs = 200, maxMs = 5000, sleep = realSleep, random = Math.random, onRetry } = {}) {
   for (let attempt = 1; ; attempt++) {
     try {
@@ -41,10 +37,7 @@ export async function retry(fn, { attempts = 3, baseMs = 200, maxMs = 5000, slee
   }
 }
 
-/**
- * Token bucket: `ratePerSecond` sustained, `burst` at once. acquire() waits for a token
- * but fails with RATE_LIMITED rather than queue longer than `maxWaitMs`.
- */
+// Fails with RATE_LIMITED rather than queue longer than maxWaitMs.
 export class TokenBucket {
   constructor({ ratePerSecond, burst = ratePerSecond, maxWaitMs = 2000, now = Date.now, sleep = realSleep }) {
     if (!(ratePerSecond > 0)) throw new Error('ratePerSecond must be positive');
@@ -75,11 +68,7 @@ export class TokenBucket {
   }
 }
 
-/**
- * CLOSED -> (failureThreshold consecutive failures) -> OPEN -> (cooldownMs) -> HALF_OPEN,
- * which lets one trial call through: success closes, failure re-opens.
- * Only upstream trouble counts; UNSUPPORTED or INVALID_RESPONSE from our side do not open it.
- */
+// HALF_OPEN admits one trial call. Only retryable (upstream) failures count toward opening.
 export class CircuitBreaker {
   constructor({ failureThreshold = 5, cooldownMs = 30_000, now = Date.now } = {}) {
     Object.assign(this, { failureThreshold, cooldownMs, now });
@@ -124,7 +113,6 @@ export class CircuitBreaker {
   }
 }
 
-/** Limits how many calls run at once; the rest wait in order. */
 export class Semaphore {
   constructor(limit) {
     if (!(limit >= 1)) throw new Error('limit must be at least 1');
@@ -145,10 +133,7 @@ export class Semaphore {
   }
 }
 
-/**
- * One policy per source. call(fn) runs fn(signal) under: breaker -> concurrency ->
- * retry(rate limit -> timeout). Each retry takes a fresh rate-limit token.
- */
+// Order: breaker -> concurrency -> retry(rate limit -> timeout); each retry takes a fresh token.
 export function createResiliencePolicy({
   source,
   timeoutMs = 4000,

@@ -21,8 +21,6 @@ function usePersisted(key, initial) {
   return [value, setValue];
 }
 
-/* ---------- auth ---------- */
-
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
@@ -79,8 +77,6 @@ export function AuthProvider({ children }) {
 
 export const useAuth = () => useContext(AuthContext);
 
-/* ---------- delivery location ---------- */
-
 export const PLACES = [
   { label: 'India Gate', lat: 28.6129, lng: 77.2295 },
   { label: 'Connaught Place', lat: 28.6315, lng: 77.2167 },
@@ -97,8 +93,6 @@ export function LocationProvider({ children }) {
 }
 
 export const useDeliveryLocation = () => useContext(LocationContext);
-
-/* ---------- cart ---------- */
 
 const CartContext = createContext(null);
 
@@ -130,16 +124,12 @@ export function CartProvider({ children }) {
 
 export const useCart = () => useContext(CartContext);
 
-/* ---------- toasts ---------- */
-
 const TOAST = { good: toast.success, bad: toast.error, warn: toast.warning, info: toast.info };
 
-/** Returns push(message, kind) where kind is good | bad | warn | info. Rendered by <Toaster/> in main.jsx. */
+/** kind: good | bad | warn | info. */
 export const useToast = () => useCallback((message, kind = 'good') => (TOAST[kind] ?? toast)(message), []);
 
-/* ---------- data loading ---------- */
-
-/** Run an async loader on mount and whenever deps change; returns { data, error, loading, reload, setData }. */
+/** Returns { data, error, loading, reload, setData }. */
 export function useAsync(loader, deps) {
   const [state, setState] = useState({ data: null, error: null, loading: true });
   const seq = useRef(0);

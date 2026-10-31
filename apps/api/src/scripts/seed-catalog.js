@@ -1,7 +1,4 @@
-// Adds a realistic demo catalog on top of the base seed: ~70 real Indian grocery products with
-// photos (from Open Food Facts), five more sellers across Delhi NCR, their warehouses, offers,
-// stock and delivery fleets. Idempotent: existing rows are reused, never duplicated.
-// Run after `npm run db:seed`:  npm run seed:catalog -w @localstock/api
+// Usage (after npm run db:seed): npm run seed:catalog -w @localstock/api. Idempotent.
 import '../config/load-env.js';
 import { readFile } from 'node:fs/promises';
 import { Redis } from 'ioredis';
@@ -76,7 +73,7 @@ async function seed(client) {
   const one = async (sql, params) => (await client.query(sql, params)).rows[0];
   const passwordHash = await hashPassword(PASSWORD);
 
-  // Taxonomy: every category hangs under "Grocery".
+  // Every category hangs under "Grocery".
   const grocery =
     (await one(`SELECT id FROM categories WHERE slug = 'grocery'`)) ??
     (await one(`INSERT INTO categories (name, slug) VALUES ('Grocery', 'grocery') RETURNING id`));
@@ -99,7 +96,7 @@ async function seed(client) {
     }
   }
 
-  // Variants (matched by barcode, like the catalog API) and their images.
+  // Variants are matched by barcode, like the catalog API.
   const products = [];
   for (const p of dataset.products) {
     let variant = await one('SELECT id FROM product_variants WHERE barcode = $1', [p.barcode]);
@@ -132,7 +129,6 @@ async function seed(client) {
     stats.images += rowCount;
   }
 
-  // Sellers, warehouses, fleets, offers and stock.
   for (const s of SELLERS) {
     let company = await one('SELECT id FROM companies WHERE name = $1', [s.company]);
     if (!company && s.existing) {
@@ -177,8 +173,7 @@ async function seed(client) {
 
     const { rows: warehouses } = await client.query(`SELECT id, name FROM warehouses WHERE company_id = $1 AND status = 'ACTIVE' ORDER BY name`, [company.id]);
     for (const p of products) {
-      // One stream per seller+product, so each decision is the same on every run
-      // regardless of what earlier runs already inserted.
+      // One stream per seller+product keeps every decision stable across runs.
       const rand = rng(`${s.company}|${p.barcode}`);
       if (rand() > s.coverage) continue;
       // Price: the seller's level ±4%, rounded to the rupee, never above the reference price.

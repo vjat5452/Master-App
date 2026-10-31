@@ -12,7 +12,6 @@ const TYPE_TINT = {
   THIRD_PARTY: 'from-sky-500 to-indigo-600',
 };
 
-/** Provider cards: pricing, speed and reliability at a glance. */
 export function ProviderTable({ items }) {
   return (
     <div className="grid gap-4 p-5 sm:grid-cols-2 xl:grid-cols-3">

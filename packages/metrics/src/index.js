@@ -1,7 +1,5 @@
-// Minimal Prometheus metrics (text exposition format 0.0.4) without a dependency:
-// counters, histograms and gauges whose value is read at scrape time. Label values must
-// come from small fixed sets (route patterns, status codes, source codes), never from user
-// input, so the number of series stays bounded.
+// Dependency-free Prometheus metrics (text format 0.0.4). Label values must come from small
+// fixed sets, never user input, to keep series bounded.
 
 const escapeLabel = (v) => String(v).replace(/\\/g, '\\\\').replace(/\n/g, '\\n').replace(/"/g, '\\"');
 const labelText = (labels) => {
@@ -63,7 +61,7 @@ export function createRegistry({ prefix = 'localstock_' } = {}) {
     return m;
   }
 
-  /** Gauge read at scrape time: collect() returns [{ labels, value }] or a number. */
+  // collect() runs at scrape time and returns [{ labels, value }] or a number.
   function gauge(name, help, collect) {
     const m = {
       async render() {
@@ -82,7 +80,6 @@ export function createRegistry({ prefix = 'localstock_' } = {}) {
     return m;
   }
 
-  // Process basics, always present.
   const started = Date.now();
   gauge('process_uptime_seconds', 'Seconds since the process started', () => Math.round((Date.now() - started) / 1000));
   gauge('process_heap_used_bytes', 'V8 heap in use', () => process.memoryUsage().heapUsed);
@@ -100,10 +97,7 @@ export function createRegistry({ prefix = 'localstock_' } = {}) {
   };
 }
 
-/**
- * Who may read metrics: with a token configured, only requests carrying it; without one,
- * only outside production (so metrics are never accidentally public).
- */
+// Without a token, metrics are readable only outside production.
 export function metricsAccess({ token, production }) {
   return (authorizationHeader) => {
     if (token) return authorizationHeader === `Bearer ${token}`;

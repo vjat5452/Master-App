@@ -311,7 +311,6 @@ export default function Explorer() {
   );
 }
 
-/** Calls every read endpoint that can be resolved for the current user and reports the results. */
 function SmokeTest({ ids, discovering, user }) {
   const [results, setResults] = useState(null);
   const [running, setRunning] = useState(false);

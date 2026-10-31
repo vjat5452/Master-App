@@ -1,6 +1,4 @@
 // Requires PostgreSQL. Run with: RUN_DB_TESTS=1 npm run test:db
-// Matching external listings to LocalStock products through the comparison API, and the
-// admin review flow, against the isolated *_test database.
 import { test, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { randomUUID } from 'node:crypto';
@@ -95,8 +93,7 @@ test('listings are matched by GTIN, by brand + size + name, or left for review o
   assert.equal(r.brand.canonicalProductId, variants.milk500.id, '500 ml goes to the 500 ml product, not the 1 l one');
   assert.equal(r.brand.match.method, 'BRAND_ATTRIBUTES');
 
-  // No catalogue product fits these, so each becomes a product of its own, never merged
-  // into the wrong one.
+  // No catalogue product fits these, so each becomes its own product rather than a wrong merge.
   assert.equal(r.multipack.match.method, 'NEW_CANONICAL');
   assert.notEqual(r.multipack.canonicalProductId, variants.buttermilk.id, 'a 6-pack is not the single bottle');
   assert.equal(r.flavour.match.method, 'NEW_CANONICAL');
@@ -162,8 +159,7 @@ test('no one can link listings of different pack sizes', { skip }, async () => {
 
 test('a manual link works when sizes agree; rejecting an automatic match unlinks it', { skip }, async () => {
   const flavour = await api.one('SELECT id FROM external_listings WHERE external_listing_id = $1', [`${tag}-flavour`]);
-  // The reviewer knows better (e.g. the listing title is wrong): sizes agree, so it is
-  // allowed, after unlinking the product created from the listing.
+  // A manual link overrides matching when sizes agree, after unlinking the listing's own product.
   const created = await api.one(`SELECT id FROM external_product_mappings WHERE listing_id = $1 AND match_method = 'NEW_CANONICAL'`, [flavour.id]);
   const blocked = await asAdmin(http().post(`/api/v1/admin/product-mapping/listings/${flavour.id}/manual`)).send({ variantId: variants.elaichi.id });
   assert.equal(blocked.status, 409);

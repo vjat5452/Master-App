@@ -1,13 +1,7 @@
 import { enqueueEvent, releaseReservations, transitionOrder, withTransaction } from '@localstock/database';
 
-/**
- * Release stock held by unpaid orders whose reservations expired.
- * Works one order per transaction and locks the order row first (same lock order as payment
- * confirmation), so if a payment confirms concurrently exactly one of them wins: the conditional
- * ACTIVE -> EXPIRED update finds nothing once the reservations are CONFIRMED.
- * The payment row is left PENDING: if the provider later reports success, the payment handler
- * sees no active reservations and requests a refund.
- */
+// Locks the order row first (same lock order as payment confirmation) so exactly one of expiry
+// and a concurrent payment wins. A late payment success finds no active reservations and refunds.
 export function createReservationExpiryJob({ pool, logger, batchSize = 50 }) {
   return async function expireReservations() {
     const { rows } = await pool.query(

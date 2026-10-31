@@ -1,6 +1,4 @@
-// Cross-platform comparison (POST /discovery/compare) and its live change feed
-// (GET /discovery/stream, server-sent events). EventSource cannot send an Authorization
-// header, so the stream is read with fetch.
+// EventSource cannot send an Authorization header, so the SSE stream is read with fetch.
 import { useEffect, useRef, useState } from 'react';
 import { API_BASE, getTokens, post } from './api';
 
@@ -18,11 +16,7 @@ export const compareOffers = ({ query, location, rankingPolicy = 'best_value', r
     { auth: false },
   );
 
-/**
- * Calls onEvent for each change LocalStock detects for these products/area while mounted.
- * Needs a signed-in user; reconnects after drops and resumes with Last-Event-ID.
- * @returns {'off'|'connecting'|'live'}
- */
+/** Reconnects after drops and resumes with Last-Event-ID. Returns 'off' | 'connecting' | 'live'. */
 export function useChangeStream({ enabled, variantIds = [], cell, onEvent }) {
   const [state, setState] = useState('off');
   const handler = useRef(onEvent);

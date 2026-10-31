@@ -7,12 +7,8 @@ const setPaymentStatus = (client, paymentId, status) =>
 
 export function createPaymentsService({ pool }) {
   return {
-    /**
-     * Apply a verified provider event exactly once.
-     *  - The provider event id is deduplicated in webhook_events (same transaction as the effects).
-     *  - The order row is locked first, the same lock order used by cancellation and expiry,
-     *    so confirmation and expiry cannot both win.
-     */
+    // Event ids are deduplicated in the same transaction. The order row is locked first, as in
+    // cancellation and expiry, so confirmation and expiry cannot both win.
     async processEvent({ provider, eventId, providerPaymentId, status, payload }) {
       return withTransaction(pool, async (client) => {
         const { rowCount: fresh } = await client.query(

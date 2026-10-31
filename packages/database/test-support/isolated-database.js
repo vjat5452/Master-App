@@ -1,6 +1,4 @@
-// Integration tests run against their own database, never the dev one. The target is
-// TEST_DATABASE_URL, or DATABASE_URL with "_test" appended to the database name. It is
-// created and migrated on demand, and emptied before each run.
+// Tests use TEST_DATABASE_URL, or DATABASE_URL with "_test" appended; created, migrated and emptied on demand.
 import pg from 'pg';
 import { createPool, migrate } from '../src/index.js';
 
@@ -29,7 +27,6 @@ async function ensureDatabaseExists(url) {
   }
 }
 
-/** Returns a pool on a freshly migrated, empty test database. */
 export async function prepareTestDatabase({ max = 20 } = {}) {
   const url = testDatabaseUrl();
   const name = new URL(url).pathname.slice(1);

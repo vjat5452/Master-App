@@ -1,7 +1,5 @@
-// What customers compare, and where, so background collection refreshes popular queries
-// first instead of crawling everything. Stored in Redis as hourly sorted sets of
-// { normalized query, coarse location cell }; nothing identifies a customer, and the exact
-// location is never recorded. Buckets expire after a few hours.
+// Hourly Redis sorted sets of { query, coarse cell } that prioritize background refresh.
+// Nothing identifies a customer and exact locations are never recorded.
 
 const PREFIX = 'external:demand';
 const BUCKET_TTL_SECONDS = 4 * 3600;
@@ -10,7 +8,7 @@ export const normalizeQuery = (query) => query.trim().toLowerCase().replace(/\s+
 
 const bucketKey = (t) => `${PREFIX}:${new Date(t).toISOString().slice(0, 13)}`; // hour resolution
 
-/** Counts one comparison of `query` in `cell`. Best effort: never fails the caller. */
+// Best effort: never fails the caller.
 export async function recordDemand(redis, { query, cell, now = Date.now() }) {
   const key = bucketKey(now);
   try {
@@ -21,10 +19,6 @@ export async function recordDemand(redis, { query, cell, now = Date.now() }) {
   }
 }
 
-/**
- * The most requested { query, cell } pairs over the last `hours`, most demanded first.
- * @returns {Promise<{ query: string, cell: string, count: number }[]>}
- */
 export async function topDemand(redis, { hours = 2, limit = 50, now = Date.now() } = {}) {
   const totals = new Map();
   for (let h = 0; h < hours; h++) {

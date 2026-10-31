@@ -18,12 +18,10 @@ const schema = z.object({
   COMPARE_DEADLINE_MS: z.coerce.number().int().min(200).max(30_000).default(5000),
   // Bearer token for GET /metrics. Without it, /metrics only answers outside production.
   METRICS_TOKEN: z.string().min(16).optional(),
-  // Sandbox "pay" button for a public demo running with NODE_ENV=production. Off by default;
-  // outside production the sandbox is always available.
+  // Sandbox payments under NODE_ENV=production (public demo only); always on outside production.
   ENABLE_SANDBOX_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
-  // Number of reverse proxies in front of the API whose X-Forwarded-For entries are trusted
-  // (0 = none; 2 for Vercel -> Render). A request sent straight to the API, bypassing
-  // them, can then choose the address it is rate-limited under.
+  // Trusted reverse proxies (2 for Vercel -> Render). Set too high, a direct caller can pick
+  // the address it is rate-limited under.
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
   // Per-policy ranking weights (JSON); see modules/discovery/ranking.js.
   COMPARE_RANKING_WEIGHTS: z

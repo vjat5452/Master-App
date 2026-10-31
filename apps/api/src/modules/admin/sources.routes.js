@@ -1,13 +1,4 @@
-// Admin view of external platforms and their sources. Registered on the admin router, so
-// every route is authenticated and limited to platform admins.
-//
-//   GET   /admin/external-platforms                     platforms, sources, access, health, recent runs
-//   GET   /admin/external-sources/:code/runs            recent collection runs of one source
-//   POST  /admin/external-sources/:code/test-connection runs the source's health check now
-//   PATCH /admin/external-sources/:code/status          records the integration status
-//
-// ACTIVE is a human decision recorded here, and only for a configured, non-demo source with
-// a note describing the acceptance evidence. Nothing sets it automatically.
+// ACTIVE is only ever set here by an admin, for a configured non-demo source with an evidence note.
 import { z } from 'zod';
 import { PLATFORMS } from '@localstock/connectors';
 import { withTransaction } from '@localstock/database';

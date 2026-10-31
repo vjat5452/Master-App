@@ -1,7 +1,4 @@
-// "Compare across platforms": this product from LocalStock sellers and connected external
-// platforms, ranked by the API with its reasons. Every value says how certain it is:
-// demo data, unknown distance, partial totals, unconfirmed matches and stale prices are
-// labelled, never smoothed over.
+// Demo data, unknown distance, partial totals, unconfirmed matches and stale prices are always labelled.
 import { useCallback, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
@@ -189,9 +186,6 @@ function ResultRow({ r }) {
   );
 }
 
-/**
- * @param {{ variant: { id, brand, name, attributes }, location: { lat, lng, label }, query: string }} props
- */
 export function CompareSection({ variant, location, query }) {
   const { user } = useAuth();
   const [policy, setPolicy] = useState('best_value');
@@ -203,7 +197,7 @@ export function CompareSection({ variant, location, query }) {
     [query, location.lat, location.lng, policy, refresh],
   );
 
-  // Live changes for this product (or anything in this area until it is matched).
+  // Until the product is matched, any change in this area triggers a reload.
   const reloadTimer = useRef();
   const onEvent = useCallback(() => {
     setLastLive(new Date().toISOString());
