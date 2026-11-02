@@ -129,7 +129,8 @@ test('a discovered product cannot be sold until an admin classifies and approves
   const queue = await http().get('/api/v1/admin/catalog/variants/review-queue?origin=EXTERNAL').set('authorization', admin.auth);
   const item = queue.body.items.find((v) => v.id === productId);
   assert.ok(item);
-  assert.equal(item.discoveredOn.platform, 'blinkit');
+  // Both sources answer in parallel; whichever was matched first created the product.
+  assert.ok(['blinkit', 'zepto'].includes(item.discoveredOn.platform), item.discoveredOn.platform);
 
   const approveEarly = await http().patch(`/api/v1/catalog/variants/${productId}/status`).set('authorization', admin.auth).send({ status: 'ACTIVE' });
   assert.equal(approveEarly.status, 422);

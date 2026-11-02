@@ -19,13 +19,27 @@ export function writeCompareCache(redis, key, { collectedAt, items }) {
   return redis.set(key, JSON.stringify({ collectedAt, items }), 'EX', CACHE_TTL_SECONDS);
 }
 
-// Bounded SCAN; returns the number of keys removed.
-export async function invalidateCompareCache(redis, sourceCode, cell, { maxKeys = 1000 } = {}) {
+// Bounded SCAN; returns the number of keys removed. With `olderThan`, entries collected at or
+// after that time already reflect the change and are kept.
+export async function invalidateCompareCache(redis, sourceCode, cell, { maxKeys = 1000, olderThan = null } = {}) {
+  const cutoff = olderThan ? Date.parse(olderThan) : NaN;
   let cursor = '0';
   let removed = 0;
   do {
-    const [next, keys] = await redis.scan(cursor, 'MATCH', compareCachePattern(sourceCode, cell), 'COUNT', 200);
+    const [next, found] = await redis.scan(cursor, 'MATCH', compareCachePattern(sourceCode, cell), 'COUNT', 200);
     cursor = next;
+    let keys = found;
+    if (keys.length && !Number.isNaN(cutoff)) {
+      const values = await redis.mget(...keys);
+      keys = keys.filter((_, i) => {
+        if (!values[i]) return false;
+        try {
+          return !(Date.parse(JSON.parse(values[i]).collectedAt) >= cutoff);
+        } catch {
+          return true;
+        }
+      });
+    }
     if (keys.length) removed += await redis.del(...keys);
   } while (cursor !== '0' && removed < maxKeys);
   return removed;

@@ -214,9 +214,9 @@ export function createOrdersService({ pool, config }) {
 
   return {
     async createOrder(userId, key, input) {
-      const idempotency = { userId, key };
-      const claim = await claimIdempotencyKey(pool, { ...idempotency, hash: requestHash(input) });
+      const claim = await claimIdempotencyKey(pool, { userId, key, hash: requestHash(input) });
       if (claim.replay) return { ...claim.replay, replayed: true };
+      const idempotency = { userId, key, claimedAt: claim.claimedAt };
       try {
         return { status: 201, body: await placeOrder(userId, input, idempotency), replayed: false };
       } catch (err) {

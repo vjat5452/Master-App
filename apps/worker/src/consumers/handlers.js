@@ -20,12 +20,13 @@ export async function handleNotification(event, { client, logger }) {
   logger.info('notification sent (simulated)', { customerId: rows[0].customer_id, template, orderId: event.aggregateId });
 }
 
-// Drop cached comparisons for this source and cell so the next request refetches.
+// Drop cached comparisons for this source and cell so the next request refetches. Entries
+// written after the change (such as the collection run that detected it) are kept.
 export function createExternalChangeHandler(redis) {
   return async function handleExternalChange(event, { logger }) {
-    const { sourceCode, cell } = event.payload ?? {};
+    const { sourceCode, cell, detectedAt } = event.payload ?? {};
     if (!sourceCode || !cell) return;
-    const removed = await invalidateCompareCache(redis, sourceCode, cell);
+    const removed = await invalidateCompareCache(redis, sourceCode, cell, { olderThan: detectedAt });
     logger.debug('comparison cache invalidated', { source: sourceCode, entityType: event.payload.entityType, removed });
   };
 }

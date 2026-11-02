@@ -44,9 +44,20 @@ export function createPaymentsService({ pool }) {
           return { outcome: 'PAYMENT_FAILED', orderId };
         }
 
+        // Holds past their deadline count as expired even if the expiry job has not run yet.
+        const expired = await releaseReservations(client, { orderId, toStatus: 'EXPIRED', onlyExpired: true });
+        if (expired.length > 0) {
+          await enqueueEvent(client, {
+            eventType: 'OrderExpired',
+            aggregateType: 'order',
+            aggregateId: orderId,
+            payload: { orderId, releasedReservations: expired.length },
+          });
+        }
+
         const { rows: confirmed } = await client.query(
           `UPDATE inventory_reservations SET status = 'CONFIRMED', updated_at = now()
-            WHERE order_id = $1 AND status = 'ACTIVE' RETURNING id`,
+            WHERE order_id = $1 AND status = 'ACTIVE' AND expires_at > now() RETURNING id`,
           [orderId],
         );
         const { rows: counts } = await client.query('SELECT count(*)::int AS total FROM inventory_reservations WHERE order_id = $1', [orderId]);

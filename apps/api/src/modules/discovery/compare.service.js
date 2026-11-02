@@ -115,6 +115,7 @@ export function createCompareService({
 }) {
   const deadlineMs = config.COMPARE_DEADLINE_MS;
   const rankingWeights = config.COMPARE_RANKING_WEIGHTS ?? DEFAULT_WEIGHTS;
+  const inFlight = new Map();
 
   async function readCache(key) {
     try {
@@ -164,10 +165,19 @@ export function createCompareService({
 
     const started = Date.now();
     // The connector keeps running past the deadline; a late answer still fills the cache.
-    const call = connector.searchProducts(query, location, { limit, requestId }).then((result) => {
-      writeCache(key, { collectedAt: new Date().toISOString(), items: result.items });
-      return result;
-    });
+    // Identical lookups already in flight share one call instead of each hitting the source.
+    const flightKey = `${key}:${limit}:${location.latitude},${location.longitude}`;
+    let call = inFlight.get(flightKey);
+    if (!call) {
+      call = connector
+        .searchProducts(query, location, { limit, requestId })
+        .then((result) => {
+          writeCache(key, { collectedAt: new Date().toISOString(), items: result.items });
+          return result;
+        })
+        .finally(() => inFlight.delete(flightKey));
+      inFlight.set(flightKey, call);
+    }
     let result;
     try {
       result = await withTimeout(() => call, deadlineMs, { source: connector.code });

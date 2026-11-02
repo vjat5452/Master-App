@@ -241,6 +241,22 @@ test('refresh policies: prefer_fresh reuses a recent answer, cache_only never ca
   assert.ok([...redis.store.keys()].every((k) => k.includes(':ttnfv2:') && !k.includes('28.6')));
 });
 
+test('identical comparisons in flight share one source call', async () => {
+  let release;
+  const gate = new Promise((r) => (release = r));
+  const s = stubSource('s', async () => (await gate, { items: [listing()], queryCell: 'ttnfv2' }));
+  const svc = service({ sources: [s], redis: memoryRedis() });
+  const pending = [svc.compare(request_()), svc.compare(request_()), svc.compare(request_())];
+  await new Promise((r) => setTimeout(r, 20));
+  release();
+  const answers = await Promise.all(pending);
+  assert.equal(s.calls, 1);
+  assert.ok(answers.every((a) => a.results.length === 1));
+
+  await svc.compare(request_({ refreshPolicy: 'refresh_supported' }));
+  assert.equal(s.calls, 2, 'a finished call is not reused');
+});
+
 test('demo fixture results are labelled and never fresh', async () => {
   const demo = new DemoFixtureConnector({ env: {} });
   const out = await createCompareService({ pool: null, redis: memoryRedis(), logger, connectors: registryOf(demo), config, localSource: emptyLocal }).compare(
