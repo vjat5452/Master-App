@@ -39,6 +39,13 @@ services:
         sync: false
       - key: ENABLE_SANDBOX_PAYMENTS
         value: "true"
+      # Razorpay test keys; leave unset to keep sandbox payments.
+      - key: RAZORPAY_KEY_ID
+        sync: false
+      - key: RAZORPAY_KEY_SECRET
+        sync: false
+      - key: RAZORPAY_WEBHOOK_SECRET
+        sync: false
       # Vercel's proxy, then Render's load balancer.
       - key: TRUST_PROXY
         value: "2"

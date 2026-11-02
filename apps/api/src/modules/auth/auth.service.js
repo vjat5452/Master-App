@@ -5,6 +5,7 @@ import { AppError, conflict, notFound } from '../../shared/errors.js';
 import { hashPassword, verifyPassword } from './passwords.js';
 
 const sha256 = (value) => createHash('sha256').update(value).digest('hex');
+const REFRESH_GRACE_SECONDS = 30;
 const invalidRefresh = () => new AppError(401, 'INVALID_REFRESH_TOKEN', 'Refresh token is invalid or expired');
 
 const publicUser = (u) => ({ id: u.id, name: u.name, email: u.email, platformRole: u.platform_role });
@@ -63,18 +64,21 @@ export function createAuthService({ pool, config }) {
     },
 
     // Rotating refresh tokens: each use issues a new one. Presenting an already-rotated token
-    // means it leaked, so every session of that user is revoked.
+    // means it leaked, so every session of that user is revoked. A token rotated moments ago is
+    // more likely a second tab refreshing at the same time, so it is only rejected.
     async refresh(refreshToken) {
       const result = await withTransaction(pool, async (client) => {
         const { rows } = await client.query(
-          `SELECT t.id, t.user_id, t.expires_at, t.revoked_at, u.name, u.email, u.platform_role, u.status
+          `SELECT t.id, t.user_id, t.expires_at, t.revoked_at, u.name, u.email, u.platform_role, u.status,
+                  t.replaced_by IS NOT NULL AND t.revoked_at > now() - make_interval(secs => $2::int) AS just_rotated
              FROM refresh_tokens t JOIN users u ON u.id = t.user_id
             WHERE t.token_hash = $1
             FOR UPDATE OF t`,
-          [sha256(refreshToken)],
+          [sha256(refreshToken), REFRESH_GRACE_SECONDS],
         );
         const row = rows[0];
         if (!row) throw invalidRefresh();
+        if (row.just_rotated) throw invalidRefresh();
         if (row.revoked_at) {
           await client.query('UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL', [row.user_id]);
           return { reuseDetected: true };

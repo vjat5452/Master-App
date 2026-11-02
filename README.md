@@ -10,6 +10,7 @@ checkout.
 - **Multi-warehouse checkout**: an allocation engine splits a cart across warehouses and delivery providers, ranked by cost and delivery time.
 - **No overselling**: stock is reserved atomically in PostgreSQL; orders are idempotent.
 - **Reliable events**: transactional outbox, RabbitMQ, and idempotent consumers with retries and a dead-letter queue.
+- **Payments**: Razorpay in test mode (UPI, cards, netbanking) with signed webhooks and automatic refunds of late payments, or a built-in sandbox.
 - **Price comparison and history**: price graph per product, and comparison with other platforms through authorized sources only.
 - **Seller and admin tools**: warehouses, offers, inventory, CSV import, product matching review, dashboards.
 
@@ -83,15 +84,18 @@ packages/
   allocation-engine/  warehouse and delivery allocation
   connectors/         external platform sources
   external-data/      matching, freshness and collection
+  payments/           Razorpay client and payment settlement paths
   logger/, metrics/   shared utilities
 docs/           architecture, decisions, runbook, deployment
 ```
 
 ## Documentation
 
+- [Developer reference](docs/reference/README.md): every file and function, the tech stack, and a glossary
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture decision records](docs/adr/README.md)
 - [Development and testing](docs/DEVELOPMENT.md)
+- [Payments (Razorpay test mode)](docs/PAYMENTS.md)
 - [API (OpenAPI)](docs/openapi.yaml)
 - [Free deployment guide](docs/DEPLOY_FREE.md)
 - [Runbook](docs/RUNBOOK.md)

@@ -158,8 +158,10 @@ stored with a hash of the request body. A replay returns the stored response ins
 twice; reusing a key with a different body returns 422.
 
 **Expiry versus payment race**: both paths lock the order row first and change reservations with a
-conditional `ACTIVE →` update, so only one can win. A payment that arrives after expiry moves the
-order to `REFUND_PENDING`; stock is never shipped without a live reservation.
+conditional `ACTIVE →` update, so only one can win. The payment path also expires holds that are
+past their deadline before confirming, so the deadline holds even between expiry-job runs. A payment
+that arrives after the deadline moves the order to `REFUND_PENDING`; stock is never shipped without
+a live reservation.
 
 ### 4.3 Events: transactional outbox and idempotent consumers
 

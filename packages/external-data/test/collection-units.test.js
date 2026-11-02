@@ -35,6 +35,9 @@ function fakeRedis() {
       const prefix = pattern.replace(/\*$/, '');
       return ['0', [...strings.keys()].filter((k) => k.startsWith(prefix))];
     },
+    async mget(...keys) {
+      return keys.map((k) => strings.get(k) ?? null);
+    },
     async del(...keys) {
       keys.forEach((k) => strings.delete(k));
       return keys.length;
@@ -111,4 +114,14 @@ test('cache invalidation removes only that source and cell', async () => {
   assert.equal(await invalidateCompareCache(redis, 'a', 'ttnfv2'), 2);
   assert.deepEqual([...redis.strings.keys()], [compareCacheKey('a', 'ttnfx9', 'milk'), compareCacheKey('b', 'ttnfv2', 'milk')]);
   assert.equal(compareCacheKey('a', 'ttnfv2', 'Milk '), compareCacheKey('a', 'ttnfv2', 'milk'), 'keys use the normalized query');
+});
+
+test('cache invalidation keeps answers collected after the change', async () => {
+  const redis = fakeRedis();
+  const before = compareCacheKey('a', 'ttnfv2', 'milk');
+  const after = compareCacheKey('a', 'ttnfv2', 'bread');
+  redis.strings.set(before, JSON.stringify({ collectedAt: '2026-10-29T11:59:00Z', items: [] }));
+  redis.strings.set(after, JSON.stringify({ collectedAt: '2026-10-29T12:00:01Z', items: [] }));
+  assert.equal(await invalidateCompareCache(redis, 'a', 'ttnfv2', { olderThan: '2026-10-29T12:00:00Z' }), 1);
+  assert.deepEqual([...redis.strings.keys()], [after]);
 });

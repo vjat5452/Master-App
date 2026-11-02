@@ -7,6 +7,7 @@ import { Alert, Badge, Button, CopyId, ErrorBox, Json, KV, Panel, Reveal, Spinne
 import { Card } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { get, post } from '@/lib/api';
+import { payWithRazorpay } from '@/lib/razorpay';
 import { dateTime, minutes, money, title } from '@/lib/format';
 import { useAsync, useToast } from '@/lib/store';
 
@@ -14,6 +15,8 @@ const OUTCOME = {
   CONFIRMED: ['Payment succeeded; order confirmed', 'good'],
   PAYMENT_FAILED: ['Payment failed; reserved stock released', 'bad'],
   REFUND_PENDING: ['Payment arrived too late; a refund was requested', 'info'],
+  PROCESSING: ['Payment received; confirming with Razorpay', 'info'],
+  AMOUNT_MISMATCH: ['The paid amount did not match the order; it will be reviewed', 'bad'],
   ALREADY_SETTLED: ['This payment was already settled', 'info'],
   DUPLICATE_EVENT: ['Duplicate webhook event ignored', 'info'],
 };
@@ -34,7 +37,7 @@ function useCountdown(iso) {
 
 function progress(order) {
   const s = order.status;
-  const failed = ['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUND_PENDING'].includes(s);
+  const failed = ['PAYMENT_FAILED', 'CANCELLED', 'EXPIRED', 'REFUND_PENDING', 'REFUNDED'].includes(s);
   const steps = [
     { label: 'Placed', caption: dateTime(order.createdAt), done: true },
     { label: 'Stock reserved', done: true },
@@ -52,12 +55,26 @@ export default function OrderDetail() {
   const [lastEvent, setLastEvent] = useState(null);
   const countdown = useCountdown(order?.status === 'PENDING_PAYMENT' ? order.reservationExpiresAt : null);
 
+  const gateway = order?.payment?.provider === 'razorpay';
   const pay = useSubmit(async (status) => {
     const r = await post(`/payments/sandbox/${order.payment.providerPaymentId}/simulate`, { status });
     setLastEvent(r);
     const [msg, kind] = OUTCOME[r.result.outcome] ?? [r.result.outcome, 'info'];
     toast(msg, kind);
     await reload();
+  });
+  const payOnline = useSubmit(async () => {
+    const r = await payWithRazorpay(order, { onAttemptFailed: (msg) => toast(`${msg}. You can try again.`, 'bad') });
+    if (r.outcome === 'DISMISSED') return;
+    const [msg, kind] = OUTCOME[r.outcome] ?? ['Payment received; confirming with Razorpay', 'info'];
+    toast(msg, kind);
+    // A payment still being confirmed settles through the webhook or the sync job within a minute.
+    for (let i = 0; i < (r.outcome === 'PROCESSING' ? 5 : 1); i++) {
+      if (i) await new Promise((done) => setTimeout(done, 3000));
+      const fresh = await get(`/orders/${orderId}`);
+      setData(fresh);
+      if (fresh.status !== 'PENDING_PAYMENT') break;
+    }
   });
   const cancel = useSubmit(async () => {
     setData(await post(`/orders/${orderId}/cancel`));
@@ -195,8 +212,8 @@ export default function OrderDetail() {
               />
               {order.payment && (
                 <div className="flex items-center justify-between rounded-xl bg-muted/40 px-3 py-2 text-xs">
-                  <span className="capitalize text-muted-foreground">{order.payment.provider}</span>
-                  <span className="font-mono">{order.payment.providerPaymentId.slice(0, 16)}…</span>
+                  <span className="capitalize text-muted-foreground">{gateway ? 'Razorpay (test mode)' : order.payment.provider}</span>
+                  <span className="font-mono">{order.payment.providerPaymentId ? `${order.payment.providerPaymentId.slice(0, 20)}…` : 'not started'}</span>
                 </div>
               )}
 
@@ -213,28 +230,45 @@ export default function OrderDetail() {
               )}
 
               <ErrorBox error={pay.error} />
+              <ErrorBox error={payOnline.error} />
               <ErrorBox error={cancel.error} />
               {pending && order.payment && (
                 <div className="space-y-2.5">
-                  <Button size="lg" variant="gold" block busy={pay.busy} onClick={() => pay.run('SUCCEEDED')}>
-                    <CircleDollarSign /> Pay {money(order.totalMinor)}
-                  </Button>
-                  <div className="grid grid-cols-2 gap-2">
-                    <Button variant="secondary" disabled={pay.busy} onClick={() => pay.run('FAILED')}>
-                      Simulate failure
+                  {gateway ? (
+                    <Button size="lg" variant="gold" block busy={payOnline.busy} disabled={countdown === 'expired'} onClick={() => payOnline.run()}>
+                      <CircleDollarSign /> Pay {money(order.totalMinor)}
                     </Button>
-                    <Button variant="ghost" className="text-destructive hover:bg-destructive/10 hover:text-destructive" busy={cancel.busy} onClick={() => cancel.run()}>
+                  ) : (
+                    <Button size="lg" variant="gold" block busy={pay.busy} onClick={() => pay.run('SUCCEEDED')}>
+                      <CircleDollarSign /> Pay {money(order.totalMinor)}
+                    </Button>
+                  )}
+                  <div className={gateway ? '' : 'grid grid-cols-2 gap-2'}>
+                    {!gateway && (
+                      <Button variant="secondary" disabled={pay.busy} onClick={() => pay.run('FAILED')}>
+                        Simulate failure
+                      </Button>
+                    )}
+                    <Button
+                      variant="ghost"
+                      block={gateway}
+                      className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                      busy={cancel.busy}
+                      disabled={payOnline.busy}
+                      onClick={() => cancel.run()}
+                    >
                       <XCircle /> Cancel
                     </Button>
                   </div>
                 </div>
               )}
               {order.status === 'CONFIRMED' && <Alert tone="good" title="Paid and confirmed">Your shipments are being prepared.</Alert>}
-              {!pending && order.payment?.status === 'SUCCEEDED' && order.status !== 'CONFIRMED' && (
-                <Alert tone="info">Payment captured after the order closed; a refund is pending.</Alert>
-              )}
+              {order.status === 'REFUND_PENDING' && <Alert tone="info">Payment arrived after the order closed; a refund is on its way.</Alert>}
+              {order.status === 'REFUNDED' && <Alert tone="info" title="Refunded">The payment was returned to you.</Alert>}
               <p className="text-xs text-muted-foreground">
-                Sandbox payments stand in for a real payment page. Each one sends a signed webhook through the same code path a provider would use.
+                {gateway
+                  ? 'Razorpay test mode: no real money moves. Use a Razorpay test card or the UPI ID success@razorpay.'
+                  : 'Sandbox payments stand in for a real payment page. Each one sends a signed webhook through the same code path a provider would use.'}
               </p>
             </div>
           </Card>

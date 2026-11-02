@@ -32,8 +32,9 @@ function memoryRedis() {
   };
 }
 
-// connectors defaults to every source disabled; changeFeed is a factory taking the pool.
-export async function createTestApi({ connectors, changeFeed } = {}) {
+// connectors defaults to every source disabled; changeFeed is a factory taking the pool;
+// env adds settings (e.g. Razorpay test keys) and razorpayClient replaces the real API client.
+export async function createTestApi({ connectors, changeFeed, env = {}, razorpayClient } = {}) {
   const pool = await prepareTestDatabase({ max: 10 });
   const config = loadConfig({
     NODE_ENV: 'test',
@@ -41,6 +42,7 @@ export async function createTestApi({ connectors, changeFeed } = {}) {
     REDIS_URL: 'redis://localhost:6379',
     JWT_ACCESS_SECRET: 'test-secret-that-is-at-least-32-characters-long',
     PAYMENT_WEBHOOK_SECRET: 'test-webhook-secret',
+    ...env,
   });
   const redis = memoryRedis();
   const app = createApp({
@@ -51,6 +53,7 @@ export async function createTestApi({ connectors, changeFeed } = {}) {
     state: { shuttingDown: false },
     connectors,
     changeFeed: changeFeed?.(pool),
+    razorpayClient,
   });
 
   const one = (sql, params) => pool.query(sql, params).then((r) => r.rows[0]);
@@ -72,5 +75,5 @@ export async function createTestApi({ connectors, changeFeed } = {}) {
     return one(`INSERT INTO product_groups (category_id, name) VALUES ($1, 'Milk') RETURNING id`, [category.id]);
   }
 
-  return { pool, app, redis, one, createUser, createGroup };
+  return { pool, app, redis, config, one, createUser, createGroup };
 }

@@ -19,6 +19,11 @@ platform's own search page in the shopper's browser.
 - **Render sleeps the backend after 15 minutes without traffic.** The next visit then takes about a
   minute while it starts. The worker sleeps with it: reservations expire and outbox events are
   published only while the backend is awake. That is fine for a demo but not for real orders.
+  The `Keep demo awake` GitHub Actions workflow pings `/health/live` every 10 minutes from 09:30
+  to 18:30 IST. It stays off the rest of the day because the worker queries the database every
+  second while awake, and running all day would use about 186 of Neon's 100 free compute-hours
+  a month. Change the cron line in `.github/workflows/keep-awake.yml` to move the window, or
+  disable the workflow in the Actions tab.
 - The Render free plan has no background workers and no pre-deploy commands, so
   `deploy/all-in-one.mjs` runs migrations, the API and the worker in one process
   (`deploy/render/Dockerfile`). Elsewhere, run them as separate services.

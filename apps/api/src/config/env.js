@@ -1,4 +1,5 @@
 import { parseFreshnessConfig } from '@localstock/external-data';
+import { razorpaySettings } from '@localstock/payments';
 import { parseRankingWeights } from '../modules/discovery/ranking.js';
 import { z } from 'zod';
 
@@ -20,6 +21,10 @@ const schema = z.object({
   METRICS_TOKEN: z.string().min(16).optional(),
   // Sandbox payments under NODE_ENV=production (public demo only); always on outside production.
   ENABLE_SANDBOX_PAYMENTS: z.enum(['true', 'false']).default('false').transform((v) => v === 'true'),
+  // Razorpay test mode. With keys set, new orders are paid through Razorpay instead of the sandbox.
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_WEBHOOK_SECRET: z.string().optional(),
   // Trusted reverse proxies (2 for Vercel -> Render). Set too high, a direct caller can pick
   // the address it is rate-limited under.
   TRUST_PROXY: z.coerce.number().int().min(0).max(5).default(0),
@@ -57,5 +62,9 @@ export function loadConfig(env = process.env) {
     const problems = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${problems}`);
   }
-  return result.data;
+  try {
+    return { ...result.data, razorpay: razorpaySettings(result.data) };
+  } catch (err) {
+    throw new Error(`Invalid environment configuration:\n  RAZORPAY_KEY_ID: ${err.message}`);
+  }
 }

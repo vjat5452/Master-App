@@ -11,6 +11,7 @@ import {
   createRetentionJob,
   createSourceRegistry,
 } from '@localstock/external-data';
+import { createRazorpayClient, createRazorpayGateway } from '@localstock/payments';
 import { createJobPublisher, runCollectionConsumer } from './consumers/external-collection.js';
 import { createExternalChangeHandler, createSearchProjectionHandler, handleNotification } from './consumers/handlers.js';
 import { runConsumer } from './consumers/run-consumer.js';
@@ -110,6 +111,10 @@ export async function startWorker({ config, logger, onFatal = () => process.exit
       logger,
     ),
   ];
+  if (config.razorpay) {
+    const gateway = createRazorpayGateway({ pool, client: createRazorpayClient(config.razorpay), logger: logger.child({ component: 'razorpay' }) });
+    jobs.push(every('razorpay-sync', config.RAZORPAY_SYNC_INTERVAL_MS, () => gateway.sync(), logger));
+  }
   const metricsServer = config.WORKER_METRICS_PORT
     ? startMetricsServer({ port: config.WORKER_METRICS_PORT, registry: metrics.registry, token: config.METRICS_TOKEN, production: config.NODE_ENV === 'production', logger })
     : null;

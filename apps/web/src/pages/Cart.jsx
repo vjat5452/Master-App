@@ -22,6 +22,25 @@ const OPTIMISE = [
   { id: 'fastest', label: 'Fastest', icon: Truck },
 ];
 
+const CHECKOUT_KEY = 'localstock.checkoutKey';
+
+function readCheckoutKey() {
+  try {
+    return JSON.parse(localStorage.getItem(CHECKOUT_KEY)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function writeCheckoutKey(value) {
+  try {
+    if (value) localStorage.setItem(CHECKOUT_KEY, JSON.stringify(value));
+    else localStorage.removeItem(CHECKOUT_KEY);
+  } catch {
+    // storage unavailable: the key lives for this page only
+  }
+}
+
 export default function Cart() {
   const cart = useCart();
   const { user } = useAuth();
@@ -42,8 +61,13 @@ export default function Cart() {
   const bodyKey = JSON.stringify(body);
 
   // One Idempotency-Key per distinct cart: retrying the same cart can never create two orders.
-  const idem = useRef({ for: null, key: null });
-  if (idem.current.for !== bodyKey) idem.current = { for: bodyKey, key: newIdempotencyKey() };
+  // It is stored so that a reload after a lost response still sends the same key.
+  const idem = useRef(null);
+  idem.current ??= readCheckoutKey();
+  if (idem.current?.for !== bodyKey) {
+    idem.current = { for: bodyKey, key: newIdempotencyKey() };
+    writeCheckoutKey(idem.current);
+  }
 
   // Drop quote responses for a cart that has since changed.
   const latest = useRef(bodyKey);
@@ -66,6 +90,7 @@ export default function Cart() {
   const placing = useSubmit(async () => {
     const order = await post('/orders', body, { headers: { 'Idempotency-Key': idem.current.key } });
     const replayed = order.__headers['idempotent-replayed'] === 'true';
+    writeCheckoutKey(null);
     cart.clear();
     toast(replayed ? 'This cart was already ordered; showing that order' : `Order placed: ${money(order.totalMinor)}, awaiting payment`);
     navigate(`/orders/${order.id}`);

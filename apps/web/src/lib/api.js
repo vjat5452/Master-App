@@ -36,18 +36,32 @@ export function setTokens(next) {
   listeners.forEach((fn) => fn(tokens));
 }
 
+// Keep tabs on the same token pair, so one tab never presents a token another tab rotated.
+window.addEventListener('storage', (e) => {
+  if (e.key !== TOKENS_KEY) return;
+  tokens = readTokens();
+  listeners.forEach((fn) => fn(tokens));
+});
+
 // Refresh tokens rotate and reuse revokes every session, so concurrent 401s share one refresh.
 let refreshing = null;
 function refreshTokens() {
   if (!tokens?.refreshToken) return Promise.resolve(false);
   refreshing ??= (async () => {
     try {
+      const sent = tokens.refreshToken;
       const res = await fetch(`${API_BASE}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: tokens.refreshToken }),
+        body: JSON.stringify({ refreshToken: sent }),
       });
       if (!res.ok) {
+        // Another tab may have rotated the token first and saved the new pair.
+        const stored = readTokens();
+        if (stored?.refreshToken && stored.refreshToken !== sent) {
+          setTokens(stored);
+          return true;
+        }
         setTokens(null);
         return false;
       }

@@ -16,6 +16,7 @@ COPY packages/database/package.json packages/database/
 COPY packages/external-data/package.json packages/external-data/
 COPY packages/logger/package.json packages/logger/
 COPY packages/metrics/package.json packages/metrics/
+COPY packages/payments/package.json packages/payments/
 RUN npm ci --ignore-scripts --workspace @localstock/web
 COPY apps/web ./apps/web
 ARG VITE_DEMO_NOTICE
