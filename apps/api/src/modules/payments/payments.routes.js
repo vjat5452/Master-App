@@ -6,6 +6,7 @@ import { rateLimit } from '../../middleware/rate-limit.js';
 import { AppError, notFound } from '../../shared/errors.js';
 import { validate } from '../../shared/validate.js';
 import { createPaymentsService } from './payments.service.js';
+import { createRazorpayRouter } from './razorpay.routes.js';
 
 const SIGNATURE_HEADER = 'x-sandbox-signature';
 
@@ -60,6 +61,8 @@ export function createPaymentsRouter(deps) {
       res.json({ event, result: await service.processEvent({ provider: 'sandbox', ...event, payload: event }) });
     });
   }
+
+  if (config.razorpay) router.use(createRazorpayRouter(deps));
 
   return router;
 }

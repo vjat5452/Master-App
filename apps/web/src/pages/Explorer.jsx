@@ -66,6 +66,8 @@ const ENDPOINTS = [
   { g: 'Orders', m: 'POST', p: '/orders/:orderId/cancel', auth: 'user', d: 'Cancel a pending order' },
 
   { g: 'Payments', m: 'POST', p: '/payments/sandbox/:providerPaymentId/simulate', auth: 'user', d: 'Simulate the payment page (dev only)', body: { status: 'SUCCEEDED' } },
+  { g: 'Payments', m: 'POST', p: '/orders/:orderId/payment/razorpay', auth: 'user', d: 'Start a Razorpay test payment (when configured)' },
+  { g: 'Payments', m: 'POST', p: '/orders/:orderId/payment/razorpay/verify', auth: 'user', d: 'Confirm a Razorpay checkout (signed by Razorpay)', body: { razorpayOrderId: 'order_...', razorpayPaymentId: 'pay_...', razorpaySignature: '...' } },
   { g: 'Payments', m: 'POST', p: '/payments/webhooks/sandbox', auth: 'none', d: 'Provider webhook (HMAC signed)', webhook: true, body: { eventId: 'evt_manual_1', providerPaymentId: ':providerPaymentId', status: 'SUCCEEDED' } },
 ];
 

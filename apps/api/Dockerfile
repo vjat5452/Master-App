@@ -17,6 +17,7 @@ COPY packages/database/package.json packages/database/
 COPY packages/external-data/package.json packages/external-data/
 COPY packages/logger/package.json packages/logger/
 COPY packages/metrics/package.json packages/metrics/
+COPY packages/payments/package.json packages/payments/
 RUN npm ci --omit=dev --ignore-scripts --workspace @localstock/api && npm cache clean --force
 
 FROM node:20.18-alpine

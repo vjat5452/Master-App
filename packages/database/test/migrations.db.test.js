@@ -70,26 +70,28 @@ after(async () => {
 });
 
 test('migrations roll back and re-apply cleanly', { skip: !enabled && 'set RUN_DB_TESTS=1' }, async () => {
-  assert.deepEqual((await applied()).slice(0, 7), ['001_init.sql', '002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql', '005_retention_indexes.sql', '006_offer_price_history.sql', '007_external_canonical_products.sql']);
+  assert.deepEqual((await applied()).slice(0, 8), ['001_init.sql', '002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql', '005_retention_indexes.sql', '006_offer_price_history.sql', '007_external_canonical_products.sql', '008_payment_gateway.sql']);
 
-  assert.deepEqual(await rollback(pool, { steps: 6 }), ['007_external_canonical_products.sql', '006_offer_price_history.sql', '005_retention_indexes.sql', '004_collection_jobs.sql', '003_vendor_extensions.sql', '002_external_platforms.sql']);
+  assert.deepEqual(await rollback(pool, { steps: 7 }), ['008_payment_gateway.sql', '007_external_canonical_products.sql', '006_offer_price_history.sql', '005_retention_indexes.sql', '004_collection_jobs.sql', '003_vendor_extensions.sql', '002_external_platforms.sql']);
   const afterDown = await tables();
   for (const t of EXTERNAL_TABLES) assert.equal(afterDown.has(t), false, `${t} should be dropped`);
   assert.equal((await columns('seller_offers')).has('mrp_minor'), false);
   assert.equal((await columns('product_variants')).has('pack_quantity'), false);
   assert.equal((await columns('audit_logs')).has('source_of_change'), false);
+  assert.equal((await columns('payments')).has('provider_charge_id'), false);
   assert.deepEqual(await applied(), ['001_init.sql']);
 
-  assert.deepEqual(await migrate(pool), ['002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql', '005_retention_indexes.sql', '006_offer_price_history.sql', '007_external_canonical_products.sql']);
+  assert.deepEqual(await migrate(pool), ['002_external_platforms.sql', '003_vendor_extensions.sql', '004_collection_jobs.sql', '005_retention_indexes.sql', '006_offer_price_history.sql', '007_external_canonical_products.sql', '008_payment_gateway.sql']);
   const afterUp = await tables();
   for (const t of EXTERNAL_TABLES) assert.equal(afterUp.has(t), true, `${t} should exist`);
   assert.equal((await columns('seller_offers')).has('mrp_minor'), true);
+  assert.equal((await columns('payments')).has('provider_charge_id'), true);
   const { rows } = await pool.query('SELECT code FROM external_platforms ORDER BY code');
   assert.deepEqual(rows.map((r) => r.code), ['bigbasket', 'blinkit', 'instamart', 'zepto']);
 });
 
 test('the initial migration cannot be rolled back', { skip: !enabled && 'set RUN_DB_TESTS=1' }, async () => {
-  await rollback(pool, { steps: 6 });
+  await rollback(pool, { steps: 7 });
   try {
     await assert.rejects(rollback(pool, { steps: 1 }), /001_init\.sql has no 001_init\.down\.sql/);
     assert.deepEqual(await applied(), ['001_init.sql']);

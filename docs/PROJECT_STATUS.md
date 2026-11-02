@@ -9,6 +9,7 @@
 | Discovery | Done: full-text and trigram search, service-area filtering, offer sorting, Redis cache |
 | Allocation | Done: staged heuristic, delivery feasibility, scoring, tests, micro-benchmark |
 | Checkout | Done: Idempotency-Key, atomic multi-row reservations, orders and shipments, sandbox payments |
+| Payments | Done in test mode: Razorpay checkout, signed webhooks, sync job, automatic refunds of late payments ([details](PAYMENTS.md)). Live keys are refused |
 | Reliability | Done: outbox and inbox, publisher confirms, retries with a dead-letter queue, expiry job, reconciliation |
 | Delivery | Partial: provider model, quoting and assignment at checkout. Live tracking events are not built yet |
 | Production readiness | Mostly done: CI (GitHub Actions), Dockerfiles for API, worker and website, Prometheus metrics, data retention, [runbook](RUNBOOK.md), free public deployment ([guide](DEPLOY_FREE.md)). Not yet: Grafana dashboards. A k6 script exists |
@@ -18,7 +19,7 @@
 ## Known gaps and next steps
 
 1. Shipment lifecycle after confirmation: pickup, tracking webhooks, `CONSUMED` reservations and `DISPATCH` movements.
-2. Refund execution (the `PaymentRefundRequested` event is emitted, but nothing processes it yet), and re-reserving stock for late payments.
+2. Refunds for sandbox payments (Razorpay refunds run automatically), and re-reserving stock for late payments.
 3. Grafana dashboards and alert rules from the metrics listed in the runbook.
 4. Polygon service areas (warehouses currently use a radius).
 5. Refresh tokens in HttpOnly cookies for the browser apps.

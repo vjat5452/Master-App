@@ -170,12 +170,13 @@ export function createOrdersService({ pool, config }) {
       }
     }
 
-    // Sandbox payment intent: no external call, so it can be recorded here. A real provider's
-    // API must be called after this transaction commits, never while it holds locks.
+    // Sandbox payments get their id here. A Razorpay order is created only when the shopper clicks
+    // Pay, so no external call ever runs while this transaction holds locks.
+    const gateway = config.razorpay ? 'razorpay' : 'sandbox';
     await client.query(
       `INSERT INTO payments (order_id, provider, provider_payment_id, amount_minor, status)
-       VALUES ($1, 'sandbox', $2, $3, 'PENDING')`,
-      [orderId, `sbx_${randomBytes(12).toString('hex')}`, total],
+       VALUES ($1, $2, $3, $4, 'PENDING')`,
+      [orderId, gateway, gateway === 'sandbox' ? `sbx_${randomBytes(12).toString('hex')}` : null, total],
     );
 
     await enqueueEvent(client, {

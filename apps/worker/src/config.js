@@ -2,6 +2,7 @@ import { config as loadDotenv } from 'dotenv';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import { parseFreshnessConfig } from '@localstock/external-data';
+import { razorpaySettings } from '@localstock/payments';
 
 loadDotenv({ path: fileURLToPath(new URL('../../../.env', import.meta.url)) });
 
@@ -22,6 +23,9 @@ const schema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   WORKER_METRICS_PORT: z.coerce.number().int().positive().optional(),
   METRICS_TOKEN: z.string().min(16).optional(),
+  RAZORPAY_KEY_ID: z.string().optional(),
+  RAZORPAY_KEY_SECRET: z.string().optional(),
+  RAZORPAY_SYNC_INTERVAL_MS: z.coerce.number().int().min(10_000).default(30_000),
   EXTERNAL_FRESHNESS: z
     .string()
     .optional()
@@ -41,5 +45,9 @@ export function loadConfig(env = process.env) {
     const problems = result.error.issues.map((i) => `  ${i.path.join('.')}: ${i.message}`).join('\n');
     throw new Error(`Invalid environment configuration:\n${problems}`);
   }
-  return result.data;
+  try {
+    return { ...result.data, razorpay: razorpaySettings(result.data) };
+  } catch (err) {
+    throw new Error(`Invalid environment configuration:\n  RAZORPAY_KEY_ID: ${err.message}`);
+  }
 }
