@@ -257,6 +257,19 @@ test('identical comparisons in flight share one source call', async () => {
   assert.equal(s.calls, 2, 'a finished call is not reused');
 });
 
+test('in-flight comparisons from different coordinates do not share a source call', async () => {
+  let release;
+  const gate = new Promise((r) => (release = r));
+  const s = stubSource('s', async () => (await gate, { items: [listing()], queryCell: 'ttnfv2' }));
+  const svc = service({ sources: [s], redis: memoryRedis() });
+  const nearby = { latitude: LOCATION.latitude + 0.0001, longitude: LOCATION.longitude };
+  const pending = [svc.compare(request_()), svc.compare(request_({ location: nearby }))];
+  await new Promise((r) => setTimeout(r, 20));
+  release();
+  await Promise.all(pending);
+  assert.equal(s.calls, 2);
+});
+
 test('demo fixture results are labelled and never fresh', async () => {
   const demo = new DemoFixtureConnector({ env: {} });
   const out = await createCompareService({ pool: null, redis: memoryRedis(), logger, connectors: registryOf(demo), config, localSource: emptyLocal }).compare(

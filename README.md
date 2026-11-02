@@ -91,6 +91,7 @@ docs/           architecture, decisions, runbook, deployment
 
 ## Documentation
 
+- [Developer reference](docs/reference/README.md): every file and function, the tech stack, and a glossary
 - [Architecture](docs/ARCHITECTURE.md)
 - [Architecture decision records](docs/adr/README.md)
 - [Development and testing](docs/DEVELOPMENT.md)

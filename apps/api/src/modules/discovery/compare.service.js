@@ -166,7 +166,7 @@ export function createCompareService({
     const started = Date.now();
     // The connector keeps running past the deadline; a late answer still fills the cache.
     // Identical lookups already in flight share one call instead of each hitting the source.
-    const flightKey = `${key}:${limit}:${location.latitude},${location.longitude}`;
+    const flightKey = `${key}:${limit}:${location.lat},${location.lng}`;
     let call = inFlight.get(flightKey);
     if (!call) {
       call = connector
