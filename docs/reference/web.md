@@ -187,6 +187,14 @@ Tailwind layers. Defines the colour tokens as HSL CSS variables for `:root` (lig
 Entry point. Builds the provider tree from 1.1 and imports `index.css`.
 
 - `ThemedToaster()` (internal): renders sonner's `<Toaster>` at bottom-right with rich colours and a close button, using `useTheme().resolved` as its theme.
+- `<Analytics beforeSend={beforeSend} />` from `@vercel/analytics/react`: Vercel Web Analytics. It records a page view on load and on every client-side route change. In development it only logs to the console.
+
+#### `apps/web/src/lib/analytics.js`
+
+Privacy filter for Vercel Web Analytics.
+
+- `redactUrl(url)`: returns the URL with `/orders/<id>` and `/seller/<id>` replaced by `/orders/[id]` and `/seller/[id]`, and without the query string, so search terms and tab names are never sent. Product pages keep their variant id.
+- `beforeSend(event)`: the `beforeSend` hook passed to `<Analytics>`; applies `redactUrl` to every event.
 
 #### `apps/web/src/App.jsx`
 

@@ -79,6 +79,9 @@ You don't need to do anything else: the first migration creates the `postgis`, `
    (`npm run build`) and output directory (`dist`).
 4. Add the environment variable `VITE_DEMO_NOTICE` = `on` so the site says it is a demo.
 5. **Deploy**, then open the `*.vercel.app` URL.
+6. Optional: in the project, open **Analytics → Enable** (Web Analytics, free on Hobby). The site
+   already includes `@vercel/analytics`; page views appear after the next visit. Order and company
+   ids and search terms are removed from URLs before they are sent (`apps/web/src/lib/analytics.js`).
 
 The website calls `/api/...` and `/health/...` on its own domain, and Vercel forwards them to Render
 (`apps/web/vercel.json`). The browser therefore needs no CORS setup and never sees the Render URL.
