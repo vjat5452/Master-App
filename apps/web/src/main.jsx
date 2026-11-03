@@ -1,11 +1,12 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import { Analytics } from '@vercel/analytics/react';
+import { SpeedInsights } from '@vercel/speed-insights/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import App from './App.jsx';
 import { TooltipProvider } from './components/ui/tooltip.jsx';
-import { beforeSend } from './lib/analytics.js';
+import { beforeSend, beforeSendVital } from './lib/analytics.js';
 import { AuthProvider, CartProvider, LocationProvider } from './lib/store.jsx';
 import { ThemeProvider, useTheme } from './lib/theme.jsx';
 import './index.css';
@@ -31,6 +32,7 @@ createRoot(document.getElementById('root')).render(
       </BrowserRouter>
       <ThemedToaster />
       <Analytics beforeSend={beforeSend} />
+      <SpeedInsights beforeSend={beforeSendVital} />
     </ThemeProvider>
   </React.StrictMode>,
 );

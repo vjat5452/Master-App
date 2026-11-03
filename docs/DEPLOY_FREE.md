@@ -82,6 +82,8 @@ You don't need to do anything else: the first migration creates the `postgis`, `
 6. Optional: in the project, open **Analytics → Enable** (Web Analytics, free on Hobby). The site
    already includes `@vercel/analytics`; page views appear after the next visit. Order and company
    ids and search terms are removed from URLs before they are sent (`apps/web/src/lib/analytics.js`).
+7. Optional: **Speed Insights → Enable** (free on Hobby, with a monthly data-point limit). The site
+   already includes `@vercel/speed-insights` with the same URL filter.
 
 The website calls `/api/...` and `/health/...` on its own domain, and Vercel forwards them to Render
 (`apps/web/vercel.json`). The browser therefore needs no CORS setup and never sees the Render URL.
