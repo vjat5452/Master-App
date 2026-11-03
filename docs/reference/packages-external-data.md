@@ -1223,8 +1223,8 @@ The worker's `localstock.external-changes` queue is bound to the first three onl
 
 ##### `recoverStuck()` (internal)
 
-- A worker that died mid-job leaves it `RUNNING`. Jobs `RUNNING` for more than 600 seconds go back to `PENDING`. It does not look at `attempts`.
-- **Returns.** The number of jobs recovered.
+- A worker that died mid-job leaves it `RUNNING`. Jobs `RUNNING` for more than 600 seconds go back to `PENDING`, unless they have already used `MAX_JOB_ATTEMPTS` (3) attempts. Those become `FAILED` with `last_error_code = 'WORKER_LOST'` and a warning is logged, so a job that keeps crashing the worker cannot loop forever.
+- **Returns.** The number of jobs put back in the queue (not counting the ones marked `FAILED`).
 
 ##### `async tick()`
 

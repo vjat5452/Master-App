@@ -187,6 +187,14 @@ Tailwind layers. Defines the colour tokens as HSL CSS variables for `:root` (lig
 Entry point. Builds the provider tree from 1.1 and imports `index.css`.
 
 - `ThemedToaster()` (internal): renders sonner's `<Toaster>` at bottom-right with rich colours and a close button, using `useTheme().resolved` as its theme.
+- `<Analytics beforeSend={beforeSend} />` from `@vercel/analytics/react`: Vercel Web Analytics. It records a page view on load and on every client-side route change. In development it only logs to the console.
+
+#### `apps/web/src/lib/analytics.js`
+
+Privacy filter for Vercel Web Analytics.
+
+- `redactUrl(url)`: returns the URL with `/orders/<id>` and `/seller/<id>` replaced by `/orders/[id]` and `/seller/[id]`, and without the query string, so search terms and tab names are never sent. Product pages keep their variant id.
+- `beforeSend(event)`: the `beforeSend` hook passed to `<Analytics>`; applies `redactUrl` to every event.
 
 #### `apps/web/src/App.jsx`
 
@@ -544,11 +552,11 @@ Account (`/account`, signed in).
 API explorer (`/explorer`, public).
 
 - **`Explorer()`** (default). Left: a filterable list of endpoints from `ENDPOINTS`. Right: editable path, query string and JSON body, optional `Idempotency-Key`, optional webhook secret, and a checkbox to send the bearer token. "Send request" uses `rawRequest` and shows status, time, headers and body. Requests go through the same origin, so the dev proxy or Vercel rewrite applies.
-- `ENDPOINTS`: `{ g: group, m: method, p: path, auth, d: description, body?, query?, idem?, webhook?, root? }`. `auth` is `none`, `user`, `company`, `company-manager` or `admin`. The comment says "every route the API exposes", but some newer routes used elsewhere in the app are not listed (for example `/discovery/compare`, price history, platform links, `/admin/...` external sources, mapping review and variant review queue, catalogue imports, `PATCH /catalog/variants/:id`). Check `docs/openapi.yaml` for the full list.
-- `discoverIds(user, location)` (internal): fills placeholders with real ids. **GET `/catalog/search?limit=5`**, **GET `/catalog/variants/:id`**; when signed in **GET `/orders`** and **GET `/orders/:id`**; for the first company **GET `/companies/:id/warehouses`** and **GET `/companies/:id/offers`**.
+- `ENDPOINTS`: `{ g: group, m: method, p: path, auth, d: description, body?, query?, idem?, webhook?, root? }`. `auth` is `none`, `user`, `company`, `company-manager` or `admin`. `csv` (instead of `body`) holds a CSV text body, sent as `text/csv` (catalogue imports). Every route is listed except the SSE stream `GET /discovery/stream` and the Razorpay webhook, which only Razorpay can sign.
+- `discoverIds(user, location)` (internal): fills placeholders with real ids. **GET `/catalog/search?limit=5`**, **GET `/catalog/variants/:id`**; when signed in **GET `/orders`** and **GET `/orders/:id`**; for the first company **GET `/companies/:id/warehouses`** and **GET `/companies/:id/offers`**; for platform admins **GET `/admin/external-platforms`** (first source `code`) and **GET `/admin/product-mapping/review-queue?limit=1`** (`listingId`, `mappingId`).
 - `fill(str, ids)` replaces `:name` placeholders; `fillBody(body, ids)` does the same in JSON (`:lat`/`:lng` become numbers).
 - `hmacHex(secret, message)`: signs the sandbox webhook body with HMAC-SHA256 in the browser (Web Crypto) and sends it as `X-Sandbox-Signature`. The secret is typed by the developer and never stored.
-- `SmokeTest({ ids, discovering, user })` (internal): calls every GET endpoint in order and shows status, time and a short summary; skips ones that need a missing id or sign-in.
+- `SmokeTest({ ids, discovering, user })` (internal): calls every GET endpoint in order and shows status, time and a short summary; skips ones that need a missing id, sign-in, or (for `admin` endpoints) a platform admin.
 - `Method({ m })` (internal): coloured method label.
 
 ### 3.7 `pages/` (admin)

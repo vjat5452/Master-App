@@ -1,6 +1,7 @@
 // Open jobs are unique per dedup key (partial unique index), and a key that succeeded
 // within the source's minRefreshSeconds is not scheduled again.
 import { createHash } from 'node:crypto';
+import { MAX_JOB_ATTEMPTS } from './collector.js';
 import { topDemand } from './demand.js';
 import { createSourceRegistry } from './sources.js';
 
@@ -61,14 +62,21 @@ export function createRefreshScheduler({ pool, redis, connectors, policy, publis
     return sent;
   }
 
-  // A worker that died mid-job leaves it RUNNING; give it back to the queue.
+  // A worker that died mid-job leaves it RUNNING; give it back to the queue, unless it has
+  // used all its attempts (a job that keeps killing the worker must not loop forever).
   async function recoverStuck() {
-    const { rowCount } = await pool.query(
-      `UPDATE external_collection_jobs SET status = 'PENDING', updated_at = now()
-        WHERE status = 'RUNNING' AND updated_at < now() - make_interval(secs => $1)`,
-      [STUCK_AFTER_SECONDS],
+    const { rows } = await pool.query(
+      `UPDATE external_collection_jobs
+          SET status = CASE WHEN attempts >= $2 THEN 'FAILED' ELSE 'PENDING' END,
+              last_error_code = CASE WHEN attempts >= $2 THEN 'WORKER_LOST' ELSE last_error_code END,
+              updated_at = now()
+        WHERE status = 'RUNNING' AND updated_at < now() - make_interval(secs => $1)
+        RETURNING status`,
+      [STUCK_AFTER_SECONDS, MAX_JOB_ATTEMPTS],
     );
-    return rowCount;
+    const abandoned = rows.filter((r) => r.status === 'FAILED').length;
+    if (abandoned) logger.warn('stuck collection jobs gave up after the last attempt', { abandoned });
+    return rows.length - abandoned;
   }
 
   return {
