@@ -15,7 +15,8 @@ const METHOD_STYLE = {
 };
 const Method = ({ m }) => <span className={cn('inline-block w-12 shrink-0 rounded-md py-0.5 text-center font-mono text-[10px] font-bold', METHOD_STYLE[m])}>{m}</span>;
 
-// Every route the API exposes. `auth`: none | user | company | company-manager | admin.
+// Every route the API exposes, except the SSE stream (/discovery/stream) and the Razorpay webhook,
+// which only Razorpay can sign. `auth`: none | user | company | company-manager | admin.
 const ENDPOINTS = [
   { g: 'Health', m: 'GET', p: '/health/live', root: true, auth: 'none', d: 'Process is up' },
   { g: 'Health', m: 'GET', p: '/health/ready', root: true, auth: 'none', d: 'Postgres and Redis reachable' },
@@ -46,6 +47,7 @@ const ENDPOINTS = [
   { g: 'Catalog', m: 'POST', p: '/catalog/groups', auth: 'admin', d: 'Create product group', body: { categoryId: '<category id>', name: 'Juice', description: 'Packaged juices' } },
   { g: 'Catalog', m: 'GET', p: '/catalog/variants/:variantId', auth: 'none', d: 'One variant' },
   { g: 'Catalog', m: 'POST', p: '/catalog/variants', auth: 'user', d: 'Propose a variant (matching rules apply)', body: { groupId: ':groupId', brand: 'Brand X', name: 'Whole Wheat Bread', attributes: { weight: '400 g' } } },
+  { g: 'Catalog', m: 'PATCH', p: '/catalog/variants/:variantId', auth: 'admin', d: 'Edit name, brand, attributes or barcode', body: { name: 'Whole Wheat Bread' } },
   { g: 'Catalog', m: 'PATCH', p: '/catalog/variants/:variantId/status', auth: 'admin', d: 'Approve or archive', body: { status: 'ACTIVE' } },
 
   { g: 'Offers', m: 'GET', p: '/companies/:companyId/offers', auth: 'company', d: "Seller's offers" },
@@ -54,9 +56,13 @@ const ENDPOINTS = [
 
   { g: 'Inventory', m: 'GET', p: '/companies/:companyId/inventory', auth: 'company', d: 'Stock levels (?warehouseId=)' },
   { g: 'Inventory', m: 'POST', p: '/companies/:companyId/inventory/adjustments', auth: 'company', d: 'Audited stock adjustment', body: { warehouseId: ':warehouseId', offerId: ':offerId', delta: 5, reason: 'RESTOCK', note: 'from explorer' } },
+  { g: 'Inventory', m: 'POST', p: '/companies/:companyId/catalogue-imports', auth: 'company-manager', d: 'CSV catalogue import (dryRun=true only validates)', query: 'dryRun=true', csv: 'sku,variant_id,price\nSKU-EXPLORER-1,:variantId,54.00\n' },
 
   { g: 'Discovery', m: 'GET', p: '/catalog/search', auth: 'none', d: 'Search with location filtering', query: 'q=bread&lat=:lat&lng=:lng&radiusKm=10&sort=best_value&page=1&limit=20' },
   { g: 'Discovery', m: 'GET', p: '/catalog/variants/:variantId/offers', auth: 'none', d: 'Offers for one variant', query: 'lat=:lat&lng=:lng&radiusKm=10&sort=lowest_price' },
+  { g: 'Discovery', m: 'GET', p: '/catalog/variants/:variantId/price-history', auth: 'none', d: 'Daily price history', query: 'days=30&lat=:lat&lng=:lng' },
+  { g: 'Discovery', m: 'GET', p: '/catalog/variants/:variantId/platform-links', auth: 'none', d: 'Confirmed listings on other platforms' },
+  { g: 'Discovery', m: 'POST', p: '/discovery/compare', auth: 'none', d: 'Compare prices across sources', body: { query: 'amul milk', location: { latitude: ':lat', longitude: ':lng' }, radiusKm: 5, refreshPolicy: 'prefer_fresh', limit: 20 } },
 
   { g: 'Checkout', m: 'POST', p: '/checkout/quote', auth: 'user', d: 'Advisory allocation quote', body: { location: { lat: ':lat', lng: ':lng' }, items: [{ variantId: ':variantId', quantity: 2 }], preferences: { sort: 'best_value', allowSplit: true, preferSingleWarehouse: true } } },
 
@@ -69,6 +75,20 @@ const ENDPOINTS = [
   { g: 'Payments', m: 'POST', p: '/orders/:orderId/payment/razorpay', auth: 'user', d: 'Start a Razorpay test payment (when configured)' },
   { g: 'Payments', m: 'POST', p: '/orders/:orderId/payment/razorpay/verify', auth: 'user', d: 'Confirm a Razorpay checkout (signed by Razorpay)', body: { razorpayOrderId: 'order_...', razorpayPaymentId: 'pay_...', razorpaySignature: '...' } },
   { g: 'Payments', m: 'POST', p: '/payments/webhooks/sandbox', auth: 'none', d: 'Provider webhook (HMAC signed)', webhook: true, body: { eventId: 'evt_manual_1', providerPaymentId: ':providerPaymentId', status: 'SUCCEEDED' } },
+
+  { g: 'Admin', m: 'GET', p: '/admin/companies', auth: 'admin', d: 'All companies (?status=)' },
+  { g: 'Admin', m: 'PATCH', p: '/admin/companies/:companyId/status', auth: 'admin', d: 'Suspend or reactivate a company', body: { status: 'ACTIVE', reason: 'from explorer' } },
+  { g: 'Admin', m: 'GET', p: '/admin/companies/:companyId/warehouses', auth: 'admin', d: "A company's warehouses" },
+  { g: 'Admin', m: 'PATCH', p: '/admin/warehouses/:warehouseId/status', auth: 'admin', d: 'Activate or deactivate a warehouse', body: { status: 'ACTIVE', reason: 'from explorer' } },
+  { g: 'Admin', m: 'GET', p: '/admin/catalog/variants/review-queue', auth: 'admin', d: 'Proposed variants awaiting approval', query: 'page=1&limit=20' },
+  { g: 'Admin', m: 'GET', p: '/admin/product-mapping/review-queue', auth: 'admin', d: 'External listings needing a match decision', query: 'page=1&limit=20' },
+  { g: 'Admin', m: 'POST', p: '/admin/product-mapping/:mappingId/decision', auth: 'admin', d: 'Confirm or reject a suggested match', body: { decision: 'CONFIRM', note: 'from explorer' } },
+  { g: 'Admin', m: 'POST', p: '/admin/product-mapping/listings/:listingId/manual', auth: 'admin', d: 'Match a listing to a variant by hand', body: { variantId: ':variantId', note: 'from explorer' } },
+
+  { g: 'External sources', m: 'GET', p: '/admin/external-platforms', auth: 'admin', d: 'Platforms, sources, health and runs' },
+  { g: 'External sources', m: 'GET', p: '/admin/external-sources/:code/runs', auth: 'admin', d: 'Recent collection runs', query: 'limit=20' },
+  { g: 'External sources', m: 'POST', p: '/admin/external-sources/:code/test-connection', auth: 'admin', d: 'Health check one source' },
+  { g: 'External sources', m: 'PATCH', p: '/admin/external-sources/:code/status', auth: 'admin', d: 'Record access status (ACTIVE needs a note)', body: { integrationStatus: 'ACCESS_REQUESTED', note: 'from explorer' } },
 ];
 
 const AUTH_LABEL = { none: 'public', user: 'signed in', company: 'company member', 'company-manager': 'owner/admin', admin: 'platform admin' };
@@ -93,6 +113,16 @@ async function discoverIds(user, location) {
         if (!o) return;
         ids.orderId = o.id;
         ids.providerPaymentId = (await get(`/orders/${o.id}`)).payment?.providerPaymentId;
+      }),
+    );
+  }
+  if (user?.platformRole === 'ADMIN') {
+    tasks.push(get('/admin/external-platforms').then((r) => (ids.code = r.items.flatMap((p) => p.sources)[0]?.code)));
+    tasks.push(
+      get('/admin/product-mapping/review-queue?limit=1').then((r) => {
+        const item = r.items[0];
+        ids.listingId = item?.listing.id;
+        ids.mappingId = item?.candidates[0]?.mappingId;
       }),
     );
   }
@@ -150,15 +180,16 @@ export default function Explorer() {
   useEffect(() => {
     setPath(fill(fullPath(sel), ids));
     setQuery(sel.query ? fill(sel.query, ids) : '');
-    setBody(sel.body ? fillBody(sel.body, ids) : '');
+    setBody(sel.csv ? fill(sel.csv, ids) : sel.body ? fillBody(sel.body, ids) : '');
     setUseAuthHeader(sel.auth !== 'none');
     setResponse(null);
   }, [sel, ids]);
 
   const send = useSubmit(async () => {
     let text = body.trim() ? body : undefined;
-    if (text) JSON.parse(text); // surface malformed JSON before sending
     const headers = {};
+    if (sel.csv) headers['Content-Type'] = 'text/csv';
+    else if (text) JSON.parse(text); // surface malformed JSON before sending
     if (sel.idem) headers['Idempotency-Key'] = idemKey;
     if (sel.webhook) {
       if (!secret) throw new Error('Enter PAYMENT_WEBHOOK_SECRET from your .env to sign the webhook');
@@ -180,7 +211,7 @@ export default function Explorer() {
     return [...map.entries()];
   }, [filter]);
 
-  const unresolved = (path.match(/:[a-zA-Z]+/g) ?? []).concat(body.match(/":[a-zA-Z]+"/g) ?? []);
+  const unresolved = (path.match(/:[a-zA-Z]+/g) ?? []).concat(body.match(sel.csv ? /:[a-zA-Z]+/g : /":[a-zA-Z]+"/g) ?? []);
 
   return (
     <>
@@ -240,8 +271,8 @@ export default function Explorer() {
                   <Input className="font-mono" value={query} onChange={(e) => setQuery(e.target.value)} placeholder="key=value&…" />
                 </Field>
               )}
-              {sel.body && (
-                <Field label="JSON body">
+              {(sel.body || sel.csv) && (
+                <Field label={sel.csv ? 'CSV body' : 'JSON body'}>
                   <Textarea className="font-mono text-xs" rows={Math.min(14, body.split('\n').length + 1)} value={body} onChange={(e) => setBody(e.target.value)} spellCheck={false} />
                 </Field>
               )}
@@ -329,6 +360,10 @@ function SmokeTest({ ids, discovering, user }) {
       }
       if (ep.auth !== 'none' && !user) {
         out.push({ ep, skipped: 'sign in required' });
+        continue;
+      }
+      if (ep.auth === 'admin' && user.platformRole !== 'ADMIN') {
+        out.push({ ep, skipped: 'platform admin only' });
         continue;
       }
       const q = ep.query ? `?${fill(ep.query, ids)}` : '';

@@ -219,6 +219,18 @@ test('stuck RUNNING jobs are handed back to the queue', { skip }, async () => {
   assert.equal((await one('SELECT status FROM external_collection_jobs WHERE id = $1', [stuck.id])).status, 'QUEUED');
 });
 
+test('a stuck job that used all its attempts fails instead of looping', { skip }, async () => {
+  const stuck = await one(
+    `INSERT INTO external_collection_jobs (source_id, job_type, query_cell, search_query, dedup_key, status, attempts, updated_at)
+     SELECT id, 'SEARCH', $1, 'stuck', 'stuck-2', 'RUNNING', 3, now() - interval '1 hour' FROM external_sources WHERE code = 'stub-source' RETURNING id`,
+    [CELL],
+  );
+  const tick = await scheduler.tick();
+  assert.equal(tick.recovered, 0);
+  const job = await one('SELECT status, last_error_code FROM external_collection_jobs WHERE id = $1', [stuck.id]);
+  assert.deepEqual(job, { status: 'FAILED', last_error_code: 'WORKER_LOST' });
+});
+
 test('health is recorded per source; unconfigured sources stay RESEARCH_REQUIRED', { skip }, async () => {
   const check = createHealthJob({ pool, connectors, logger: silent });
   const results = await check();
