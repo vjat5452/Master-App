@@ -189,8 +189,9 @@ Entry point. Builds the provider tree from 1.1 and imports `index.css`.
 - `ThemedToaster()` (internal): renders sonner's `<Toaster>` at bottom-right with rich colours and a close button, using `useTheme().resolved` as its theme.
 - `<Analytics beforeSend={beforeSend} />` from `@vercel/analytics/react`: Vercel Web Analytics. It records a page view on load and on every client-side route change. In development it only logs to the console.
 - `<SpeedInsights beforeSend={beforeSendVital} />` from `@vercel/speed-insights/react`: Vercel Speed Insights. It measures Core Web Vitals in real visitors' browsers and sends them when the page is hidden. In development it only logs.
+- `optional(load, name)` (internal): wraps both components in `React.lazy`, rendered inside `<Suspense fallback={null}>`. If an ad blocker blocks the package, the import fails and the component renders nothing instead of leaving the page blank.
 
-#### `apps/web/src/lib/analytics.js`
+#### `apps/web/src/lib/url-privacy.js`
 
 Privacy filter for Vercel Web Analytics and Speed Insights.
 

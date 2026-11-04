@@ -1,15 +1,19 @@
-import React from 'react';
+import React, { Suspense, lazy } from 'react';
 import { createRoot } from 'react-dom/client';
-import { Analytics } from '@vercel/analytics/react';
-import { SpeedInsights } from '@vercel/speed-insights/react';
 import { BrowserRouter } from 'react-router-dom';
 import { Toaster } from 'sonner';
 import App from './App.jsx';
 import { TooltipProvider } from './components/ui/tooltip.jsx';
-import { beforeSend, beforeSendVital } from './lib/analytics.js';
+import { beforeSend, beforeSendVital } from './lib/url-privacy.js';
 import { AuthProvider, CartProvider, LocationProvider } from './lib/store.jsx';
 import { ThemeProvider, useTheme } from './lib/theme.jsx';
 import './index.css';
+
+// Ad blockers often block these packages. Loading them lazily means a blocked file only
+// turns off the measurement instead of leaving the whole page blank.
+const optional = (load, name) => lazy(() => load().then((m) => ({ default: m[name] })).catch(() => ({ default: () => null })));
+const Analytics = optional(() => import('@vercel/analytics/react'), 'Analytics');
+const SpeedInsights = optional(() => import('@vercel/speed-insights/react'), 'SpeedInsights');
 
 function ThemedToaster() {
   const { resolved } = useTheme();
@@ -31,8 +35,10 @@ createRoot(document.getElementById('root')).render(
         </TooltipProvider>
       </BrowserRouter>
       <ThemedToaster />
-      <Analytics beforeSend={beforeSend} />
-      <SpeedInsights beforeSend={beforeSendVital} />
+      <Suspense fallback={null}>
+        <Analytics beforeSend={beforeSend} />
+        <SpeedInsights beforeSend={beforeSendVital} />
+      </Suspense>
     </ThemeProvider>
   </React.StrictMode>,
 );

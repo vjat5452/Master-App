@@ -81,7 +81,7 @@ You don't need to do anything else: the first migration creates the `postgis`, `
 5. **Deploy**, then open the `*.vercel.app` URL.
 6. Optional: in the project, open **Analytics → Enable** (Web Analytics, free on Hobby). The site
    already includes `@vercel/analytics`; page views appear after the next visit. Order and company
-   ids and search terms are removed from URLs before they are sent (`apps/web/src/lib/analytics.js`).
+   ids and search terms are removed from URLs before they are sent (`apps/web/src/lib/url-privacy.js`).
 7. Optional: **Speed Insights → Enable** (free on Hobby, with a monthly data-point limit). The site
    already includes `@vercel/speed-insights` with the same URL filter.
 

@@ -168,7 +168,7 @@ Details: [worker.md](worker.md) and [ADR-004/006](../adr/README.md).
 | **framer-motion** | Small animations. |
 | **lucide-react** | Icons. |
 | **sonner** | Toast notifications. |
-| **Vercel Web Analytics** (`@vercel/analytics`) | Page-view counts on the deployed site. `src/lib/analytics.js` removes order and company ids and the query string from every URL before it is sent. Logs to the console only in development. |
+| **Vercel Web Analytics** (`@vercel/analytics`) | Page-view counts on the deployed site. `src/lib/url-privacy.js` removes order and company ids and the query string from every URL before it is sent. Loaded lazily, so an ad blocker that blocks it does not break the page. Logs to the console only in development. |
 | **Vercel Speed Insights** (`@vercel/speed-insights`) | Real visitors' page speed (Core Web Vitals: loading, interaction delay, layout shift) per route, with the same URL filter. |
 | **Razorpay Checkout.js** | Loaded at runtime from `checkout.razorpay.com` only when a shopper pays. |
 
