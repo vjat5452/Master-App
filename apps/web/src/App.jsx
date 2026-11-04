@@ -201,7 +201,7 @@ function useNavItems() {
 }
 
 function TopBar() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const items = useNavItems();
   return (
     <header className="sticky top-0 z-40 border-b bg-card/90 backdrop-blur-xl supports-[backdrop-filter]:bg-card/75">
@@ -213,22 +213,25 @@ function TopBar() {
         <SearchBar className="hidden flex-1 md:flex" />
         <div className="ml-auto flex items-center gap-1 sm:gap-1.5 md:ml-0">
           <Health />
-          <nav className="hidden items-center xl:flex">
-            {items
-              .filter((i) => i.to !== '/')
-              .map((i) => (
-                <Tooltip key={i.to}>
-                  <TooltipTrigger asChild>
-                    <Button asChild variant="ghost" size="icon" aria-label={i.label}>
-                      <Link to={i.to}>
-                        <i.icon />
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>{i.label}</TooltipContent>
-                </Tooltip>
-              ))}
-          </nav>
+          {/* Quick links are for platform admins; everyone else uses the account menu. */}
+          {isAdmin && (
+            <nav className="hidden items-center xl:flex">
+              {items
+                .filter((i) => i.to !== '/')
+                .map((i) => (
+                  <Tooltip key={i.to}>
+                    <TooltipTrigger asChild>
+                      <Button asChild variant="ghost" size="icon" aria-label={i.label}>
+                        <Link to={i.to}>
+                          <i.icon />
+                        </Link>
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>{i.label}</TooltipContent>
+                  </Tooltip>
+                ))}
+            </nav>
+          )}
           <div className="hidden sm:block">
             <ThemeToggle />
           </div>
