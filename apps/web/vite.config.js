@@ -11,6 +11,8 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
   server: {
+    // Node may resolve "localhost" to IPv6 only, which leaves http://127.0.0.1:5173 unreachable.
+    host: '127.0.0.1',
     port: 5173,
     proxy: {
       '/api': { target, changeOrigin: true },
