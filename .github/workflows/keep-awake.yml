@@ -1,6 +1,8 @@
 # Render's free plan sleeps the backend after 15 minutes without traffic. This pings it every
 # 10 minutes between 09:30 and 18:30 IST only: the worker keeps the Neon database busy while the
 # backend is awake, and running all day would use about 186 of Neon's 100 free compute-hours a month.
+# GitHub often delays or skips scheduled runs, so this is only a backup: the main pinger is a
+# cron-job.org job (docs/DEPLOY_FREE.md, "Keep the backend awake").
 name: Keep demo awake
 
 on:

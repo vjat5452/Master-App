@@ -180,7 +180,8 @@ Details for each page and component: [web.md](web.md).
 |---|---|
 | **Docker Compose** | `npm run infra:up` starts PostgreSQL+PostGIS, Redis and RabbitMQ locally (`docker-compose.yml`). RabbitMQ's dashboard is at http://localhost:15672. |
 | **Dockerfiles** | `apps/api`, `apps/worker` and `apps/web` each have one; `deploy/render/Dockerfile` runs the API and worker in one container for Render's free plan. |
-| **GitHub Actions** | `ci.yml`: unit tests, database tests against a PostGIS service (migrations applied, rolled back, re-applied), web build, `npm audit`, image builds. `keep-awake.yml`: pings the Render backend during the day so it does not sleep. |
+| **GitHub Actions** | `ci.yml`: unit tests, database tests against a PostGIS service (migrations applied, rolled back, re-applied), web build, `npm audit`, image builds. `keep-awake.yml`: pings the Render backend during the day so it does not sleep (a backup; GitHub often skips scheduled runs). |
+| **cron-job.org** | Free external scheduler that pings the Render backend every 10 minutes from 09:00 to 19:00 IST. Set up by hand; see [DEPLOY_FREE.md](../DEPLOY_FREE.md#keep-the-backend-awake-cron-joborg). |
 | **Vercel** | Hosts the website; `apps/web/vercel.json` forwards `/api/*` to Render. |
 | **Render** | Runs the API and worker container (`render.yaml`), plus a free Redis-compatible Key Value store. |
 | **Neon** | Hosted PostgreSQL with PostGIS. |

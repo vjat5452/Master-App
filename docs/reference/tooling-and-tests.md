@@ -116,6 +116,9 @@ Note: with eight migrations, the `db-test` step's rollback of 6 steps reverts `0
   It can also be started by hand (`workflow_dispatch`).
 - **Why not all day.** The file's comment explains that the worker keeps the Neon database busy while the backend is awake,
   and staying awake all day would use about 186 of Neon's 100 free compute-hours a month.
+- **Unreliable, so only a backup.** GitHub delays and drops scheduled runs on free repositories (on 3 and 4 Nov 2026 it ran
+  twice a day instead of about 54 times). The main pinger is a cron-job.org job with the same URL and window; setup is in
+  [DEPLOY_FREE.md](../DEPLOY_FREE.md#keep-the-backend-awake-cron-joborg).
 
 ---
 
