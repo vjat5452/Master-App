@@ -19,11 +19,9 @@ platform's own search page in the shopper's browser.
 - **Render sleeps the backend after 15 minutes without traffic.** The next visit then takes about a
   minute while it starts. The worker sleeps with it: reservations expire and outbox events are
   published only while the backend is awake. That is fine for a demo but not for real orders.
-  The `Keep demo awake` GitHub Actions workflow pings `/health/live` every 10 minutes from 09:30
-  to 18:30 IST. It stays off the rest of the day because the worker queries the database every
-  second while awake, and running all day would use about 186 of Neon's 100 free compute-hours
-  a month. Change the cron line in `.github/workflows/keep-awake.yml` to move the window, or
-  disable the workflow in the Actions tab.
+  An external pinger keeps it awake during the day: see [Keep the backend awake](#keep-the-backend-awake-cron-joborg).
+  It stays off the rest of the day because the worker queries the database every second while
+  awake, and running all day would use about 186 of Neon's 100 free compute-hours a month.
 - The Render free plan has no background workers and no pre-deploy commands, so
   `deploy/all-in-one.mjs` runs migrations, the API and the worker in one process
   (`deploy/render/Dockerfile`). Elsewhere, run them as separate services.
@@ -95,6 +93,32 @@ The website calls `/api/...` and `/health/...` on its own domain, and Vercel for
 - Search for a product, add it to the cart, check out and use the sandbox **Pay** button.
 - In Admin, check the platform list. Every external source reads **Disabled**, which is expected:
   none has a verified, permitted data source configured.
+
+## Keep the backend awake (cron-job.org)
+
+The live website is **https://master-app-jm7g.vercel.app** (Vercel project `master-app-jm7g`). While the
+backend sleeps, the header shows **Offline** for about a minute until Render has started it again.
+
+The repository's `Keep demo awake` GitHub Actions workflow was meant to prevent that, but GitHub delays
+and drops scheduled runs on free repositories: on 3 and 4 Nov 2026 it ran only twice a day instead of
+about 54 times. Use [cron-job.org](https://cron-job.org) (free) instead:
+
+1. Sign up at <https://cron-job.org> and confirm the email address.
+2. **Create cronjob** with:
+   - **Title:** `LocalStock keep awake`
+   - **URL:** `https://localstock-api.onrender.com/health/live`
+   - **Schedule:** custom; minutes every 10 (0, 10, 20, 30, 40, 50), hours 9 to 18, every day.
+   - **Time zone:** `Asia/Kolkata`
+   - Optional: email notification after several failures in a row.
+3. Save, then **Test run**. A healthy backend answers `200` with `{"status":"ok"}`.
+
+The backend is then awake from about 09:00 to 19:00 IST, which keeps Neon's compute-hours within the free
+plan. Outside that window the first visitor waits about a minute. A ping that reaches a sleeping backend may
+time out while it starts; that is expected, and the next ping succeeds. To change the hours, edit the
+cronjob's schedule; keep the window short enough for Neon's free plan.
+
+The GitHub workflow (`.github/workflows/keep-awake.yml`) is kept as a backup. It does no harm, and can be
+switched off under **GitHub → Actions → Keep demo awake → ⋯ → Disable workflow**.
 
 ## Rate limits behind the proxies
 
